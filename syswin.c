@@ -320,7 +320,7 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE previous, LPSTR cmdstr, int cmd
 	if (error)
 		return 1;
 
-	sys_hook_init();
+	sys_hook_init(0, 0);
 
 	while (1)
 	{

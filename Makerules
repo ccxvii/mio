@@ -1,0 +1,31 @@
+# System specific configuration
+
+OS := $(shell uname)
+OS := $(OS:MINGW%=MINGW)
+
+ifeq "$(build)" "debug"
+CFLAGS += -g
+else ifeq "$(build)" "release"
+CFLAGS += -O2 -DNDEBUG -fomit-frame-pointer
+else
+$(error unknown build setting: '$(build)')
+endif
+
+ifeq "$(OS)" "Linux"
+LIBS += -lGL -lX11
+SYS_OBJ := sysx11.o
+endif
+
+ifeq "$(OS)" "Darwin"
+LIBS += -framework OpenGL -framework Cocoa
+SYS_OBJ := sysmac.o
+endif
+
+ifeq "$(OS)" "MINGW"
+SYS_OBJ := syswin.o
+ifeq "$(build)" "debug"
+LIBS += -lopengl32 -lgdi32
+else
+LIBS += -lopengl32 -mwindows
+endif
+endif

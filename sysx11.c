@@ -183,7 +183,7 @@ int main(int argc, char **argv)
 
 	glXMakeCurrent(dpy, win, context);
 
-	sys_hook_init();
+	sys_hook_init(argc, argv);
 
 	while (1)
 	{
