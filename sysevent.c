@@ -35,7 +35,7 @@ void sys_send_event(struct event *evt)
 	}
 }
 
-struct event * sys_read_event(void)
+struct event *sys_read_event(void)
 {
 	struct event *evt;
 	if (g_event_count == 0)
@@ -45,4 +45,28 @@ struct event * sys_read_event(void)
 	g_event_front %= MAXQUEUE;
 	g_event_count--;
 	return evt;
+}
+
+void sys_send_mouse(int type, int x, int y, int btn, int mod)
+{
+	struct event evt;
+	evt.type = type;
+	evt.x = x;
+	evt.y = y;
+	evt.btn = btn;
+	evt.key = 0;
+	evt.mod = mod;
+	sys_send_event(&evt);
+}
+
+void sys_send_key(int type, int key, int mod)
+{
+	struct event evt;
+	evt.type = type;
+	evt.x = 0;
+	evt.y = 0;
+	evt.btn = 0;
+	evt.key = key;
+	evt.mod = mod;
+	sys_send_event(&evt);
 }

@@ -5,19 +5,26 @@
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 
+#ifndef WM_MOUSEWHEEL
+#define WM_MOUSEWHEEL 0x020A
+#endif
+
 #include <GL/gl.h>
 
 #include "syshook.h"
 
-static HWND		g_hwnd = NULL;
-static HDC		g_hdc = NULL;
+static HWND	g_hwnd = NULL;
+static HDC	g_hdc = NULL;
 static HGLRC	g_hrc = NULL;
-static int		g_capture = 0;
 
-static int g_width = 640;
-static int g_height = 480;
-static int g_fullscreen = 0;
-static WINDOWPLACEMENT g_savedplace;
+static int capture = 0;
+static int width = 640;
+static int height = 480;
+static int fullscreen = 0;
+static int active = 0;
+static int idle_loop = 0;
+static int dirty = 0;
+static WINDOWPLACEMENT savedplace;
 
 static void sys_win_error(char *msg)
 {
@@ -27,30 +34,40 @@ static void sys_win_error(char *msg)
 
 int sys_is_fullscreen(void)
 {
-	return g_fullscreen;
+	return fullscreen;
 }
 
 void sys_enter_fullscreen(void)
 {
-	if (g_fullscreen)
+	if (fullscreen)
 		return;
-	GetWindowPlacement(g_hwnd, &g_savedplace);
+	GetWindowPlacement(g_hwnd, &savedplace);
 	SetWindowLong(g_hwnd, GWL_STYLE, WS_POPUP | WS_VISIBLE);
 	SetWindowPos(g_hwnd, NULL, 0,0,0,0,
 			SWP_NOSIZE | SWP_NOMOVE | SWP_NOZORDER | SWP_FRAMECHANGED);
 	ShowWindow(g_hwnd, SW_SHOWMAXIMIZED);
-	g_fullscreen = 1;
+	fullscreen = 1;
 }
 
 void sys_leave_fullscreen(void)
 {
-	if (!g_fullscreen)
+	if (!fullscreen)
 		return;
 	SetWindowLong(g_hwnd, GWL_STYLE, WS_OVERLAPPEDWINDOW);
 	SetWindowPos(g_hwnd, NULL, 0,0,0,0,
 			SWP_NOSIZE | SWP_NOMOVE | SWP_NOZORDER | SWP_FRAMECHANGED);
-	SetWindowPlacement(g_hwnd, &g_savedplace);
-	g_fullscreen = 0;
+	SetWindowPlacement(g_hwnd, &savedplace);
+	fullscreen = 0;
+}
+
+void sys_start_idle_loop(void)
+{
+	idle_loop = 1;
+}
+
+void sys_stop_idle_loop(void)
+{
+	idle_loop = 0;
 }
 
 static int sys_win_enable_opengl(void)
@@ -59,8 +76,7 @@ static int sys_win_enable_opengl(void)
 	int fmt;
 
 	g_hdc = GetDC(g_hwnd);
-	if (!g_hdc)
-	{
+	if (!g_hdc) {
 		sys_win_error("Cannot get device context.");
 		return 1;
 	}
@@ -75,29 +91,25 @@ static int sys_win_enable_opengl(void)
 	pfd.iLayerType = PFD_MAIN_PLANE;
 
 	fmt = ChoosePixelFormat(g_hdc, &pfd);
-	if (fmt == 0)
-	{
+	if (fmt == 0) {
 		sys_win_error("Cannot choose pixel format.");
 		return 1;
 	}
 
-	if (!SetPixelFormat(g_hdc, fmt, &pfd))
-	{
+	if (!SetPixelFormat(g_hdc, fmt, &pfd)) {
 		sys_win_error("Cannot set pixel format.");
 		return 1;
 	}
 
 	g_hrc = wglCreateContext(g_hdc);
-	if (!g_hrc)
-	{
+	if (!g_hrc) {
 		sys_win_error("Cannot create OpenGL context.");
 		ReleaseDC(g_hwnd, g_hdc);
 		g_hdc = NULL;
 		return 1;
 	}
 
-	if (!wglMakeCurrent(g_hdc, g_hrc))
-	{
+	if (!wglMakeCurrent(g_hdc, g_hrc)) {
 		sys_win_error("Cannot make current OpenGL context.");
 		wglDeleteContext(g_hrc);
 		ReleaseDC(g_hwnd, g_hdc);
@@ -121,34 +133,9 @@ static void sys_win_disable_opengl(void)
 	g_hdc = NULL;
 }
 
-static void sys_send_mouse(int type, int x, int y, int btn, int mod)
-{
-	struct event evt;
-	evt.type = type;
-	evt.x = x;
-	evt.y = y;
-	evt.btn = btn;
-	evt.key = 0;
-	evt.mod = mod;
-	sys_send_event(&evt);
-}
-
-static void sys_send_key(int type, int key, int mod)
-{
-	struct event evt;
-	evt.type = type;
-	evt.x = 0;
-	evt.y = 0;
-	evt.btn = 0;
-	evt.key = key;
-	evt.mod = mod;
-	sys_send_event(&evt);
-}
-
 static int convert_keycode(int code)
 {
-	switch (code)
-	{
+	switch (code) {
 		case VK_SHIFT: return SYS_KEY_SHIFT;
 		case VK_CONTROL: return SYS_KEY_CTL;
 		case VK_MENU: return SYS_KEY_ALT;
@@ -185,16 +172,17 @@ static LRESULT CALLBACK sys_win_proc(HWND hwnd, UINT message, WPARAM wparam, LPA
 	if (GetKeyState(VK_MENU) < 0)
 		mod |= SYS_MOD_ALT;
 
-	switch (message)
-	{
+	dirty = 1;
+
+	switch (message) {
 		case WM_DESTROY:
 			PostQuitMessage(0);
 			return 0;
 		case WM_SIZE:
 			if (wparam == SIZE_MINIMIZED)
 				return 0;
-			g_width = LOWORD(lparam);
-			g_height = HIWORD(lparam);
+			width = LOWORD(lparam);
+			height = HIWORD(lparam);
 			break;
 		case WM_GETMINMAXINFO:
 			minmax->ptMinTrackSize.x = 400;
@@ -203,45 +191,47 @@ static LRESULT CALLBACK sys_win_proc(HWND hwnd, UINT message, WPARAM wparam, LPA
 		case WM_ERASEBKGND:
 			return 1; /* we don't need to rease to redraw cleanly */
 
-		case WM_PAINT:
-			sys_hook_loop(g_width, g_height);
-			SwapBuffers(g_hdc);
+		case WM_ACTIVATE:
+			if (!HIWORD(wparam))
+				active = 1;
+			else
+				active = 0;
 			return 0;
 
 		case WM_LBUTTONDOWN:
-			if (!g_capture)
+			if (!capture)
 				SetCapture(g_hwnd);
-			g_capture ++;
+			capture ++;
 			sys_send_mouse(SYS_EVENT_MOUSE_DOWN, x, y, 1, mod);
 			return 0;
 		case WM_RBUTTONDOWN:
-			if (!g_capture)
+			if (!capture)
 				SetCapture(g_hwnd);
-			g_capture ++;
+			capture ++;
 			sys_send_mouse(SYS_EVENT_MOUSE_DOWN, x, y, 2, mod);
 			return 0;
 		case WM_MBUTTONDOWN:
-			if (!g_capture)
+			if (!capture)
 				SetCapture(g_hwnd);
-			g_capture ++;
+			capture ++;
 			sys_send_mouse(SYS_EVENT_MOUSE_DOWN, x, y, 3, mod);
 			return 0;
 
 		case WM_LBUTTONUP:
-			g_capture --;
-			if (!g_capture)
+			capture --;
+			if (!capture)
 				ReleaseCapture();
 			sys_send_mouse(SYS_EVENT_MOUSE_UP, x, y, 1, mod);
 			return 0;
 		case WM_RBUTTONUP:
-			g_capture --;
-			if (!g_capture)
+			capture --;
+			if (!capture)
 				ReleaseCapture();
 			sys_send_mouse(SYS_EVENT_MOUSE_UP, x, y, 2, mod);
 			return 0;
 		case WM_MBUTTONUP:
-			g_capture --;
-			if (!g_capture)
+			capture --;
+			if (!capture)
 				ReleaseCapture();
 			sys_send_mouse(SYS_EVENT_MOUSE_UP, x, y, 3, mod);
 			return 0;
@@ -256,8 +246,7 @@ static LRESULT CALLBACK sys_win_proc(HWND hwnd, UINT message, WPARAM wparam, LPA
 
 		case WM_SYSKEYDOWN:
 		case WM_KEYDOWN:
-			if (!(lparam & (1<<30))) /* previous key state */
-			{
+			if (!(lparam & (1<<30))) /* previous key state */ {
 				key = convert_keycode(wparam);
 				if (mod & SYS_MOD_ALT)
 					sys_send_key(SYS_EVENT_KEY_CHAR, key, mod);
@@ -286,7 +275,7 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE previous, LPSTR cmdstr, int cmd
 #endif
 	WNDCLASS wc;
 	MSG msg;
-	int error;
+	int error, okay;
 
 	wc.style = CS_OWNDC | CS_HREDRAW | CS_VREDRAW;
 	wc.lpfnWndProc = sys_win_proc;
@@ -298,18 +287,16 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE previous, LPSTR cmdstr, int cmd
 	wc.hbrBackground = (HBRUSH) GetStockObject(LTGRAY_BRUSH);
 	wc.lpszMenuName = NULL;
 	wc.lpszClassName = "GLWindow";
-	if (!RegisterClass(&wc))
-	{
+	if (!RegisterClass(&wc)) {
 		sys_win_error("Cannot register window class.");
 		return 1;
 	}
 
 	g_hwnd = CreateWindow("GLWindow", "Untitled",
 			WS_OVERLAPPEDWINDOW,
-			0, 0, g_width, g_height,
+			0, 0, width, height,
 			0, 0, instance, 0);
-	if (g_hwnd == NULL)
-	{
+	if (g_hwnd == NULL) {
 		sys_win_error("Cannot create main window.");
 		return 1;
 	}
@@ -322,19 +309,25 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE previous, LPSTR cmdstr, int cmd
 
 	sys_hook_init(0, 0);
 
-	while (1)
-	{
-		if (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE))
-		{
+	while (1) {
+		while (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE)) {
 			if (msg.message == WM_QUIT)
 				break;
 			TranslateMessage(&msg);
 			DispatchMessage(&msg);
 		}
-		else
-		{
-			InvalidateRect(g_hwnd, NULL, 0);
+		if (!idle_loop && !dirty) {
+			if (GetMessage(&msg, NULL, 0, 0)) {
+				if (msg.message == WM_QUIT)
+					break;
+				TranslateMessage(&msg);
+				DispatchMessage(&msg);
+			}
 		}
+
+		sys_hook_loop(width, height);
+		SwapBuffers(g_hdc);
+		dirty = 0;
 	}
 
 	sys_win_disable_opengl();

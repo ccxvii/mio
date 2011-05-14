@@ -176,13 +176,16 @@ void sys_hook_loop(int width, int height)
 	struct event *evt;
 	static int mousex = 0, mousey = 0, mousez = 0;
 
-	evt = sys_read_event();
-	if (evt)
+	while ((evt = sys_read_event()))
 	{
 		printf("EVENT %d x=%d y=%d b=%d key=U+%04X mod=0x%02x\n",
 				evt->type, evt->x, evt->y, evt->btn, evt->key, evt->mod);
 		if (evt->type == SYS_EVENT_KEY_CHAR)
 		{
+			if (evt->key == ' ')
+				sys_stop_idle_loop();
+			if (evt->key == 'r')
+				sys_start_idle_loop();
 			if (evt->key == '\r' && (evt->mod & SYS_MOD_ALT)) {
 				if (sys_is_fullscreen())
 					sys_leave_fullscreen();

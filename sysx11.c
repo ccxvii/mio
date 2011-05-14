@@ -13,11 +13,16 @@
 
 #include "syshook.h"
 
+static int win_wide = 512;
+static int win_high = 360;
+static int idle_loop = 0;
+static int dirty = 0;
+
 static int glxatts[] =
 {
 	GLX_RGBA,
 	GLX_DOUBLEBUFFER, True, /* Request a double-buffered color buffer with */
-	GLX_RED_SIZE, 8, /* the maximum number of bits per component	 */
+	GLX_RED_SIZE, 8, /* the maximum number of bits per component */
 	GLX_GREEN_SIZE, 8,
 	GLX_BLUE_SIZE, 8,
 	GLX_DEPTH_SIZE, 16,
@@ -37,6 +42,16 @@ void sys_leave_fullscreen(void)
 {
 }
 
+void sys_start_idle_loop(void)
+{
+	idle_loop = 1;
+}
+
+void sys_stop_idle_loop(void)
+{
+	idle_loop = 0;
+}
+
 static int convert_modifiers(int state)
 {
 	int mod = 0;
@@ -51,8 +66,7 @@ static int convert_modifiers(int state)
 
 static int convert_keysym(KeySym keysym)
 {
-	switch (keysym)
-	{
+	switch (keysym) {
 		case XK_Shift_L: return SYS_KEY_SHIFT;
 		case XK_Shift_R: return SYS_KEY_SHIFT;
 		case XK_Control_L: return SYS_KEY_CTL;
@@ -88,33 +102,77 @@ static int convert_keysym(KeySym keysym)
 	return keysym;
 }
 
-static void sys_send_mouse(int type, int x, int y, int btn, int mod)
+static int convert_button(int btn)
 {
-	struct event evt;
-	evt.type = type;
-	evt.x = x;
-	evt.y = y;
-	evt.btn = btn;
-	evt.key = 0;
-	evt.mod = mod;
-	sys_send_event(&evt);
-}
-
-static void sys_send_key(int type, int key, int mod)
-{
-	struct event evt;
-	evt.type = type;
-	evt.x = 0;
-	evt.y = 0;
-	evt.btn = 0;
-	evt.key = key;
-	evt.mod = mod;
-	sys_send_event(&evt);
+	if (btn == 2) return 3;
+	if (btn == 3) return 2;
+	return btn;
 }
 
 static int WaitForNotify(Display *dpy, XEvent *event, XPointer arg)
 {
 	return (event->type == MapNotify) && (event->xmap.window == (Window) arg);
+}
+
+static void process_event(XEvent *event)
+{
+	int x, y, btn, mod;
+	KeySym keysym;
+	char buf[32];
+	int i, len;
+
+	switch (event->type) {
+	case Expose:
+		break;
+
+	case ConfigureNotify:
+		win_wide = event->xconfigure.width;
+		win_high = event->xconfigure.height;
+		dirty = 1;
+		break;
+
+	case KeyPress:
+		mod = convert_modifiers(event->xkey.state);
+		len = XLookupString(&event->xkey, buf, sizeof buf, &keysym, 0);
+		sys_send_key(SYS_EVENT_KEY_DOWN, convert_keysym(keysym), mod);
+		for (i = 0; i < len; i++)
+			sys_send_key(SYS_EVENT_KEY_CHAR, buf[i], mod);
+		dirty = 1;
+		break;
+
+	case KeyRelease:
+		mod = convert_modifiers(event->xkey.state);
+		keysym = XLookupKeysym(&event->xkey, 0);
+		sys_send_key(SYS_EVENT_KEY_UP, convert_keysym(keysym), mod);
+		dirty = 1;
+		break;
+
+	case MotionNotify:
+		mod = convert_modifiers(event->xbutton.state);
+		x = event->xmotion.x;
+		y = event->xmotion.y;
+		sys_send_mouse(SYS_EVENT_MOUSE_MOVE, x, y, 0, mod);
+		dirty = 1;
+		break;
+
+	case ButtonPress:
+		mod = convert_modifiers(event->xbutton.state);
+		btn = convert_button(event->xbutton.button);
+		x = event->xbutton.x;
+		y = event->xbutton.y;
+		sys_send_mouse(SYS_EVENT_MOUSE_DOWN, x, y, btn, mod);
+		dirty = 1;
+		break;
+
+	case ButtonRelease:
+		mod = convert_modifiers(event->xbutton.state);
+		btn = convert_button(event->xbutton.button);
+		x = event->xbutton.x;
+		y = event->xbutton.y;
+		sys_send_mouse(SYS_EVENT_MOUSE_UP, x, y, btn, mod);
+		dirty = 1;
+		break;
+	}
 }
 
 int main(int argc, char **argv)
@@ -130,17 +188,8 @@ int main(int argc, char **argv)
 	GLXContext context;
 	int mask;
 
-	KeySym keysym;
-	char buf[32];
-	int i, len;
-	int x, y, btn, mod;
-
-	int win_wide = 512;
-	int win_high = 360;
-
 	dpy = XOpenDisplay(NULL);
-	if (dpy == NULL)
-	{
+	if (dpy == NULL) {
 		fprintf(stderr, "glx: cannot connect to X server.\n");
 		exit(1);
 	}
@@ -149,8 +198,7 @@ int main(int argc, char **argv)
 	root = RootWindow(dpy, screen);
 
 	visual = glXChooseVisual(dpy, screen, glxatts);
-	if (!visual)
-	{
+	if (!visual) {
 		fprintf(stderr, "glx: cannot find a matching visual.\n");
 		exit(1);
 	}
@@ -158,7 +206,8 @@ int main(int argc, char **argv)
 	atts.background_pixel = 0;
 	atts.border_pixel = 0;
 	atts.colormap = XCreateColormap(dpy, root, visual->visual, AllocNone);
-	atts.event_mask = StructureNotifyMask | ExposureMask | KeyPressMask | KeyReleaseMask |
+	atts.event_mask = StructureNotifyMask | ExposureMask |
+		KeyPressMask | KeyReleaseMask |
 		PointerMotionMask | ButtonPressMask | ButtonReleaseMask;
 	mask = CWBackPixel | CWBorderPixel | CWColormap | CWEventMask;
 
@@ -172,8 +221,7 @@ int main(int argc, char **argv)
 	XSetStandardProperties(dpy, win, "Untitled", "Untitled", None, NULL, 0, &sizehints);
 
 	context = glXCreateContext(dpy, visual, NULL, True);
-	if (!context)
-	{
+	if (!context) {
 		fprintf(stderr, "glx: cannot create context.\n");
 		exit(1);
 	}
@@ -185,79 +233,21 @@ int main(int argc, char **argv)
 
 	sys_hook_init(argc, argv);
 
-	while (1)
-	{
-		if (!XPending(dpy))
-		{
-			int fd = ConnectionNumber(dpy);
-			fd_set fds;
-			struct timeval tv;
-			tv.tv_sec = 0;
-			tv.tv_usec = 1000;
-			FD_ZERO(&fds);
-			FD_SET(fd, &fds);
-			select(fd + 1, &fds, 0, 0, &tv);
-		}
-
-		while (XPending(dpy))
-		{
+	while (1) {
+		while (XPending(dpy)) {
 			XNextEvent(dpy, &event);
-			switch (event.type)
-			{
-				case Expose:
-					break;
-
-				case ConfigureNotify:
-					win_wide = event.xconfigure.width;
-					win_high = event.xconfigure.height;
-					break;
-
-				case KeyPress:
-					mod = convert_modifiers(event.xkey.state);
-					len = XLookupString(&event.xkey, buf, sizeof buf, &keysym, 0);
-					sys_send_key(SYS_EVENT_KEY_DOWN, convert_keysym(keysym), mod);
-					for (i = 0; i < len; i++)
-						sys_send_key(SYS_EVENT_KEY_CHAR, buf[i], mod);
-					break;
-
-				case KeyRelease:
-					mod = convert_modifiers(event.xkey.state);
-					keysym = XLookupKeysym(&event.xkey, 0);
-					sys_send_key(SYS_EVENT_KEY_UP, convert_keysym(keysym), mod);
-					break;
-
-				case MotionNotify:
-					mod = convert_modifiers(event.xbutton.state);
-					x = event.xmotion.x;
-					y = event.xmotion.y;
-					sys_send_mouse(SYS_EVENT_MOUSE_MOVE, x, y, 0, mod);
-					break;
-
-				case ButtonPress:
-					mod = convert_modifiers(event.xbutton.state);
-					btn = event.xbutton.button;
-					x = event.xbutton.x;
-					y = event.xbutton.y;
-					sys_send_mouse(SYS_EVENT_MOUSE_DOWN, x, y, btn, mod);
-					break;
-
-				case ButtonRelease:
-					mod = convert_modifiers(event.xbutton.state);
-					btn = event.xbutton.button;
-					x = event.xbutton.x;
-					y = event.xbutton.y;
-					sys_send_mouse(SYS_EVENT_MOUSE_UP, x, y, btn, mod);
-					break;
-			}
+			process_event(&event);
+		}
+		if (!idle_loop && !dirty) {
+			XNextEvent(dpy, &event);
+			process_event(&event);
 		}
 
 		sys_hook_loop(win_wide, win_high);
-
 		glFlush();
 		glXSwapBuffers(dpy, win);
+		dirty = 0;
 	}
-
-	puts("bye...");
 
 	return 0;
 }

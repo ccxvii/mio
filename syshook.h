@@ -48,6 +48,8 @@ struct event
 void sys_hook_init(int argc, char **argv);
 void sys_hook_loop(int screen_width, int screen_height);
 
+void sys_send_mouse(int type, int x, int y, int btn, int mod);
+void sys_send_key(int type, int key, int mod);
 void sys_send_event(struct event *evt);
 struct event *sys_read_event(void);
 

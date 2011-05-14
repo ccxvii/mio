@@ -64,6 +64,28 @@ static SysView *view;
 		[self drawRect: [self bounds]];
 }
 
+void sys_start_idle_loop(void)
+{
+	if (!timer) {
+		timer = [NSTimer timerWithTimeInterval: 0.001
+			target: view
+			selector: @selector(timerFired:)
+			userInfo: nil
+			repeats: YES];
+		[[NSRunLoop currentRunLoop] addTimer: timer forMode: NSDefaultRunLoopMode];
+		[[NSRunLoop currentRunLoop] addTimer: timer forMode: NSEventTrackingRunLoopMode];
+	}
+}
+
+void sys_stop_idle_loop(void)
+{
+	if (timer) {
+		[timer invalidate];
+		[timer release];
+		timer = nil;
+	}
+}
+
 - (void) drawRect: (NSRect)rect
 {
 	GLenum error;
@@ -86,29 +108,90 @@ static SysView *view;
 	return YES;
 }
 
-- (void) mouseDown:(NSEvent *)anEvent
+int translate_modifiers(int nsmod)
 {
-	puts("mousedown!");
+	int mod = 0;
+	if (nsmod & NSShiftKeyMask) mod |= SYS_MOD_SHIFT;
+	if (nsmod & NSControlKeyMask) mod |= SYS_MOD_CTL;
+	if (nsmod & NSAlternateKeyMask) mod |= SYS_MOD_ALT;
+	return mod;
 }
 
-- (void) mouseUp:(NSEvent *)anEvent
+- (void) mouseDown:(NSEvent *)evt
 {
-	puts("mouseup!");
+	int mod = translate_modifiers([evt modifierFlags]);
+	int btn = [evt buttonNumber] + 1;
+	NSPoint p = [evt locationInWindow];
+	p = [self convertPoint: p fromView: nil];
+	p.y = [self frame].size.height - p.y;
+	sys_send_mouse(SYS_EVENT_MOUSE_DOWN, p.x, p.y, btn, mod);
+	[self setNeedsDisplay: YES];
 }
 
-- (void) mouseDragged:(NSEvent *)anEvent
+- (void) mouseUp:(NSEvent *)evt
 {
-	puts("mousemoved!");
+	int mod = translate_modifiers([evt modifierFlags]);
+	int btn = [evt buttonNumber] + 1;
+	NSPoint p = [evt locationInWindow];
+	p = [self convertPoint: p fromView: nil];
+	p.y = [self frame].size.height - p.y;
+	sys_send_mouse(SYS_EVENT_MOUSE_MOVE, p.x, p.y, btn, mod);
+	[self setNeedsDisplay: YES];
 }
 
-- (void) keyDown:(NSEvent *)anEvent
+- (void) mouseDragged:(NSEvent *)evt
 {
-	puts("keydown!");
+	int mod = translate_modifiers([evt modifierFlags]);
+	int btn = [evt buttonNumber] + 1;
+	NSPoint p = [evt locationInWindow];
+	p = [self convertPoint: p fromView: nil];
+	p.y = [self frame].size.height - p.y;
+	sys_send_mouse(SYS_EVENT_MOUSE_UP, p.x, p.y, btn, mod);
+	[self setNeedsDisplay: YES];
 }
 
-- (void) keyUp:(NSEvent *)anEvent
+- (void) rightMouseDown:(NSEvent *)evt { [self mouseDown:evt]; }
+- (void) rightMouseUp:(NSEvent *)evt { [self mouseUp:evt]; }
+- (void) rightMouseDragged:(NSEvent *)evt { [self mouseDragged:evt]; }
+- (void) otherMouseDown:(NSEvent *)evt { [self mouseDown:evt]; }
+- (void) otherMouseUp:(NSEvent *)evt { [self mouseUp:evt]; }
+- (void) otherMouseDragged:(NSEvent *)evt { [self mouseDragged:evt]; }
+
+- (void) keyDown:(NSEvent *)evt
 {
-	puts("keyup!");
+	int mod = translate_modifiers([evt modifierFlags]);
+	NSString *str = [evt characters];
+	int i, len = [str length];
+	if (len && ![evt isARepeat])
+		sys_send_key(SYS_EVENT_KEY_DOWN, [str characterAtIndex: 0], mod);
+	for (i = 0; i < len; i++)
+		sys_send_key(SYS_EVENT_KEY_CHAR, [str characterAtIndex: i], mod);
+	[self setNeedsDisplay: YES];
+}
+
+- (void) keyUp:(NSEvent *)evt
+{
+	int mod = translate_modifiers([evt modifierFlags]);
+	NSString *str = [evt characters];
+	int len = [str length];
+	if (len)
+		sys_send_key(SYS_EVENT_KEY_UP, [str characterAtIndex: 0], mod);
+	[self setNeedsDisplay: YES];
+}
+
+- (void) flagsChanged:(NSEvent *)evt
+{
+	static int oldmod = 0;
+	int newmod = translate_modifiers([evt modifierFlags]);
+	int change = oldmod ^ newmod;
+	if (change & SYS_MOD_SHIFT)
+		sys_send_key(newmod & SYS_MOD_SHIFT ? SYS_EVENT_KEY_DOWN : SYS_EVENT_KEY_UP, SYS_KEY_SHIFT, newmod);
+	if (change & SYS_MOD_CTL)
+		sys_send_key(newmod & SYS_MOD_CTL ? SYS_EVENT_KEY_DOWN : SYS_EVENT_KEY_UP, SYS_KEY_CTL, newmod);
+	if (change & SYS_MOD_ALT)
+		sys_send_key(newmod & SYS_MOD_ALT ? SYS_EVENT_KEY_DOWN : SYS_EVENT_KEY_UP, SYS_KEY_ALT, newmod);
+	oldmod = newmod;
+	[self setNeedsDisplay: YES];
 }
 
 @end
@@ -244,20 +327,7 @@ static SysView *view;
 	[window setContentView: view];
 	[view release];
 
-	// TODO: seticon
-
-	// [[NSApp dockTile] setShowsApplicationBadge: YES];
-	// [[NSApp dockTile] display];
-
 	[window makeKeyAndOrderFront: NULL];
-
-	timer = [NSTimer timerWithTimeInterval: 0.001
-		target: view
-		selector: @selector(timerFired:)
-		userInfo: nil
-		repeats: YES];
-	[[NSRunLoop currentRunLoop] addTimer: timer forMode: NSDefaultRunLoopMode];
-	[[NSRunLoop currentRunLoop] addTimer: timer forMode: NSEventTrackingRunLoopMode];
 }
 
 - (void) fullscreen:(NSNotification *)notification
@@ -293,14 +363,6 @@ void sys_leave_fullscreen(void)
 {
 	if (isfullscreen)
 		[delegate fullscreen:NULL];
-}
-
-void sys_start_idle_loop(void)
-{
-}
-
-void sys_stop_idle_loop(void)
-{
 }
 
 int main(int argc, char **argv)
