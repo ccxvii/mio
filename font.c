@@ -22,12 +22,7 @@
 #define STB_TRUETYPE_IMPLEMENTATION
 #define STBTT_malloc(x,u) malloc(x)
 #define STBTT_free(x,u) free(x)
-
-#define stbtt_GetGlyphKernAdvance stbtt_GetGlyphKernAdvanceXXX
-#define stbtt_GetCodepointKernAdvance stbtt_GetCodepointKernAdvanceXXX
-
 #include "stb_truetype.h"
-#include "stb_truetype_ext.h"
 
 struct font {
 	int refs;
@@ -207,7 +202,7 @@ static struct glyph *lookup_glyph(struct font *font, float scale, int gid, int s
 	shift_y = (float)suby / YPRECISION;
 
 	stbtt_GetGlyphHMetrics(&font->info, gid, &advance, &lsb);
-	data = stbtt_GetGlyphBitmapExt(&font->info, scale, scale, shift_x, shift_y, gid, &w, &h, &x, &y);
+	data = stbtt_GetGlyphBitmap(&font->info, scale, scale, shift_x, shift_y, gid, &w, &h, &x, &y);
 
 	/* Find an empty slot in the texture */
 
