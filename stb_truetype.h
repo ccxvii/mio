@@ -349,6 +349,7 @@ typedef struct
    int numGlyphs;                // number of glyphs, needed for range checking
 
    int loca,head,glyf,hhea,hmtx; // table locations as offset from start of .ttf
+   int kern;			 // XXX(tor)
    int index_map;                // a cmap mapping for our chosen character encoding
    int indexToLocFormat;         // format needed to map from glyph index to glyph
 } stbtt_fontinfo;
@@ -685,6 +686,7 @@ int stbtt_InitFont(stbtt_fontinfo *info, const unsigned char *data2, int fontsta
    info->glyf = stbtt__find_table(data, fontstart, "glyf");
    info->hhea = stbtt__find_table(data, fontstart, "hhea");
    info->hmtx = stbtt__find_table(data, fontstart, "hmtx");
+   info->kern = stbtt__find_table(data, fontstart, "kern");
    if (!cmap || !info->loca || !info->head || !info->glyf || !info->hhea || !info->hmtx)
       return 0;
 

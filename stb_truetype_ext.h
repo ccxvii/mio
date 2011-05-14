@@ -117,3 +117,49 @@ unsigned char *stbtt_GetGlyphBitmapExt(const stbtt_fontinfo *info,
 	STBTT_free(vertices, info->userdata);
 	return gbm.pixels;
 }
+
+// Implement 'kern' table for kerning.
+// note: add kern field to stbtt_fontinfo struct
+// note: initialize above said field in stbtt_InitFont
+// we only look at the first table. it must be 'horizontal' and format 0.
+
+#undef stbtt_GetGlyphKernAdvance
+#undef stbtt_GetCodepointKernAdvance
+
+int stbtt_GetGlyphKernAdvance(const stbtt_fontinfo *info, int glyph1, int glyph2)
+{
+	stbtt_uint8 *data = info->data + info->kern;
+	stbtt_uint32 needle, straw;
+	int l, r, m;
+
+	if (!info->kern)
+		return 0;
+	if (ttUSHORT(data+2) < 1) // number of tables
+		return 0;
+	if (ttUSHORT(data+8) != 1) // horizontal flag, format
+		return 0;
+
+	l = 0;
+	r = ttUSHORT(data+10) - 1;
+	needle = glyph1 << 16 | glyph2;
+	while (l <= r) {
+		m = (l + r) >> 1;
+		straw = ttULONG(data+18+(m*6)); // note: unaligned read
+		if (needle < straw)
+			r = m - 1;
+		else if (needle > straw)
+			l = m + 1;
+		else
+			return ttSHORT(data+22+(m*6));
+	}
+	return 0;
+}
+
+int stbtt_GetCodepointKernAdvance(const stbtt_fontinfo *info, int ch1, int ch2)
+{
+	if (!info->kern)
+		return 0;
+	return stbtt_GetGlyphKernAdvance(info,
+		stbtt_FindGlyphIndex(info, ch1),
+		stbtt_FindGlyphIndex(info, ch2));
+}

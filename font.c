@@ -23,6 +23,9 @@
 #define STBTT_malloc(x,u) malloc(x)
 #define STBTT_free(x,u) free(x)
 
+#define stbtt_GetGlyphKernAdvance stbtt_GetGlyphKernAdvanceXXX
+#define stbtt_GetCodepointKernAdvance stbtt_GetCodepointKernAdvanceXXX
+
 #include "stb_truetype.h"
 #include "stb_truetype_ext.h"
 
@@ -305,7 +308,7 @@ float measure_string(struct font *font, float size, char *str)
 		stbtt_GetGlyphHMetrics(&font->info, gid, &advance, NULL);
 		kern = stbtt_GetGlyphKernAdvance(&font->info, left, gid);
 		w += advance * scale;
-		w += kern * scale; // TOOD: em size
+		w += kern * scale;
 		left = gid;
 	}
 
