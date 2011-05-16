@@ -6,12 +6,16 @@
 #include "opengl.h"
 #include "utf.h"
 
+#undef nelem
+#define nelem(x) (sizeof(x)/sizeof(x)[0])
+
 #define strsep xstrsep
 #define strlcpy xstrlcpy
 #define strlcat xstrlcat
 
-#undef nelem
-#define nelem(x) (sizeof(x)/sizeof(x)[0])
+char *xstrsep(char **stringp, const char *delim);
+int xstrlcpy(char *dst, const char *src, int siz);
+int xstrlcat(char *dst, const char *src, int siz);
 
 struct font *load_font(char *filename);
 struct font *keep_font(struct font *font);
@@ -28,3 +32,8 @@ int md2_get_frame_count(struct md2_model *self);
 char *md2_get_frame_name(struct md2_model *self, int idx);
 void md2_draw_frame(struct md2_model *self, int skin, int frame);
 void md2_draw_frame_lerp(struct md2_model *self, int skin, int idx0, int idx1, float lerp);
+
+struct model *load_obj_model(char *filename);
+void draw_obj_model(struct model *model);
+void load_obj_animation(struct model *model, char *filename);
+void draw_obj_model_frame(struct model *model, int frame);

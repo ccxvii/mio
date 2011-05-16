@@ -3,10 +3,17 @@
 #include "syshook.h"
 #include "sysevent.h"
 
-static struct md2_model *model;
+static struct md2_model *model1;
+static struct model *model2;
+static struct model *model3;
 static struct font *font;
+static int grasstex[15];
+static int skytex;
 
-static int imagetex, imagew, imageh;
+float light0pos[] = { -5, -5, 10, 1 };
+float light0col[] = { 1, 1, 1, 1 };
+float light1pos[] = { 0, 0, 1, 1 };
+float light1col[] = { 1, 0.5, 0.5, 1 };
 
 void perspective(float fov, float aspect, float near, float far)
 {
@@ -17,172 +24,48 @@ void perspective(float fov, float aspect, float near, float far)
 
 void sys_hook_init(int argc, char **argv)
 {
-	float light0pos[] = { -50.0, 10.0, -80.0, 1.0 };
-	float light0col[] = { 1.0, 1.0, 1.0, 1.0 };
-	float light1pos[] = { 0.0, 30.0, -80.0, 1.0 };
-	float light1col[] = { 1.0, 0.5, 0.5, 1.0 };
+	char buf[100];
+	int i;
 
-	printf("preparing open gl\n");
+	printf("loading data files...\n");
 
 	glTexParameteri(GL_TEXTURE_2D, GL_GENERATE_MIPMAP, GL_TRUE);
 
 	glClearColor(0.1, 0.1, 0.1, 1.0);
-	glShadeModel(GL_SMOOTH);
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 	glCullFace(GL_BACK);
-	glFrontFace(GL_CW);
+	glFrontFace(GL_CCW);
 	glEnable(GL_CULL_FACE);
 
-	glEnable(GL_LIGHT0);
-	glLightfv(GL_LIGHT0, GL_POSITION, light0pos);
-	glLightfv(GL_LIGHT0, GL_DIFFUSE, light0col);
-	glLightf(GL_LIGHT0, GL_LINEAR_ATTENUATION, 0.02);
-
-	glEnable(GL_LIGHT1);
-	glLightfv(GL_LIGHT1, GL_POSITION, light1pos);
-	glLightfv(GL_LIGHT1, GL_DIFFUSE, light1col);
-	glLightf(GL_LIGHT1, GL_LINEAR_ATTENUATION, 0.02);
+	glShadeModel(GL_SMOOTH);
 
 	font = load_font("data/CharterBT-Roman.ttf");
-	model = md2_load_model("data/tr_mo_kami_caster.md2");
+	model1 = md2_load_model("data/soldier.md2");
+	//model2 = load_obj_model("data/ca_hom/ca_hom_armor01.obj");
+	//model2 = load_obj_model("data/tr_mo_kami_caster/tr_mo_kami_caster.obj");
+	model2 = load_obj_model("data/tr_mo_cute/tr_mo_cute.obj");
+	load_obj_animation(model2, "data/tr_mo_cute/tr_mo_cute_atk_death.pc2");
+	model3 = load_obj_model("data/village/village.obj");
 
-	// imagetex = load_png("PngSuite/f00n2c08.png", &imagew, &imageh);
+	printf("loading terrain textures\n");
+	for (i = 0; i < nelem(grasstex); i++) {
+		sprintf(buf, "data/terrain/y-bassesiles-256-a-%02d.png", i+1);
+		grasstex[i] = load_texture(buf, NULL, NULL, NULL, 0);
+	}
+
+	init_sky_dome(15, 15);
+	skytex = load_texture("data/skydome6.png", 0, 0, 0, 0);
+
+	printf("all done\n");
 }
 
-void display(int w, int h)
-{
-	glViewport(0, 0, w, h);
-
-	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-	static float angle = 0.0;
-	static float lerp = 0.0;
-	static int idx = 0;
-	angle += 1.0;
-	if (angle > 360)
-		angle = 0;
-	lerp += 25.0/60.0;
-	if (lerp > 1.0)
-	{
-		lerp = 0.0;
-		idx ++;
-	}
-	if (idx == md2_get_frame_count(model) - 1)
-		idx = 0;
-
-	 /*
-	 * Draw rotating models
-	 */
-
-	glColorMaterial(GL_FRONT_AND_BACK, GL_DIFFUSE);
-	glEnable(GL_COLOR_MATERIAL);
-
-	glEnable(GL_TEXTURE_2D);
-	glEnable(GL_DEPTH_TEST);
-	glEnable(GL_LIGHTING);
-	glDisable(GL_BLEND);
-
-	glMatrixMode(GL_PROJECTION);
-	glLoadIdentity();
-	perspective(60.0, (float) w / h, 1.0, 5000.0);
-	glTranslatef(0, -20, 0);
-
-	glMatrixMode(GL_MODELVIEW);
-
-	glLoadIdentity();
-	glTranslatef(-20, 0, -100);
-	glRotatef(angle, 0, 1, 0);
-	glRotatef(-90, 1, 0, 0);
-	glRotatef(-90, 0, 0, 1);
-
-	glColor3f(1, 1, 1);
-	md2_draw_frame_lerp(model, 0, idx, idx + 1, lerp);
-
-	glLoadIdentity();
-	glTranslatef(+20, 0, -100);
-	glRotatef(-angle/5, 0, 1, 0);
-	glRotatef(-90, 1, 0, 0);
-	glRotatef(-90, 0, 0, 1);
-
-	md2_draw_frame_lerp(model, 0, idx, idx + 1, lerp);
-
-	glDisable(GL_TEXTURE_2D);
-	//glDisable(GL_LIGHTING);
-	//glEnable(GL_BLEND);
-	glLoadIdentity();
-	glTranslatef(0, 0, -100);
-	glScalef(10, 10, 10);
-	glRotatef(10, 0, 1, 0);
-	glBegin(GL_QUADS);
-	{
-		int row, col;
-		for (row = -10; row < 10; row++)
-		{
-			for (col = -10; col < 10; col++)
-			{
-				if ((row + col) & 1)
-					glColor4f(0.6, 0.6, 0.6, 1);
-				else
-					glColor4f(1.0, 1.0, 1.0, 1);
-
-				glNormal3f(0, 1, 0);
-				glVertex3f(row + 0, 0, col + 0);
-				glVertex3f(row + 1, 0, col + 0);
-				glVertex3f(row + 1, 0, col + 1);
-				glVertex3f(row + 0, 0, col + 1);
-			}
-		}
-	}
-	glEnd();
-
-	/*
-	* Draw text overlay
-	*/
-
-	char status[100];
-
-	glMatrixMode(GL_PROJECTION);
-	glLoadIdentity();
-	glOrtho(0, w, h, 0, -1, 1);
-
-	glMatrixMode(GL_MODELVIEW);
-	glLoadIdentity();
-
-	glEnable(GL_TEXTURE_2D);
-	glDisable(GL_DEPTH_TEST);
-	glDisable(GL_LIGHTING);
-	glEnable(GL_BLEND);
-
-	glColor3f(1, 0.70, 0.7);
-	float x;
-	sprintf(status, "Angle: %g", angle);
-	draw_string(font, 20, 20, 30, status);
-	sprintf(status, "Frame: %d", idx);
-	x = measure_string(font, 20, status);
-	draw_string(font, 20, w - x - 20, 30, status);
-
-	#if 0
-	glColor3f(1, 1, 1);
-	glBindTexture(GL_TEXTURE_2D, imagetex);
-	glBegin(GL_QUADS);
-	glTexCoord2f(0, 0); glVertex2f(10, 50);
-	glTexCoord2f(1, 0); glVertex2f(10 + imagew, 50);
-	glTexCoord2f(1, 1); glVertex2f(10 + imagew, 50 + imageh);
-	glTexCoord2f(0, 1); glVertex2f(10, 50 + imageh);
-	glEnd();
-	#endif
-
-}
-
-void sys_hook_draw(int width, int height)
+void sys_hook_draw(int w, int h)
 {
 	struct event *evt;
 	static int mousex = 0, mousey = 0, mousez = 0;
 
 	while ((evt = sys_read_event()))
 	{
-		printf("EVENT %d x=%d y=%d b=%d key=U+%04X mod=0x%02x\n",
-				evt->type, evt->x, evt->y, evt->btn, evt->key, evt->mod);
 		if (evt->type == SYS_EVENT_KEY_CHAR)
 		{
 			if (evt->key == ' ')
@@ -212,15 +95,152 @@ void sys_hook_draw(int width, int height)
 		}
 	}
 
-	display(width, height);
-}
+	glViewport(0, 0, w, h);
 
-void sys_hook_key(int key)
-{
-	printf("typed key '%c'\n", key);
-}
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-void sys_hook_mouse(int x, int y, int button, int modifiers, int state)
-{
-	printf("mouse event %d %d button=%d mod=%d state=%d\n", x, y, button, modifiers, state);
+	static float angle = 0.0;
+	static float lerp = 0.0;
+	static int idx = 0;
+	angle += 1.0;
+	if (angle > 360)
+		angle = 0;
+	lerp += 25.0/60.0;
+	if (lerp > 1.0)
+	{
+		lerp = 0.0;
+		idx ++;
+	}
+	if (idx == md2_get_frame_count(model1) - 1)
+		idx = 0;
+
+	 /*
+	 * Draw rotating models
+	 */
+	glMatrixMode(GL_PROJECTION);
+	glLoadIdentity();
+	perspective(60, (float) w / h, 0.05, 500); /* 5cm to 500m clip planes */
+
+	glMatrixMode(GL_MODELVIEW);
+	glLoadIdentity();
+	glRotatef(-90, 1, 0, 0); /* Z-up */
+	glTranslatef(0, 5, -1.5); /* 3 meters back and 1.5 meters up */
+	glRotatef(angle, 0, 0, 1); /* spin me right round */
+
+	glColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE);
+	glEnable(GL_COLOR_MATERIAL);
+
+	glEnable(GL_LIGHTING);
+
+	glEnable(GL_LIGHT0);
+	glLightfv(GL_LIGHT0, GL_POSITION, light0pos);
+	glLightfv(GL_LIGHT0, GL_DIFFUSE, light0col);
+	// glLightf(GL_LIGHT0, GL_LINEAR_ATTENUATION, 0.02);
+
+	glEnable(GL_LIGHT1);
+	glLightfv(GL_LIGHT1, GL_POSITION, light1pos);
+	glLightfv(GL_LIGHT1, GL_DIFFUSE, light1col);
+	glLightf(GL_LIGHT1, GL_LINEAR_ATTENUATION, 1.0 / 5); /* drop off at 5m */
+
+	glEnable(GL_DEPTH_TEST);
+	glEnable(GL_TEXTURE_2D);
+
+	glPushMatrix();
+	glColor3f(1, 1, 1);
+	glTranslatef(-1, 0, 0);
+	md2_draw_frame_lerp(model1, 0, idx, idx + 1, lerp);
+	glPopMatrix();
+
+	glPushMatrix();
+	glTranslatef(1, 0, 0);
+	glColor3f(1, 1, 1);
+	draw_obj_model_frame(model2, idx);
+	glPopMatrix();
+
+	glPushMatrix();
+	draw_obj_model(model3);
+	glPopMatrix();
+
+	glPushMatrix();
+	glScalef(2, 2, 1);
+	{
+		int row, col, tex = 0;
+		for (row = -40; row <= 40; row++)
+		{
+			for (col = -40; col <= 40; col++)
+			{
+				glBindTexture(GL_TEXTURE_2D, grasstex[tex]);
+				glBegin(GL_QUADS);
+				glNormal3f(0, 0, 1);
+				glTexCoord2f(0, 0); glVertex3f(row + 0, col + 0, 0);
+				glTexCoord2f(1, 0); glVertex3f(row + 1, col + 0, 0);
+				glTexCoord2f(1, 1); glVertex3f(row + 1, col + 1, 0);
+				glTexCoord2f(0, 1); glVertex3f(row + 0, col + 1, 0);
+				glEnd();
+				tex = (tex + 1) % nelem(grasstex);
+			}
+		}
+	}
+	glPopMatrix();
+
+	glDisable(GL_LIGHTING);
+
+	glColor3f(1, 0, 0);
+	draw_sky_dome(skytex);
+
+	glDisable(GL_DEPTH_TEST);
+	glDisable(GL_TEXTURE_2D);
+
+#if 1
+	/*
+	 * Draw x-y-z-axes
+	 */
+	glDisable(GL_TEXTURE_2D);
+	glBegin(GL_LINES);
+	glColor4f(1, 0, 0, 1);
+	glVertex3f(0, 0, 0); glVertex3f(1, 0, 0);
+	glColor4f(0, 1, 0, 1);
+	glVertex3f(0, 0, 0); glVertex3f(0, 1, 0);
+	glColor4f(0, 0, 1, 1);
+	glVertex3f(0, 0, 0); glVertex3f(0, 0, 1);
+	glEnd();
+	glEnable(GL_TEXTURE_2D);
+#endif
+
+	/*
+	* Draw text overlay
+	*/
+
+	char status[100];
+
+	glMatrixMode(GL_PROJECTION);
+	glLoadIdentity();
+	glOrtho(0, w, h, 0, -1, 1);
+
+	glMatrixMode(GL_MODELVIEW);
+	glLoadIdentity();
+
+	glEnable(GL_TEXTURE_2D);
+	glEnable(GL_BLEND);
+
+	glColor3f(1, 0.70, 0.7);
+	float x;
+	sprintf(status, "Angle: %g", angle);
+	draw_string(font, 20, 20, 30, status);
+	sprintf(status, "Frame: %d", idx);
+	x = measure_string(font, 20, status);
+	draw_string(font, 20, w - x - 20, 30, status);
+
+	#if 1
+	glColor3f(1, 1, 1);
+	glBegin(GL_QUADS);
+	glTexCoord2f(0, 0); glVertex2f(10, 50);
+	glTexCoord2f(0, 1); glVertex2f(10, 50 + 512);
+	glTexCoord2f(1, 1); glVertex2f(10 + 512, 50 + 512);
+	glTexCoord2f(1, 0); glVertex2f(10 + 512, 50);
+	glEnd();
+	#endif
+
+	glDisable(GL_BLEND);
+	glDisable(GL_TEXTURE_2D);
 }

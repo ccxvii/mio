@@ -204,14 +204,14 @@ int main(int argc, char **argv)
 		PointerMotionMask | ButtonPressMask | ButtonReleaseMask;
 	mask = CWBackPixel | CWBorderPixel | CWColormap | CWEventMask;
 
-	win = XCreateWindow(dpy, root, 0, 0, 1024, 576, 0, visual->depth,
+	win = XCreateWindow(dpy, root, 0, 0, 800, 600, 0, visual->depth,
 			InputOutput, visual->visual, mask, &atts);
 
 	sizehints.min_width = win_wide;
 	sizehints.min_height = win_high;
 	sizehints.flags = PMinSize;
 	XSetNormalHints(dpy, win, &sizehints);
-	XSetStandardProperties(dpy, win, "Untitled", "Untitled", None, NULL, 0, &sizehints);
+	XSetStandardProperties(dpy, win, argv[0], argv[0], None, NULL, 0, &sizehints);
 
 	context = glXCreateContext(dpy, visual, NULL, True);
 	if (!context) {

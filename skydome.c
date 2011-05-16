@@ -5,7 +5,7 @@
 #endif
 
 #define DTOR (M_PI / 180.0)
-#define radius 10
+#define radius 450
 
 static int skyslice = 0;
 static int skystrip = 0;
@@ -29,14 +29,14 @@ void init_sky_dome(int dtheta, int dphi)
 	{
 		for (theta = 0; theta <= 360; theta += dtheta)
 		{
-			skyxyz[nv++] = sin((phi) * DTOR) * cos((theta) * DTOR) * radius;
 			skyxyz[nv++] = sin((phi) * DTOR) * sin((theta) * DTOR) * radius;
+			skyxyz[nv++] = sin((phi) * DTOR) * cos((theta) * DTOR) * radius;
 			skyxyz[nv++] = cos((phi) * DTOR) * radius;
 			skyst[nt++] = 1.0 - theta / 360.0;
 			skyst[nt++] = phi / 90.0;
 
-			skyxyz[nv++] = sin((phi+dphi) * DTOR) * cos((theta) * DTOR) * radius;
 			skyxyz[nv++] = sin((phi+dphi) * DTOR) * sin((theta) * DTOR) * radius;
+			skyxyz[nv++] = sin((phi+dphi) * DTOR) * cos((theta) * DTOR) * radius;
 			skyxyz[nv++] = cos((phi+dphi) * DTOR) * radius;
 			skyst[nt++] = 1.0 - theta / 360.0;
 			skyst[nt++] = (phi+dphi) / 90.0;
@@ -56,6 +56,7 @@ void draw_sky_dome(int skytex)
 	m[13] = 0.0;
 	m[14] = 0.0;
 	glLoadMatrixf(m);
+	glTranslatef(0, 0, -radius * 0.03);
 
 	glColor3f(1.0, 1.0, 1.0);
 
@@ -75,6 +76,4 @@ void draw_sky_dome(int skytex)
 	}
 
 	glPopMatrix();
-
-	glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 }

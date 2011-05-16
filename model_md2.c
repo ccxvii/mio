@@ -2,6 +2,12 @@
 
 #include <unistd.h> /* for access() */
 
+/* quake models use a unit of 1..1.5 inches, not sure */
+/* quake models have their origin 24 units below ground (so we translate up) */
+/* quake models face +x (so we rotate to face -y) */
+
+#define UNIT (1.25 * 0.0254)
+
 static void die(char *msg)
 {
 	fprintf(stderr, "error: %s\n", msg);
@@ -262,8 +268,7 @@ static int find_skin(char *filename, char *modelname, char *skinname)
 	char skinbase[64];
 	char *p;
 
-	if (access(skinname, F_OK) == 0)
-	{
+	if (access(skinname, F_OK) == 0) {
 		strcpy(filename, skinname);
 		return 1;
 	}
@@ -353,34 +358,28 @@ struct md2_model * md2_load_model(char *modelname)
 	self->cmds = malloc(sizeof(union md2_cmd) * self->numcmds);
 
 	fseek(fp, offset_skins, 0);
-	for (i = 0; i < self->numskins; i++)
-	{
+	for (i = 0; i < self->numskins; i++) {
 		char filename[64];
 		char skinname[64];
 		n = fread(skinname, 1, 64, fp);
-		if (n == 64 && find_skin(filename, modelname, skinname))
-		{
+		if (n == 64 && find_skin(filename, modelname, skinname)) {
 			self->skintextures[i] = load_texture(filename, &w, &h, 0, 0);
 			if (w != self->skinwidth || h != self->skinheight)
 				die("skin image does not match dimensions given in model file");
-		}
-		else
-		{
+		} else {
 			printf("cannot find skin file: %s\n", skinname);
 			self->skintextures[i] = 0;
 		}
 	}
 
 	fseek(fp, offset_st, 0);
-	for (i = 0; i < self->numst; i++)
-	{
+	for (i = 0; i < self->numst; i++) {
 		self->texcoords[i].s = getshort(fp);
 		self->texcoords[i].t = getshort(fp);
 	}
 
 	fseek(fp, offset_tris, 0);
-	for (i = 0; i < self->numtris; i++)
-	{
+	for (i = 0; i < self->numtris; i++) {
 		self->triangles[i].vertex[0] = getshort(fp);
 		self->triangles[i].vertex[1] = getshort(fp);
 		self->triangles[i].vertex[2] = getshort(fp);
@@ -390,17 +389,23 @@ struct md2_model * md2_load_model(char *modelname)
 	}
 
 	fseek(fp, offset_frames, 0);
-	for (i = 0; i < self->numframes; i++)
-	{
-		getvec3(self->frames[i].scale, fp);
-		getvec3(self->frames[i].translate, fp);
+	for (i = 0; i < self->numframes; i++) {
+		float s[3], t[3];
+		getvec3(s, fp);
+		getvec3(t, fp);
 		n = fread(self->frames[i].name, 1, 16, fp);
 		n = fread(self->frames[i].verts, 4, self->numverts, fp);
+
+		self->frames[i].scale[0] = s[0] * UNIT;
+		self->frames[i].scale[1] = s[1] * UNIT;
+		self->frames[i].scale[2] = s[2] * UNIT;
+		self->frames[i].translate[0] = t[0] * UNIT;
+		self->frames[i].translate[1] = t[1] * UNIT;
+		self->frames[i].translate[2] = t[2] * UNIT + 24 * UNIT;
 	}
 
 	fseek(fp, offset_cmds, 0);
-	for (i = 0; i < self->numcmds; i++)
-	{
+	for (i = 0; i < self->numcmds; i++) {
 		self->cmds[i].i = getint(fp);
 	}
 
@@ -440,14 +445,14 @@ static void md2_draw_frame_tri(struct md2_model *self, int frame)
 	struct md2_frame *pframe = self->frames + frame;
 	struct md2_vertex *pvert;
 	int vertex, i, k;
-	float s, t;
-	float v[3];
+	float s, t, x, y, z;
 
 	glBegin(GL_TRIANGLES);
 
 	for (i = 0; i < self->numtris; i++)
 	{
-		for (k = 0; k < 3; k++)
+		/* bah for clockwise winding */
+		for (k = 2; k >= 0; k--)
 		{
 			vertex = self->triangles[i].vertex[k];
 			pvert = pframe->verts + vertex;
@@ -456,12 +461,15 @@ static void md2_draw_frame_tri(struct md2_model *self, int frame)
 			t = (self->texcoords[self->triangles[i].st[k]].t + 0.5) / self->skinheight;
 			glTexCoord2f(s, t);
 
-			glNormal3fv(quake_normals[pvert->normal]);
+			x = quake_normals[pvert->normal][0];
+			y = quake_normals[pvert->normal][1];
+			z = quake_normals[pvert->normal][2];
+			glNormal3f(y, -x, z);
 
-			v[0] = pframe->scale[0] * pvert->v[0] + pframe->translate[0];
-			v[1] = pframe->scale[1] * pvert->v[1] + pframe->translate[1];
-			v[2] = pframe->scale[2] * pvert->v[2] + pframe->translate[2];
-			glVertex3fv(v);
+			x = pframe->scale[0] * pvert->v[0] + pframe->translate[0];
+			y = pframe->scale[1] * pvert->v[1] + pframe->translate[1];
+			z = pframe->scale[2] * pvert->v[2] + pframe->translate[2];
+			glVertex3f(y, -x, z);
 		}
 	}
 
@@ -475,15 +483,16 @@ static void md2_draw_frame_lerp_tri(struct md2_model *self, int frame0, int fram
 	struct md2_vertex *pvert0;
 	struct md2_vertex *pvert1;
 	int vertex, i, k;
-	float s, t;
+	float s, t, x, y, z;
 	const float *na, *nb;
-	float va[3], vb[3], v[3], n[3];
+	float va[3], vb[3];
 
 	glBegin(GL_TRIANGLES);
 
 	for (i = 0; i < self->numtris; i++)
 	{
-		for (k = 0; k < 3; k++)
+		/* bah for clockwise winding */
+		for (k = 2; k >= 0; k--)
 		{
 			vertex = self->triangles[i].vertex[k];
 			pvert0 = pframe0->verts + vertex;
@@ -495,10 +504,10 @@ static void md2_draw_frame_lerp_tri(struct md2_model *self, int frame0, int fram
 
 			na = quake_normals[pvert0->normal];
 			nb = quake_normals[pvert1->normal];
-			n[0] = na[0] + (nb[0] - na[0]) * lerp;
-			n[1] = na[1] + (nb[1] - na[1]) * lerp;
-			n[2] = na[2] + (nb[2] - na[2]) * lerp;
-			glNormal3fv(n);
+			x = na[0] + (nb[0] - na[0]) * lerp;
+			y = na[1] + (nb[1] - na[1]) * lerp;
+			z = na[2] + (nb[2] - na[2]) * lerp;
+			glNormal3f(y, -x, z);
 
 			va[0] = pframe0->scale[0] * pvert0->v[0] + pframe0->translate[0];
 			va[1] = pframe0->scale[1] * pvert0->v[1] + pframe0->translate[1];
@@ -506,118 +515,16 @@ static void md2_draw_frame_lerp_tri(struct md2_model *self, int frame0, int fram
 			vb[0] = pframe1->scale[0] * pvert1->v[0] + pframe1->translate[0];
 			vb[1] = pframe1->scale[1] * pvert1->v[1] + pframe1->translate[1];
 			vb[2] = pframe1->scale[2] * pvert1->v[2] + pframe1->translate[2];
-			v[0] = va[0] + (vb[0] - va[0]) * lerp;
-			v[1] = va[1] + (vb[1] - va[1]) * lerp;
-			v[2] = va[2] + (vb[2] - va[2]) * lerp;
-			glVertex3fv(v);
+			x = va[0] + (vb[0] - va[0]) * lerp;
+			y = va[1] + (vb[1] - va[1]) * lerp;
+			z = va[2] + (vb[2] - va[2]) * lerp;
+			glVertex3f(y, -x, z);
 		}
 	}
 
 	glEnd();
 }
 
-static void md2_draw_frame_cmd(struct md2_model *self, int frame)
-{
-	struct md2_frame *pframe = self->frames + frame;
-	union md2_cmd *pcmd = self->cmds;
-	struct md2_vertex *pvert;
-	float v[3];
-	int count;
-
-	count = (pcmd++)->i;
-	while (count != 0)
-	{
-		if (count < 0)
-		{
-			glBegin(GL_TRIANGLE_FAN);
-			count = -count;
-		}
-		else
-		{
-			glBegin(GL_TRIANGLE_STRIP);
-		}
-
-		while (count--)
-		{
-			float s = (pcmd++)->f;
-			float t = (pcmd++)->f;
-			int vertex = (pcmd++)->i;
-			pvert = pframe->verts + vertex;
-
-			glTexCoord2f(s, t);
-
-			glNormal3fv(quake_normals[pvert->normal]);
-
-			v[0] = pframe->scale[0] * pvert->v[0] + pframe->translate[0];
-			v[1] = pframe->scale[1] * pvert->v[1] + pframe->translate[1];
-			v[2] = pframe->scale[2] * pvert->v[2] + pframe->translate[2];
-			glVertex3fv(v);
-		}
-
-		glEnd();
-
-		count = (pcmd++)->i;
-	}
-}
-
-static void md2_draw_frame_lerp_cmd(struct md2_model *self, int frame0, int frame1, float lerp)
-{
-	struct md2_frame *pframe0 = self->frames + frame0;
-	struct md2_frame *pframe1 = self->frames + frame1;
-	union md2_cmd *pcmd = self->cmds;
-	struct md2_vertex *pvert0;
-	struct md2_vertex *pvert1;
-	const float *na, *nb;
-	float va[3], vb[3], v[3], n[3];
-	int count;
-
-	count = (pcmd++)->i;
-	while (count != 0)
-	{
-		if (count < 0)
-		{
-			glBegin(GL_TRIANGLE_FAN);
-			count = -count;
-		}
-		else
-		{
-			glBegin(GL_TRIANGLE_STRIP);
-		}
-
-		while (count--)
-		{
-			float s = (pcmd++)->f;
-			float t = (pcmd++)->f;
-			int vertex = (pcmd++)->i;
-			pvert0 = pframe0->verts + vertex;
-			pvert1 = pframe1->verts + vertex;
-
-			glTexCoord2f(s, t);
-
-			na = quake_normals[pvert0->normal];
-			nb = quake_normals[pvert1->normal];
-			n[0] = na[0] + (nb[0] - na[0]) * lerp;
-			n[1] = na[1] + (nb[1] - na[1]) * lerp;
-			n[2] = na[2] + (nb[2] - na[2]) * lerp;
-			glNormal3fv(n);
-
-			va[0] = pframe0->scale[0] * pvert0->v[0] + pframe0->translate[0];
-			va[1] = pframe0->scale[1] * pvert0->v[1] + pframe0->translate[1];
-			va[2] = pframe0->scale[2] * pvert0->v[2] + pframe0->translate[2];
-			vb[0] = pframe1->scale[0] * pvert1->v[0] + pframe1->translate[0];
-			vb[1] = pframe1->scale[1] * pvert1->v[1] + pframe1->translate[1];
-			vb[2] = pframe1->scale[2] * pvert1->v[2] + pframe1->translate[2];
-			v[0] = va[0] + (vb[0] - va[0]) * lerp;
-			v[1] = va[1] + (vb[1] - va[1]) * lerp;
-			v[2] = va[2] + (vb[2] - va[2]) * lerp;
-			glVertex3fv(v);
-		}
-
-		glEnd();
-
-		count = (pcmd++)->i;
-	}
-}
 
 void md2_draw_frame(struct md2_model *self, int skin, int frame)
 {
@@ -626,10 +533,7 @@ void md2_draw_frame(struct md2_model *self, int skin, int frame)
 	if (skin >= self->numskins || frame >= self->numframes)
 		return;
 	glBindTexture(GL_TEXTURE_2D, self->skintextures[skin]);
-	if (self->numcmds > 0)
-		md2_draw_frame_cmd(self, frame);
-	else
-		md2_draw_frame_tri(self, frame);
+	md2_draw_frame_tri(self, frame);
 }
 
 void md2_draw_frame_lerp(struct md2_model *self, int skin, int idx0, int idx1, float lerp)
@@ -643,8 +547,5 @@ void md2_draw_frame_lerp(struct md2_model *self, int skin, int idx0, int idx1, f
 	if (lerp > 1.0)
 		lerp = 1.0;
 	glBindTexture(GL_TEXTURE_2D, self->skintextures[skin]);
-	if (self->numcmds > 0)
-		md2_draw_frame_lerp_cmd(self, idx0, idx1, lerp);
-	else
-		md2_draw_frame_lerp_tri(self, idx0, idx1, lerp);
+	md2_draw_frame_lerp_tri(self, idx0, idx1, lerp);
 }
