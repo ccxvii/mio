@@ -102,13 +102,6 @@ static int convert_keysym(KeySym keysym)
 	return keysym;
 }
 
-static int convert_button(int btn)
-{
-	if (btn == 2) return 3;
-	if (btn == 3) return 2;
-	return btn;
-}
-
 static int WaitForNotify(Display *dpy, XEvent *event, XPointer arg)
 {
 	return (event->type == MapNotify) && (event->xmap.window == (Window) arg);
@@ -134,16 +127,16 @@ static void process_event(XEvent *event)
 	case KeyPress:
 		mod = convert_modifiers(event->xkey.state);
 		len = XLookupString(&event->xkey, buf, sizeof buf, &keysym, 0);
-		sys_send_key(SYS_EVENT_KEY_DOWN, convert_keysym(keysym), mod);
+		sys_hook_key_down(convert_keysym(keysym), mod);
 		for (i = 0; i < len; i++)
-			sys_send_key(SYS_EVENT_KEY_CHAR, buf[i], mod);
+			sys_hook_key_char(buf[i], mod);
 		dirty = 1;
 		break;
 
 	case KeyRelease:
 		mod = convert_modifiers(event->xkey.state);
 		keysym = XLookupKeysym(&event->xkey, 0);
-		sys_send_key(SYS_EVENT_KEY_UP, convert_keysym(keysym), mod);
+		sys_hook_key_up(convert_keysym(keysym), mod);
 		dirty = 1;
 		break;
 
@@ -151,25 +144,25 @@ static void process_event(XEvent *event)
 		mod = convert_modifiers(event->xbutton.state);
 		x = event->xmotion.x;
 		y = event->xmotion.y;
-		sys_send_mouse(SYS_EVENT_MOUSE_MOVE, x, y, 0, mod);
+		sys_hook_mouse_move(x, y, mod);
 		dirty = 1;
 		break;
 
 	case ButtonPress:
 		mod = convert_modifiers(event->xbutton.state);
-		btn = convert_button(event->xbutton.button);
+		btn = event->xbutton.button;
 		x = event->xbutton.x;
 		y = event->xbutton.y;
-		sys_send_mouse(SYS_EVENT_MOUSE_DOWN, x, y, btn, mod);
+		sys_hook_mouse_down(x, y, btn, mod);
 		dirty = 1;
 		break;
 
 	case ButtonRelease:
 		mod = convert_modifiers(event->xbutton.state);
-		btn = convert_button(event->xbutton.button);
+		btn = event->xbutton.button;
 		x = event->xbutton.x;
 		y = event->xbutton.y;
-		sys_send_mouse(SYS_EVENT_MOUSE_UP, x, y, btn, mod);
+		sys_hook_mouse_up(x, y, btn, mod);
 		dirty = 1;
 		break;
 	}
@@ -243,7 +236,7 @@ int main(int argc, char **argv)
 			process_event(&event);
 		}
 
-		sys_hook_loop(win_wide, win_high);
+		sys_hook_draw(win_wide, win_high);
 		glFlush();
 		glXSwapBuffers(dpy, win);
 		dirty = 0;

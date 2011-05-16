@@ -1,27 +1,22 @@
-/*
- * System hook callbacks.
- */
+/* System hook callbacks */
 
-enum
-{
-	SYS_EVENT_KEY_CHAR,
-	SYS_EVENT_KEY_DOWN,
-	SYS_EVENT_KEY_UP,
-	SYS_EVENT_MOUSE_DOWN,
-	SYS_EVENT_MOUSE_MOVE,
-	SYS_EVENT_MOUSE_UP,
-};
-
-enum
-{
+enum {
 	SYS_MOD_SHIFT = 1,
 	SYS_MOD_CTL = 2,
 	SYS_MOD_ALT = 4
 };
 
+/* Same button numbers as X11 */
+enum {
+	SYS_BTN_LEFT = 1,
+	SYS_BTN_MIDDLE = 2,
+	SYS_BTN_RIGHT = 3,
+	SYS_BTN_WHEEL_UP = 4,
+	SYS_BTN_WHEEL_DOWN = 5
+};
+
 /* For special keys we use the same Unicode PUA codes as Apple. */
-enum
-{
+enum {
 	SYS_KEY_SHIFT = 0xF600, SYS_KEY_CTL, SYS_KEY_ALT,
 	SYS_KEY_UP = 0xF700,
 	SYS_KEY_DOWN = 0xF701,
@@ -38,23 +33,21 @@ enum
 	SYS_KEY_PAGEDOWN = 0xF72D
 };
 
-struct event
-{
-	int type;
-	int btn, x, y;
-	int key, mod;
-};
-
 void sys_hook_init(int argc, char **argv);
-void sys_hook_loop(int screen_width, int screen_height);
+void sys_hook_draw(int screen_width, int screen_height);
 
-void sys_send_mouse(int type, int x, int y, int btn, int mod);
-void sys_send_key(int type, int key, int mod);
-void sys_send_event(struct event *evt);
-struct event *sys_read_event(void);
+void sys_hook_mouse_move(int x, int y, int mod);
+void sys_hook_mouse_down(int x, int y, int btn, int mod);
+void sys_hook_mouse_up(int x, int y, int btn, int mod);
+
+void sys_hook_key_char(int c, int mod);
+void sys_hook_key_down(int c, int mod);
+void sys_hook_key_up(int c, int mod);
 
 int sys_is_fullscreen(void);
 void sys_enter_fullscreen(void);
 void sys_leave_fullscreen(void);
+
+void sys_is_active(void);
 void sys_start_idle_loop(void);
 void sys_stop_idle_loop(void);

@@ -92,7 +92,7 @@ void sys_stop_idle_loop(void)
 
 	rect = [self bounds];
 
-	sys_hook_loop(rect.size.width, rect.size.height);
+	sys_hook_draw(rect.size.width, rect.size.height);
 
 	[[self openGLContext] flushBuffer];
 
@@ -108,45 +108,54 @@ void sys_stop_idle_loop(void)
 	return YES;
 }
 
-int translate_modifiers(int nsmod)
+int translate_modifiers(NSEvent *evt)
 {
-	int mod = 0;
+	int mod = 0, nsmod = [evt modifierFlags];
 	if (nsmod & NSShiftKeyMask) mod |= SYS_MOD_SHIFT;
 	if (nsmod & NSControlKeyMask) mod |= SYS_MOD_CTL;
 	if (nsmod & NSAlternateKeyMask) mod |= SYS_MOD_ALT;
 	return mod;
 }
 
+int translate_button(NSEvent *evt)
+{
+	int btn = [evt buttonNumber] + 1;
+	if (btn == 2) return 3;
+	if (btn == 3) return 2;
+	return btn;
+}
+
+NSPoint translate_point(NSView *view, NSEvent *evt)
+{
+	NSPoint p = [evt locationInWindow];
+	p = [view convertPoint: p fromView: nil];
+	p.y = [view frame].size.height - p.y;
+	return p;
+}
+
 - (void) mouseDown:(NSEvent *)evt
 {
-	int mod = translate_modifiers([evt modifierFlags]);
-	int btn = [evt buttonNumber] + 1;
-	NSPoint p = [evt locationInWindow];
-	p = [self convertPoint: p fromView: nil];
-	p.y = [self frame].size.height - p.y;
-	sys_send_mouse(SYS_EVENT_MOUSE_DOWN, p.x, p.y, btn, mod);
+	NSPoint p = translate_point(self, evt);
+	int mod = translate_modifiers(evt);
+	int btn = translate_button(evt);
+	sys_hook_mouse_down(p.x, p.y, btn, mod);
 	[self setNeedsDisplay: YES];
 }
 
 - (void) mouseUp:(NSEvent *)evt
 {
-	int mod = translate_modifiers([evt modifierFlags]);
-	int btn = [evt buttonNumber] + 1;
-	NSPoint p = [evt locationInWindow];
-	p = [self convertPoint: p fromView: nil];
-	p.y = [self frame].size.height - p.y;
-	sys_send_mouse(SYS_EVENT_MOUSE_MOVE, p.x, p.y, btn, mod);
+	NSPoint p = translate_point(self, evt);
+	int mod = translate_modifiers(evt);
+	int btn = translate_button(evt);
+	sys_hook_mouse_up(p.x, p.y, btn, mod);
 	[self setNeedsDisplay: YES];
 }
 
 - (void) mouseDragged:(NSEvent *)evt
 {
-	int mod = translate_modifiers([evt modifierFlags]);
-	int btn = [evt buttonNumber] + 1;
-	NSPoint p = [evt locationInWindow];
-	p = [self convertPoint: p fromView: nil];
-	p.y = [self frame].size.height - p.y;
-	sys_send_mouse(SYS_EVENT_MOUSE_UP, p.x, p.y, btn, mod);
+	NSPoint p = translate_point(self, evt);
+	int mod = translate_modifiers(evt);
+	sys_hook_mouse_move(p.x, p.y, mod);
 	[self setNeedsDisplay: YES];
 }
 
@@ -159,37 +168,49 @@ int translate_modifiers(int nsmod)
 
 - (void) keyDown:(NSEvent *)evt
 {
-	int mod = translate_modifiers([evt modifierFlags]);
+	int mod = translate_modifiers(evt);
 	NSString *str = [evt characters];
 	int i, len = [str length];
 	if (len && ![evt isARepeat])
-		sys_send_key(SYS_EVENT_KEY_DOWN, [str characterAtIndex: 0], mod);
+		sys_hook_key_down([str characterAtIndex: 0], mod);
 	for (i = 0; i < len; i++)
-		sys_send_key(SYS_EVENT_KEY_CHAR, [str characterAtIndex: i], mod);
+		sys_hook_key_char([str characterAtIndex: i], mod);
 	[self setNeedsDisplay: YES];
 }
 
 - (void) keyUp:(NSEvent *)evt
 {
-	int mod = translate_modifiers([evt modifierFlags]);
+	int mod = translate_modifiers(evt);
 	NSString *str = [evt characters];
 	int len = [str length];
 	if (len)
-		sys_send_key(SYS_EVENT_KEY_UP, [str characterAtIndex: 0], mod);
+		sys_hook_key_up([str characterAtIndex: 0], mod);
 	[self setNeedsDisplay: YES];
 }
 
 - (void) flagsChanged:(NSEvent *)evt
 {
 	static int oldmod = 0;
-	int newmod = translate_modifiers([evt modifierFlags]);
+	int newmod = translate_modifiers(evt);
 	int change = oldmod ^ newmod;
-	if (change & SYS_MOD_SHIFT)
-		sys_send_key(newmod & SYS_MOD_SHIFT ? SYS_EVENT_KEY_DOWN : SYS_EVENT_KEY_UP, SYS_KEY_SHIFT, newmod);
-	if (change & SYS_MOD_CTL)
-		sys_send_key(newmod & SYS_MOD_CTL ? SYS_EVENT_KEY_DOWN : SYS_EVENT_KEY_UP, SYS_KEY_CTL, newmod);
-	if (change & SYS_MOD_ALT)
-		sys_send_key(newmod & SYS_MOD_ALT ? SYS_EVENT_KEY_DOWN : SYS_EVENT_KEY_UP, SYS_KEY_ALT, newmod);
+	if (change & SYS_MOD_SHIFT) {
+		if (newmod & SYS_MOD_SHIFT)
+			sys_hook_key_down(SYS_KEY_SHIFT, newmod);
+		else
+			sys_hook_key_up(SYS_KEY_SHIFT, newmod);
+	}
+	if (change & SYS_MOD_CTL) {
+		if (newmod & SYS_MOD_CTL)
+			sys_hook_key_down(SYS_KEY_CTL, newmod);
+		else
+			sys_hook_key_up(SYS_KEY_CTL, newmod);
+	}
+	if (change & SYS_MOD_ALT) {
+		if (newmod & SYS_MOD_ALT)
+			sys_hook_key_down(SYS_KEY_ALT, newmod);
+		else
+			sys_hook_key_up(SYS_KEY_ALT, newmod);
+	}
 	oldmod = newmod;
 	[self setNeedsDisplay: YES];
 }

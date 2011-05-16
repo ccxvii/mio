@@ -1,5 +1,8 @@
 #include "mio.h"
 
+#include "syshook.h"
+#include "sysevent.h"
+
 static struct md2_model *model;
 static struct font *font;
 
@@ -171,7 +174,7 @@ void display(int w, int h)
 
 }
 
-void sys_hook_loop(int width, int height)
+void sys_hook_draw(int width, int height)
 {
 	struct event *evt;
 	static int mousex = 0, mousey = 0, mousez = 0;

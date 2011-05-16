@@ -202,46 +202,46 @@ static LRESULT CALLBACK sys_win_proc(HWND hwnd, UINT message, WPARAM wparam, LPA
 			if (!capture)
 				SetCapture(g_hwnd);
 			capture ++;
-			sys_send_mouse(SYS_EVENT_MOUSE_DOWN, x, y, 1, mod);
-			return 0;
-		case WM_RBUTTONDOWN:
-			if (!capture)
-				SetCapture(g_hwnd);
-			capture ++;
-			sys_send_mouse(SYS_EVENT_MOUSE_DOWN, x, y, 2, mod);
+			sys_hook_mouse_down(x, y, 1, mod);
 			return 0;
 		case WM_MBUTTONDOWN:
 			if (!capture)
 				SetCapture(g_hwnd);
 			capture ++;
-			sys_send_mouse(SYS_EVENT_MOUSE_DOWN, x, y, 3, mod);
+			sys_hook_mouse_down(x, y, 2, mod);
+			return 0;
+		case WM_RBUTTONDOWN:
+			if (!capture)
+				SetCapture(g_hwnd);
+			capture ++;
+			sys_hook_mouse_down(x, y, 3, mod);
 			return 0;
 
 		case WM_LBUTTONUP:
 			capture --;
 			if (!capture)
 				ReleaseCapture();
-			sys_send_mouse(SYS_EVENT_MOUSE_UP, x, y, 1, mod);
-			return 0;
-		case WM_RBUTTONUP:
-			capture --;
-			if (!capture)
-				ReleaseCapture();
-			sys_send_mouse(SYS_EVENT_MOUSE_UP, x, y, 2, mod);
+			sys_hook_mouse_up(x, y, 1, mod);
 			return 0;
 		case WM_MBUTTONUP:
 			capture --;
 			if (!capture)
 				ReleaseCapture();
-			sys_send_mouse(SYS_EVENT_MOUSE_UP, x, y, 3, mod);
+			sys_hook_mouse_up(x, y, 2, mod);
+			return 0;
+		case WM_RBUTTONUP:
+			capture --;
+			if (!capture)
+				ReleaseCapture();
+			sys_hook_mouse_up(x, y, 3, mod);
 			return 0;
 
 		case WM_MOUSEMOVE:
-			sys_send_mouse(SYS_EVENT_MOUSE_MOVE, x, y, 0, mod);
+			sys_hook_mouse_move(x, y, mod);
 			return 0;
 
 		case WM_CHAR:
-			sys_send_key(SYS_EVENT_KEY_CHAR, wparam, mod);
+			sys_hook_key_char(wparam, mod);
 			return 0;
 
 		case WM_SYSKEYDOWN:
@@ -249,15 +249,15 @@ static LRESULT CALLBACK sys_win_proc(HWND hwnd, UINT message, WPARAM wparam, LPA
 			if (!(lparam & (1<<30))) /* previous key state */ {
 				key = convert_keycode(wparam);
 				if (mod & SYS_MOD_ALT)
-					sys_send_key(SYS_EVENT_KEY_CHAR, key, mod);
-				sys_send_key(SYS_EVENT_KEY_DOWN, key, mod);
+					sys_hook_key_char(key, mod);
+				sys_hook_key_down(key, mod);
 			}
 			return 0;
 
 		case WM_SYSKEYUP:
 		case WM_KEYUP:
 			key = convert_keycode(wparam);
-			sys_send_key(SYS_EVENT_KEY_UP, key, mod);
+			sys_hook_key_up(key, mod);
 			return 0;
 	}
 
@@ -266,12 +266,13 @@ static LRESULT CALLBACK sys_win_proc(HWND hwnd, UINT message, WPARAM wparam, LPA
 
 #ifndef NDEBUG
 int main(int argc, char **argv)
+{
+	HINSTANCE instance = GetModuleHandle(NULL);
 #else
 int WINAPI WinMain(HINSTANCE instance, HINSTANCE previous, LPSTR cmdstr, int cmdshow)
-#endif
 {
-#ifndef NDEBUG
-	HINSTANCE instance = GetModuleHandle(NULL);
+	int argc;
+	char **argv = CommandLineToArgvA(GetCommandLineA(), &argc);
 #endif
 	WNDCLASS wc;
 	MSG msg;
@@ -286,13 +287,13 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE previous, LPSTR cmdstr, int cmd
 	wc.hCursor = LoadCursor(NULL, IDC_ARROW);
 	wc.hbrBackground = (HBRUSH) GetStockObject(LTGRAY_BRUSH);
 	wc.lpszMenuName = NULL;
-	wc.lpszClassName = "GLWindow";
+	wc.lpszClassName = "MioWindow";
 	if (!RegisterClass(&wc)) {
 		sys_win_error("Cannot register window class.");
 		return 1;
 	}
 
-	g_hwnd = CreateWindow("GLWindow", "Untitled",
+	g_hwnd = CreateWindow("MioWindow", argv[0],
 			WS_OVERLAPPEDWINDOW,
 			0, 0, width, height,
 			0, 0, instance, 0);
@@ -312,24 +313,25 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE previous, LPSTR cmdstr, int cmd
 	while (1) {
 		while (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE)) {
 			if (msg.message == WM_QUIT)
-				break;
+				goto quit;
 			TranslateMessage(&msg);
 			DispatchMessage(&msg);
 		}
 		if (!idle_loop && !dirty) {
 			if (GetMessage(&msg, NULL, 0, 0)) {
 				if (msg.message == WM_QUIT)
-					break;
+					goto quit;
 				TranslateMessage(&msg);
 				DispatchMessage(&msg);
 			}
 		}
 
-		sys_hook_loop(width, height);
+		sys_hook_draw(width, height);
 		SwapBuffers(g_hdc);
 		dirty = 0;
 	}
 
+quit:
 	sys_win_disable_opengl();
 
 	return 0;

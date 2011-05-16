@@ -4,7 +4,6 @@
 #include <math.h>
 
 #include "opengl.h"
-#include "syshook.h"
 #include "utf.h"
 
 #define strsep xstrsep
