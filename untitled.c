@@ -6,14 +6,19 @@
 static struct md2_model *model1;
 static struct model *model2;
 static struct model *model3;
+static struct model *model4;
+static struct model *skydome1;
+static struct model *skydome2;
 static struct font *font;
 static int grasstex[15];
-static int skytex;
 
 float light0pos[] = { -5, -5, 10, 1 };
 float light0col[] = { 1, 1, 1, 1 };
 float light1pos[] = { 0, 0, 1, 1 };
-float light1col[] = { 1, 0.5, 0.5, 1 };
+float light1col[] = { 1, 0.8, 0.2, 1 };
+float light2pos[] = { 0, 0, 1, 0 }; /* directional */
+float light2col[] = { 0.3, 0.3, 0.5, 1 };
+float ambientcol[] = { 0, 0, 0, 1 };
 
 void perspective(float fov, float aspect, float near, float far)
 {
@@ -38,14 +43,16 @@ void sys_hook_init(int argc, char **argv)
 	glEnable(GL_CULL_FACE);
 
 	glShadeModel(GL_SMOOTH);
+	glLightModelfv(GL_LIGHT_MODEL_AMBIENT, ambientcol);
 
 	font = load_font("data/CharterBT-Roman.ttf");
 	model1 = md2_load_model("data/soldier.md2");
 	//model2 = load_obj_model("data/ca_hom/ca_hom_armor01.obj");
 	//model2 = load_obj_model("data/tr_mo_kami_caster/tr_mo_kami_caster.obj");
 	model2 = load_obj_model("data/tr_mo_cute/tr_mo_cute.obj");
-	load_obj_animation(model2, "data/tr_mo_cute/tr_mo_cute_atk_death.pc2");
-	model3 = load_obj_model("data/village/village.obj");
+	load_obj_animation(model2, "data/tr_mo_cute/tr_mo_cute_idle_occupation1.pc2");
+	model3 = load_obj_model("data/ca_hom/ca_hom_armor01.obj");
+	model4 = load_obj_model("data/village/village.obj");
 
 	printf("loading terrain textures\n");
 	for (i = 0; i < nelem(grasstex); i++) {
@@ -53,8 +60,10 @@ void sys_hook_init(int argc, char **argv)
 		grasstex[i] = load_texture(buf, NULL, NULL, NULL, 0);
 	}
 
-	init_sky_dome(15, 15);
-	skytex = load_texture("data/skydome6.png", 0, 0, 0, 0);
+	// init_sky_dome(15, 15);
+	// skytex = load_texture("data/DuskStormonHorizon.jpg", 0, 0, 0, 0);
+	skydome1 = load_obj_model("data/sky/sky_fog_tryker.obj");
+	skydome2 = load_obj_model("data/sky/canope_tryker.obj");
 
 	printf("all done\n");
 }
@@ -105,12 +114,13 @@ void sys_hook_draw(int w, int h)
 	angle += 1.0;
 	if (angle > 360)
 		angle = 0;
-	lerp += 25.0/60.0;
+	lerp += 15.0/60.0;
 	if (lerp > 1.0)
 	{
 		lerp = 0.0;
 		idx ++;
 	}
+	if (idx == 261) idx = 0;
 	if (idx == md2_get_frame_count(model1) - 1)
 		idx = 0;
 
@@ -119,7 +129,7 @@ void sys_hook_draw(int w, int h)
 	 */
 	glMatrixMode(GL_PROJECTION);
 	glLoadIdentity();
-	perspective(60, (float) w / h, 0.05, 500); /* 5cm to 500m clip planes */
+	perspective(60, (float) w / h, 0.05, 600); /* 5cm to 600m clip planes */
 
 	glMatrixMode(GL_MODELVIEW);
 	glLoadIdentity();
@@ -135,12 +145,12 @@ void sys_hook_draw(int w, int h)
 	glEnable(GL_LIGHT0);
 	glLightfv(GL_LIGHT0, GL_POSITION, light0pos);
 	glLightfv(GL_LIGHT0, GL_DIFFUSE, light0col);
-	// glLightf(GL_LIGHT0, GL_LINEAR_ATTENUATION, 0.02);
+	glLightf(GL_LIGHT0, GL_LINEAR_ATTENUATION, 1.0 / 10);
 
 	glEnable(GL_LIGHT1);
 	glLightfv(GL_LIGHT1, GL_POSITION, light1pos);
 	glLightfv(GL_LIGHT1, GL_DIFFUSE, light1col);
-	glLightf(GL_LIGHT1, GL_LINEAR_ATTENUATION, 1.0 / 5); /* drop off at 5m */
+	glLightf(GL_LIGHT1, GL_QUADRATIC_ATTENUATION, 1.0 / 5); /* drop off at 5m */
 
 	glEnable(GL_DEPTH_TEST);
 	glEnable(GL_TEXTURE_2D);
@@ -158,7 +168,12 @@ void sys_hook_draw(int w, int h)
 	glPopMatrix();
 
 	glPushMatrix();
+	glTranslatef(0, 1, 0);
 	draw_obj_model(model3);
+	glPopMatrix();
+
+	glPushMatrix();
+	draw_obj_model(model4);
 	glPopMatrix();
 
 	glPushMatrix();
@@ -183,18 +198,25 @@ void sys_hook_draw(int w, int h)
 	}
 	glPopMatrix();
 
+	glColor3f(1, 1, 1);
+	glEnable(GL_BLEND);
+
+	glEnable(GL_LIGHT2);
+	glLightfv(GL_LIGHT2, GL_POSITION, light2pos);
+	glLightfv(GL_LIGHT2, GL_DIFFUSE, light2col);
+	draw_obj_model(skydome2);
+	glDisable(GL_LIGHT2);
+
 	glDisable(GL_LIGHTING);
+	glPushMatrix();
+	glScalef(2, 2, 2);
+	draw_obj_model(skydome1);
+	glPopMatrix();
 
-	glColor3f(1, 0, 0);
-	draw_sky_dome(skytex);
-
-	glDisable(GL_DEPTH_TEST);
 	glDisable(GL_TEXTURE_2D);
+	glDisable(GL_DEPTH_TEST);
 
-#if 1
-	/*
-	 * Draw x-y-z-axes
-	 */
+	/* Draw x-y-z-axes */
 	glDisable(GL_TEXTURE_2D);
 	glBegin(GL_LINES);
 	glColor4f(1, 0, 0, 1);
@@ -204,8 +226,6 @@ void sys_hook_draw(int w, int h)
 	glColor4f(0, 0, 1, 1);
 	glVertex3f(0, 0, 0); glVertex3f(0, 0, 1);
 	glEnd();
-	glEnable(GL_TEXTURE_2D);
-#endif
 
 	/*
 	* Draw text overlay
@@ -231,7 +251,7 @@ void sys_hook_draw(int w, int h)
 	x = measure_string(font, 20, status);
 	draw_string(font, 20, w - x - 20, 30, status);
 
-	#if 1
+	#if 0
 	glColor3f(1, 1, 1);
 	glBegin(GL_QUADS);
 	glTexCoord2f(0, 0); glVertex2f(10, 50);
