@@ -6,19 +6,27 @@
 static struct md2_model *model1;
 static struct model *model2;
 static struct model *model3;
-static struct model *model4;
+static struct model *village;
+static struct model *tree;
 static struct model *skydome1;
 static struct model *skydome2;
 static struct font *font;
-static int grasstex[15];
+// static int grasstex[4];
 
-float light0pos[] = { -5, -5, 10, 1 };
-float light0col[] = { 1, 1, 1, 1 };
-float light1pos[] = { 0, 0, 1, 1 };
-float light1col[] = { 1, 0.8, 0.2, 1 };
-float light2pos[] = { 0, 0, 1, 0 }; /* directional */
-float light2col[] = { 0.3, 0.3, 0.5, 1 };
-float ambientcol[] = { 0, 0, 0, 1 };
+static float camera_dir[3] = { 0, 0, 0 };
+static float camera_pos[3] = { 0, -5, 1.8 };
+static float camera_rot[3] = { 0, 0, 0 };
+static int action_forward = 0;
+static int action_backward = 0;
+static int action_left = 0;
+static int action_right = 0;
+
+float sunpos[] = { -5, -5, 10, 0 };
+float suncolor[] = { 1, 1, 1, 1 };
+float torchpos[] = { 0, 0, 1, 1 };
+float torchcolor[] = { 1, 1, 0.5, 1 };
+float ambientcolor[] = { 0.1, 0.1, 0.1, 1 };
+float fogcolor[4] = { 73.0/255, 149.0/255, 204.0/255, 1 };
 
 void perspective(float fov, float aspect, float near, float far)
 {
@@ -27,9 +35,51 @@ void perspective(float fov, float aspect, float near, float far)
 	glFrustum(-fov * aspect, fov * aspect, -fov, fov, near, far);
 }
 
+void rotvec(float a, float b, float c, float *in, float *out)
+{
+	float xp, yp, zp;
+	float x, y, z;
+	x = in[0];
+	y = in[1];
+	z = in[2];
+
+	// - x -
+	yp = y * cos(a) - z * sin(a);
+	zp = y * sin(a) + z * cos(a);
+	y = yp;
+	z = zp;
+
+	// - y -
+	xp = x * cos(b) + z * sin(b);
+	zp = -x * sin(b) + z * cos(b);
+	x = xp;
+	z = zp;
+
+	// - z -
+	xp = x * cos(c) - y * sin(c);
+	yp = x * sin(c) + y * cos(c);
+	x = xp;
+	y = yp;
+
+	out[0] = x;
+	out[1] = y;
+	out[2] = z;
+}
+
+void updatecamera(void)
+{
+	float dir[3];
+	float speed = 0.1;
+	rotvec(camera_rot[0]*M_PI/180, camera_rot[1]*M_PI/180, camera_rot[2]*M_PI/180, camera_dir, dir);
+	camera_pos[0] += dir[0] * speed;
+	camera_pos[1] += dir[1] * speed;
+	camera_pos[2] += dir[2] * speed;
+}
+
 void sys_hook_init(int argc, char **argv)
 {
 	char buf[100];
+	float one = 1;
 	int i;
 
 	printf("loading data files...\n");
@@ -43,7 +93,8 @@ void sys_hook_init(int argc, char **argv)
 	glEnable(GL_CULL_FACE);
 
 	glShadeModel(GL_SMOOTH);
-	glLightModelfv(GL_LIGHT_MODEL_AMBIENT, ambientcol);
+	//glLightModelfv(GL_LIGHT_MODEL_AMBIENT, fogcolor);
+	glLightModelfv(GL_LIGHT_MODEL_TWO_SIDE, &one);
 
 	font = load_font("data/CharterBT-Roman.ttf");
 	model1 = md2_load_model("data/soldier.md2");
@@ -52,13 +103,16 @@ void sys_hook_init(int argc, char **argv)
 	model2 = load_obj_model("data/tr_mo_cute/tr_mo_cute.obj");
 	load_obj_animation(model2, "data/tr_mo_cute/tr_mo_cute_idle_occupation1.pc2");
 	model3 = load_obj_model("data/ca_hom/ca_hom_armor01.obj");
-	model4 = load_obj_model("data/village/village.obj");
+	village = load_obj_model("data/village-a/villagea.obj");
+	tree = load_obj_model("data/vegetation/ju_s2_big_tree.obj");
 
+#if 0
 	printf("loading terrain textures\n");
 	for (i = 0; i < nelem(grasstex); i++) {
 		sprintf(buf, "data/terrain/y-bassesiles-256-a-%02d.png", i+1);
 		grasstex[i] = load_texture(buf, NULL, NULL, NULL, 0);
 	}
+#endif
 
 	// init_sky_dome(15, 15);
 	// skytex = load_texture("data/DuskStormonHorizon.jpg", 0, 0, 0, 0);
@@ -66,6 +120,8 @@ void sys_hook_init(int argc, char **argv)
 	skydome2 = load_obj_model("data/sky/canope_tryker.obj");
 
 	printf("all done\n");
+
+	sys_start_idle_loop();
 }
 
 void sys_hook_draw(int w, int h)
@@ -89,6 +145,22 @@ void sys_hook_draw(int w, int h)
 			}
 			if (evt->key == 27)
 				exit(0);
+		}
+		if (evt->type == SYS_EVENT_KEY_DOWN) {
+			switch (evt->key) {
+			case SYS_KEY_UP: action_forward = 1; break;
+			case SYS_KEY_DOWN: action_backward = 1; break;
+			case SYS_KEY_LEFT: action_left = 1; break;
+			case SYS_KEY_RIGHT: action_right = 1; break;
+			}
+		}
+		if (evt->type == SYS_EVENT_KEY_UP) {
+			switch (evt->key) {
+			case SYS_KEY_UP: action_forward = 0; break;
+			case SYS_KEY_DOWN: action_backward = 0; break;
+			case SYS_KEY_LEFT: action_left = 0; break;
+			case SYS_KEY_RIGHT: action_right = 0; break;
+			}
 		}
 		if (evt->type == SYS_EVENT_MOUSE_MOVE)
 		{
@@ -124,46 +196,66 @@ void sys_hook_draw(int w, int h)
 	if (idx == md2_get_frame_count(model1) - 1)
 		idx = 0;
 
+	/*
+	 * Update camera
+	 */
+
+	float dir[3] = {0, 1, 0};
+	if (action_forward) camera_dir[1] = 1;
+	else if (action_backward) camera_dir[1] = -1;
+	else camera_dir[1] = 0;
+	if (action_left) camera_rot[2] += 3;
+	if (action_right) camera_rot[2] -= 3;
+	updatecamera();
+
 	 /*
 	 * Draw rotating models
 	 */
 	glMatrixMode(GL_PROJECTION);
 	glLoadIdentity();
-	perspective(60, (float) w / h, 0.05, 600); /* 5cm to 600m clip planes */
+	perspective(60, (float) w / h, 0.05, 6000); /* 5cm to 6km clip planes */
 
 	glMatrixMode(GL_MODELVIEW);
 	glLoadIdentity();
 	glRotatef(-90, 1, 0, 0); /* Z-up */
-	glTranslatef(0, 5, -1.5); /* 3 meters back and 1.5 meters up */
-	glRotatef(angle, 0, 0, 1); /* spin me right round */
+	glRotatef(-camera_rot[2], 0, 0, 1);
+	glRotatef(-camera_rot[0], 1, 0, 0);
+	glRotatef(-camera_rot[1], 0, 1, 0);
+	glTranslatef(-camera_pos[0], -camera_pos[1], -camera_pos[2]);
 
 	glColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE);
+	glColor3f(1, 1, 1);
 	glEnable(GL_COLOR_MATERIAL);
 
 	glEnable(GL_LIGHTING);
 
 	glEnable(GL_LIGHT0);
-	glLightfv(GL_LIGHT0, GL_POSITION, light0pos);
-	glLightfv(GL_LIGHT0, GL_DIFFUSE, light0col);
-	glLightf(GL_LIGHT0, GL_LINEAR_ATTENUATION, 1.0 / 10);
+	glLightfv(GL_LIGHT0, GL_POSITION, sunpos);
+	glLightfv(GL_LIGHT0, GL_DIFFUSE, suncolor);
 
 	glEnable(GL_LIGHT1);
-	glLightfv(GL_LIGHT1, GL_POSITION, light1pos);
-	glLightfv(GL_LIGHT1, GL_DIFFUSE, light1col);
-	glLightf(GL_LIGHT1, GL_QUADRATIC_ATTENUATION, 1.0 / 5); /* drop off at 5m */
+	glLightfv(GL_LIGHT1, GL_POSITION, torchpos);
+	glLightfv(GL_LIGHT1, GL_DIFFUSE, torchcolor);
+	glLightf(GL_LIGHT1, GL_QUADRATIC_ATTENUATION, 1.0/15);
 
 	glEnable(GL_DEPTH_TEST);
 	glEnable(GL_TEXTURE_2D);
 
+	glFogi(GL_FOG_MODE, GL_LINEAR);
+	glFogfv(GL_FOG_COLOR, fogcolor);
+	glFogf(GL_FOG_DENSITY, 0.30f);
+	glHint(GL_FOG_HINT, GL_DONT_CARE);
+	glFogf(GL_FOG_START, 1.0f);
+	glFogf(GL_FOG_END, 1000.0f);
+	glEnable(GL_FOG);
+
 	glPushMatrix();
-	glColor3f(1, 1, 1);
 	glTranslatef(-1, 0, 0);
 	md2_draw_frame_lerp(model1, 0, idx, idx + 1, lerp);
 	glPopMatrix();
 
 	glPushMatrix();
 	glTranslatef(1, 0, 0);
-	glColor3f(1, 1, 1);
 	draw_obj_model_frame(model2, idx);
 	glPopMatrix();
 
@@ -173,9 +265,10 @@ void sys_hook_draw(int w, int h)
 	glPopMatrix();
 
 	glPushMatrix();
-	draw_obj_model(model4);
+	draw_obj_model(village);
 	glPopMatrix();
 
+#if 0
 	glPushMatrix();
 	glScalef(2, 2, 1);
 	{
@@ -197,21 +290,45 @@ void sys_hook_draw(int w, int h)
 		}
 	}
 	glPopMatrix();
+#endif
 
-	glColor3f(1, 1, 1);
-	glEnable(GL_BLEND);
-
-	glEnable(GL_LIGHT2);
-	glLightfv(GL_LIGHT2, GL_POSITION, light2pos);
-	glLightfv(GL_LIGHT2, GL_DIFFUSE, light2col);
+	glPushMatrix();
+	glScalef(5, 5, 5);
 	draw_obj_model(skydome2);
-	glDisable(GL_LIGHT2);
+	glPopMatrix();
 
 	glDisable(GL_LIGHTING);
+	glDisable(GL_FOG);
 	glPushMatrix();
-	glScalef(2, 2, 2);
+	glScalef(20, 20, 20);
 	draw_obj_model(skydome1);
 	glPopMatrix();
+
+	/* draw tree twice, once with alpha testing and depth write */
+	/* then again with blending and no depth write (or test) */
+	glDisable(GL_CULL_FACE);
+
+	glEnable(GL_FOG);
+	glEnable(GL_LIGHTING);
+	glPushMatrix();
+	glTranslatef(20, 40, 0);
+
+	glAlphaFunc(GL_GREATER, 0.9);
+	glEnable(GL_ALPHA_TEST);
+	draw_obj_model(tree);
+	glDisable(GL_ALPHA_TEST);
+
+	glEnable(GL_BLEND);
+	glDepthMask(GL_FALSE);
+	draw_obj_model(tree);
+	glDepthMask(GL_TRUE);
+	glDisable(GL_BLEND);
+
+	glPopMatrix();
+	glDisable(GL_LIGHTING);
+	glDisable(GL_FOG);
+
+	glEnable(GL_CULL_FACE);
 
 	glDisable(GL_TEXTURE_2D);
 	glDisable(GL_DEPTH_TEST);
