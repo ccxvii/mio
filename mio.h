@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
+#include <assert.h>
 
 #include "opengl.h"
 #include "utf.h"
@@ -37,3 +38,13 @@ struct model *load_obj_model(char *filename);
 void draw_obj_model(struct model *model);
 void load_obj_animation(struct model *model, char *filename);
 void draw_obj_model_frame(struct model *model, int frame);
+
+struct model *load_iqm_model(char *filename);
+void draw_iqm_model(struct model *model);
+void draw_iqm_bones(struct model *model);
+void animate_iqm_model(struct model *model, int anim, int frame);
+
+struct model *load_iqe_model(char *filename);
+void draw_iqe_model(struct model *model);
+void draw_iqe_bones(struct model *model);
+void animate_iqe_model(struct model *model, int anim, int frame);

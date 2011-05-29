@@ -20,10 +20,10 @@ HDRS := $(wildcard *.h)
 OBJS := $(addprefix $(OUT)/, \
 	$(SYS_OBJ) sysevent.o rune.o runetype.o strlcpy.o \
 	font.o image.o \
-	model_md2.o model_obj.o \
+	model_md2.o model_obj.o model_iqm.o model_iqe.o \
 	skybox.o skydome.o \
 	untitled.o )
-APP := $(OUT)/a.out
+APP := $(OUT)/untitled
 
 $(OUT) :
 	mkdir -p $@
