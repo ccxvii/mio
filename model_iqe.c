@@ -288,6 +288,11 @@ load_iqe_data(struct model *model, FILE *file)
 				break;
 			case 'n':
 				sscanf(line, "vn %f %f %f", model->norm+cur_normal, model->norm+cur_normal+1, model->norm+cur_normal+2);
+#ifdef FLIP
+				model->norm[cur_normal] = -model->norm[cur_normal];
+				model->norm[cur_normal+1] = -model->norm[cur_normal+1];
+				model->norm[cur_normal+2] = -model->norm[cur_normal+2];
+#endif
 				cur_normal += 3;
 				break;
 			case 'b':
@@ -312,15 +317,27 @@ load_iqe_data(struct model *model, FILE *file)
 		case 'f':
 			if (s[1] == 'a') {
 				sscanf(line, "fa %d %d %d", b+0, b+1, b+2);
+#ifdef FLIP
+				model->tris[cur_tri+0] = b[0];
+				model->tris[cur_tri+1] = b[2];
+				model->tris[cur_tri+2] = b[1];
+#else
 				model->tris[cur_tri+0] = b[0];
 				model->tris[cur_tri+1] = b[1];
 				model->tris[cur_tri+2] = b[2];
+#endif
 				cur_tri += 3;
 			} else if (s[1] == 'm') {
 				sscanf(line, "fm %d %d %d", b+0, b+1, b+2);
+#ifdef FLIP
+				model->tris[cur_tri+0] = b[0] + meshvert;
+				model->tris[cur_tri+1] = b[2] + meshvert;
+				model->tris[cur_tri+2] = b[1] + meshvert;
+#else
 				model->tris[cur_tri+0] = b[0] + meshvert;
 				model->tris[cur_tri+1] = b[1] + meshvert;
 				model->tris[cur_tri+2] = b[2] + meshvert;
+#endif
 				cur_tri += 3;
 			} else if (strstr(s, "frame\n") == s) { // don't confuse with "framerate"
 				cur_frame++;
@@ -348,12 +365,13 @@ load_iqe_data(struct model *model, FILE *file)
 			break;
 		case 'a':
 			if (strstr(s, "animation") == s) {
-				if (cur_anim >= 0)
+				if (cur_anim >= 0) {
+					if (cur_pose > 0) { cur_pose = 0; cur_frame++; }
 					model->anims[cur_anim].count = cur_frame - model->anims[cur_anim].first;
+				}
 				cur_anim++;
 				sscanf(line, "animation %s", model->anims[cur_anim].name);
 				model->anims[cur_anim].first = 0;
-				printf("animation '%s' first=%d\n", model->anims[cur_anim].name, model->anims[cur_anim].first);
 			}
 			break;
 		case 'p':
@@ -372,15 +390,12 @@ load_iqe_data(struct model *model, FILE *file)
 		}
 	}
 
-	if (cur_anim >= 0)
+	if (cur_anim >= 0) {
+		if (cur_pose > 0) { cur_pose = 0; cur_frame++; }
 		model->anims[cur_anim].count = cur_frame - model->anims[cur_anim].first;
+	}
 	if (cur_mesh >= 0)
 		model->meshes[cur_mesh].count = cur_tri/3 - model->meshes[cur_mesh].first;
-
-printf("loaded %d/%d meshes\n", cur_mesh+1, model->num_meshes);
-printf("loaded %d/%d animations\n", cur_anim+1, model->num_anims);
-printf("loaded %d/%d frames\n", cur_frame+1, model->num_frames);
-printf("computing inverse bind matrix\n");
 
 	// compute inverse bind matrix
 	for (i = 0; i < model->num_bones; i++) {
@@ -407,6 +422,8 @@ load_iqe_model(char *filename)
 		return NULL;
 	}
 
+	printf("loading iqe model '%s'\n", filename);
+
 	model = malloc(sizeof *model);
 	memset(model, 0, sizeof *model);
 
@@ -419,8 +436,6 @@ load_iqe_model(char *filename)
 	fseek(file, 0, 0);
 	load_iqe_data(model, file);
 	fclose(file);
-
-printf("done loading IQE model\n");
 
 	model->outpos = model->pos;
 	model->outnorm = model->norm;

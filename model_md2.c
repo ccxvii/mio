@@ -2,11 +2,11 @@
 
 #include <unistd.h> /* for access() */
 
-/* quake models use a unit of 1..1.5 inches, not sure */
+/* quake models use a unit size where 8 units = 1 foot */
 /* quake models have their origin 24 units below ground (so we translate up) */
 /* quake models face +x (so we rotate to face -y) */
 
-#define UNIT (1.25 * 0.0254)
+#define UNIT 0.0381 /* convert 1/8 foot to meters */
 
 static void die(char *msg)
 {

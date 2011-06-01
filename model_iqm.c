@@ -59,7 +59,7 @@ struct model {
 };
 
 #define IQM_MAGIC "INTERQUAKEMODEL\0"
-#define IQM_VERSION 1
+#define IQM_VERSION 2
 
 enum {
 	IQM_POSITION = 0,
@@ -84,9 +84,9 @@ enum {
 	IQM_DOUBLE = 8,
 };
 
-static inline void conv_quat(float q[4])
+static inline void restorew(float q[4])
 {
-	q[3] = -sqrtf(max(1 - q[0]*q[0] - q[1]*q[1] - q[2]*q[2], 0));
+	q[3] = -sqrt(max(1 - q[0]*q[0] - q[1]*q[1] - q[2]*q[2], 0));
 	if (q[3] > -0.01) printf("warning: q->w near zero (%g %g %g : %g)\n", q[0],q[1],q[2],q[3]);
 }
 
@@ -367,10 +367,10 @@ static void read_pose(struct pose *pose, unsigned char *data)
 	pose->rotate[0] = readfloat(data + 12);
 	pose->rotate[1] = readfloat(data + 16);
 	pose->rotate[2] = readfloat(data + 20);
-	pose->scale[0] = readfloat(data + 24);
-	pose->scale[1] = readfloat(data + 28);
-	pose->scale[2] = readfloat(data + 32);
-	conv_quat(pose->rotate);
+	pose->rotate[3] = readfloat(data + 24);
+	pose->scale[0] = readfloat(data + 28);
+	pose->scale[1] = readfloat(data + 32);
+	pose->scale[2] = readfloat(data + 36);
 	float *q = pose->rotate;
 	float mag = sqrtf(q[0]*q[0] + q[1]*q[1] + q[2]*q[2] + q[3]*q[3]);
 	if (fabs(mag-1) > 0.001)
@@ -395,7 +395,7 @@ load_bones(struct model *model, unsigned char *data, int ofs_text, int ofs_bones
 			float44_mul(bone->bind_matrix, bone->bind_matrix, parent->bind_matrix);
 		}
 		float44_inverse(bone->inv_bind_matrix, bone->bind_matrix); // must be orthogonal
-		ofs_bones += 44;
+		ofs_bones += 48;
 	}
 }
 
@@ -419,8 +419,8 @@ load_anims(struct model *model, unsigned char *data, int ofs_text, int ofs_anims
 
 struct chan {
 	int mask;
-	float offset[9];
-	float scale[9];
+	float offset[10];
+	float scale[10];
 };
 
 static void
@@ -437,11 +437,11 @@ load_frames(struct model *model, unsigned char *data,
 	for (k = 0; k < num_bones; k++) {
 		struct chan *chan = chans + k;
 		chan->mask = read32(data + ofs_poses + 4);
-		for (n = 0; n < 9; n++) {
+		for (n = 0; n < 10; n++) {
 			chan->offset[n] = readfloat(data + ofs_poses + 8 + n * 4);
-			chan->scale[n] = readfloat(data + ofs_poses + 8 + 9 * 4 + n * 4);
+			chan->scale[n] = readfloat(data + ofs_poses + 8 + 10 * 4 + n * 4);
 		}
-		ofs_poses += 20 * 4;
+		ofs_poses += 22 * 4;
 	}
 
 	for (i = 0; i < num_frames; i++) {
@@ -452,18 +452,19 @@ load_frames(struct model *model, unsigned char *data,
 			for (n = 0; n < 3; n++) {
 				pose->translate[n] = chan->offset[n];
 				pose->rotate[n] = chan->offset[3+n];
-				pose->scale[n] = chan->offset[6+n];
+				pose->scale[n] = chan->offset[7+n];
 			}
+			pose->rotate[3] = chan->offset[6];
 			if (chan->mask & 0x01) { pose->translate[0] += read16(p) * chan->scale[0]; p += 2; }
 			if (chan->mask & 0x02) { pose->translate[1] += read16(p) * chan->scale[1]; p += 2; }
 			if (chan->mask & 0x04) { pose->translate[2] += read16(p) * chan->scale[2]; p += 2; }
 			if (chan->mask & 0x08) { pose->rotate[0] += read16(p) * chan->scale[3]; p += 2; }
 			if (chan->mask & 0x10) { pose->rotate[1] += read16(p) * chan->scale[4]; p += 2; }
 			if (chan->mask & 0x20) { pose->rotate[2] += read16(p) * chan->scale[5]; p += 2; }
-			if (chan->mask & 0x40) { pose->scale[0] += read16(p) * chan->scale[6]; p += 2; }
-			if (chan->mask & 0x80) { pose->scale[1] += read16(p) * chan->scale[7]; p += 2; }
-			if (chan->mask & 0x100) { pose->scale[2] += read16(p) * chan->scale[8]; p += 2; }
-			conv_quat(pose->rotate);
+			if (chan->mask & 0x40) { pose->rotate[3] += read16(p) * chan->scale[6]; p += 2; }
+			if (chan->mask & 0x80) { pose->scale[0] += read16(p) * chan->scale[7]; p += 2; }
+			if (chan->mask & 0x100) { pose->scale[1] += read16(p) * chan->scale[8]; p += 2; }
+			if (chan->mask & 0x200) { pose->scale[2] += read16(p) * chan->scale[9]; p += 2; }
 		}
 	}
 
@@ -547,6 +548,8 @@ load_iqm_model(char *filename)
 		fprintf(stderr, "cannot open model '%s'\n", filename);
 		return NULL;
 	}
+
+	printf("loading iqm model '%s'\n", filename);
 
 	fread(&hdr, 1, sizeof hdr, file);
 	if (memcmp(hdr, IQM_MAGIC, 16)) {
