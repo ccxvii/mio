@@ -11,7 +11,7 @@ unsigned char *load_file(char *filename, int *lenp)
 	int len;
 	FILE *file = fopen(filename, "rb");
 	if (!file) {
-		fprintf(stderr, "error: cannot open '%s': (%s)\n", filename, strerror(errno));
+		fprintf(stderr, "error: cannot open '%s'\n", filename);
 		return NULL;
 	}
 	fseek(file, 0, 2);

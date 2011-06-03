@@ -19,23 +19,23 @@ int xstrlcat(char *dst, const char *src, int siz);
 
 unsigned char *load_file(char *filename, int *lenp);
 
-/* Every stupid system has a different way to include OpenGL headers... */
+/* OpenGL headers and extension voodoo */
 
 #ifdef __APPLE__
 #include <OpenGL/gl.h>
+// no extension voodoo for apple
 #else
+
 #include <GL/gl.h>
-#endif
-
-/* OpenGL extensions */
-
 #include "glext.h"
-
-extern void init_glext();
 
 #define glCompressedTexImage2D mioCompressedTexImage2D
 
 extern PFNGLCOMPRESSEDTEXIMAGE2DPROC glCompressedTexImage2D;
+
+#endif
+
+extern void init_glext();
 
 /* image and texture loading */
 
