@@ -2,13 +2,6 @@
 
 #define SEP " \t\r\n"
 
-struct animation {
-	char name[80];
-	int len;
-	float *v;
-	struct animation *next;
-};
-
 struct material {
 	char name[80];
 	int texture;
@@ -39,7 +32,7 @@ struct model {
 	struct array texcoord;
 	struct array normal;
 	struct mesh *mesh;
-	struct animation *animation;
+	int list;
 };
 
 static inline void push(struct array *a, float v)
@@ -307,86 +300,25 @@ void draw_obj_model(struct model *model)
 {
 	struct mesh *mesh;
 	int i, k, p, t, n;
-	for (mesh = model->mesh; mesh; mesh = mesh->next) {
-		glBindTexture(GL_TEXTURE_2D, mesh->material->texture);
-		glBegin(GL_TRIANGLES);
-		for (i = 0; i < mesh->len; i++) {
-			// compute_face_normal(model, mesh, i);
-			for (k = 0; k < 3; k++) {
-				p = mesh->tri[i].vp[k];
-				t = mesh->tri[i].vt[k];
-				n = mesh->tri[i].vn[k];
-				if (n >= 0) glNormal3fv(model->normal.data + n);
-				if (t >= 0) glTexCoord2fv(model->texcoord.data + t);
-				glVertex3fv(model->position.data + p);
+	if (model->list == 0) {
+		model->list = glGenLists(1);
+		glNewList(model->list, GL_COMPILE);
+		for (mesh = model->mesh; mesh; mesh = mesh->next) {
+			glBindTexture(GL_TEXTURE_2D, mesh->material->texture);
+			glBegin(GL_TRIANGLES);
+			for (i = 0; i < mesh->len; i++) {
+				for (k = 0; k < 3; k++) {
+					p = mesh->tri[i].vp[k];
+					t = mesh->tri[i].vt[k];
+					n = mesh->tri[i].vn[k];
+					if (n >= 0) glNormal3fv(model->normal.data + n);
+					if (t >= 0) glTexCoord2fv(model->texcoord.data + t);
+					glVertex3fv(model->position.data + p);
+				}
 			}
+			glEnd();
 		}
-		glEnd();
+		glEndList();
 	}
-}
-
-void load_obj_animation(struct model *model, char *filename)
-{
-	FILE *fp;
-	struct animation *anim;
-
-	struct {
-		char magic[12];
-		int version;
-		int points;
-		float start;
-		float rate;
-		int frames;
-	} header;
-
-	fp = fopen(filename, "rb");
-	if (!fp) {
-		fprintf(stderr, "error: cannot load animation '%s'\n", filename);
-		return;
-	}
-
-	fread(&header, 1, sizeof header, fp);
-	if (header.points * 3 != model->position.len) {
-		fprintf(stderr, "error: mismatched animation '%s'\n", filename);
-		fclose(fp);
-		return;
-	}
-
-	anim = malloc(sizeof(struct animation));
-	strlcpy(anim->name, filename, sizeof anim->name);
-	anim->len = header.frames;
-	anim->v = malloc(anim->len * model->position.len * sizeof(float));
-	fread(anim->v, sizeof(float), anim->len * model->position.len, fp);
-	fclose(fp);
-
-	anim->next = model->animation;
-	model->animation = anim;
-}
-
-void draw_obj_model_frame(struct model *model, int frame)
-{
-	struct mesh *mesh;
-	float *pos;
-	int i, k, p, t, n;
-
-	if (frame >= model->animation->len)
-		return;
-
-	pos = model->animation->v + frame * model->position.len;
-
-	for (mesh = model->mesh; mesh; mesh = mesh->next) {
-		glBindTexture(GL_TEXTURE_2D, mesh->material->texture);
-		glBegin(GL_TRIANGLES);
-		for (i = 0; i < mesh->len; i++) {
-			for (k = 0; k < 3; k++) {
-				p = mesh->tri[i].vp[k];
-				t = mesh->tri[i].vt[k];
-				n = mesh->tri[i].vn[k];
-				if (n >= 0) glNormal3fv(model->normal.data + n);
-				if (t >= 0) glTexCoord2fv(model->texcoord.data + t);
-				glVertex3fv(pos + p);
-			}
-		}
-		glEnd();
-	}
+	glCallList(model->list);
 }
