@@ -1,17 +1,15 @@
 #include "mio.h"
 
 #include "syshook.h"
-#include "sysevent.h"
 
-static struct md2_model *model1;
-static struct model *model2;
-static struct model *model3;
 static struct model *village;
 static struct model *tree;
 static struct model *skydome1;
 static struct model *skydome2;
+static struct model *iqe;
+static struct model *cute, *caravan;
+static struct tile *land;
 static struct font *font;
-// static int grasstex[4];
 
 static float camera_dir[3] = { 0, 0, 0 };
 static float camera_pos[3] = { 0, -5, 1.8 };
@@ -82,6 +80,8 @@ void sys_hook_init(int argc, char **argv)
 	float one = 1;
 	int i;
 
+	init_glext();
+
 	printf("loading data files...\n");
 
 	glTexParameteri(GL_TEXTURE_2D, GL_GENERATE_MIPMAP, GL_TRUE);
@@ -90,36 +90,28 @@ void sys_hook_init(int argc, char **argv)
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 	glCullFace(GL_BACK);
 	glFrontFace(GL_CCW);
-	glEnable(GL_CULL_FACE);
 
 	glShadeModel(GL_SMOOTH);
 	//glLightModelfv(GL_LIGHT_MODEL_AMBIENT, fogcolor);
 	glLightModelfv(GL_LIGHT_MODEL_TWO_SIDE, &one);
 
-	font = load_font("data/CharterBT-Roman.ttf");
-	model1 = md2_load_model("data/soldier.md2");
-	//model2 = load_obj_model("data/ca_hom/ca_hom_armor01.obj");
-	//model2 = load_obj_model("data/tr_mo_kami_caster/tr_mo_kami_caster.obj");
-	model2 = load_obj_model("data/tr_mo_cute/tr_mo_cute.obj");
-	load_obj_animation(model2, "data/tr_mo_cute/tr_mo_cute_idle_occupation1.pc2");
-	model3 = load_obj_model("data/ca_hom/ca_hom_armor01.obj");
-	village = load_obj_model("data/village-a/villagea.obj");
-	tree = load_obj_model("data/vegetation/ju_s2_big_tree.obj");
+	font = load_font("data/CharterBT-Roman.ttf"); if (!font) exit(1);
+	tree = load_obj_model("data/vegetation/ju_s2_big_tree.obj"); if (!tree) exit(1);
+	village = load_obj_model("data/village/village.obj"); if (!village) exit(1);
 
-#if 0
-	printf("loading terrain textures\n");
-	for (i = 0; i < nelem(grasstex); i++) {
-		sprintf(buf, "data/terrain/y-bassesiles-256-a-%02d.png", i+1);
-		grasstex[i] = load_texture(buf, NULL, NULL, NULL, 0);
-	}
-#endif
+	printf("loading terrain\n");
+	init_tileset();
+	land = load_tile("data/tile_h.png");
 
 	// init_sky_dome(15, 15);
 	// skytex = load_texture("data/DuskStormonHorizon.jpg", 0, 0, 0, 0);
-	skydome1 = load_obj_model("data/sky/sky_fog_tryker.obj");
-	skydome2 = load_obj_model("data/sky/canope_tryker.obj");
+	skydome1 = load_obj_model("data/sky/sky_fog_tryker.obj"); if (!skydome1) exit(1);
+	skydome2 = load_obj_model("data/sky/canope_tryker.obj"); if (!skydome2) exit(1);
 
-	printf("all done\n");
+	cute = load_iqm_model("data/tr_mo_cute/tr_mo_cute.iqm");
+	caravan = load_iqm_model("data/ca_hof/ca_hof.iqm");
+
+	iqe = load_iqe_model("data/ca_hof/ca_hof_scanne_loop.iqe");
 
 	sys_start_idle_loop();
 }
@@ -180,21 +172,16 @@ void sys_hook_draw(int w, int h)
 
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
+	glEnable(GL_CULL_FACE);
+//	glPolygonMode(GL_BACK, GL_LINE);
+
 	static float angle = 0.0;
 	static float lerp = 0.0;
 	static int idx = 0;
 	angle += 1.0;
 	if (angle > 360)
 		angle = 0;
-	lerp += 15.0/60.0;
-	if (lerp > 1.0)
-	{
-		lerp = 0.0;
-		idx ++;
-	}
-	if (idx == 261) idx = 0;
-	if (idx == md2_get_frame_count(model1) - 1)
-		idx = 0;
+	idx ++;
 
 	/*
 	 * Update camera
@@ -249,48 +236,41 @@ void sys_hook_draw(int w, int h)
 	glFogf(GL_FOG_END, 1000.0f);
 	glEnable(GL_FOG);
 
+	if (caravan) animate_iqm_model(caravan, 0, idx/2);
+	if (cute) animate_iqm_model(cute, 25, idx/2);
+	if (iqe) animate_iqe_model(iqe, 0, idx/2);
+
 	glPushMatrix();
-	glTranslatef(-1, 0, 0);
-	md2_draw_frame_lerp(model1, 0, idx, idx + 1, lerp);
+	glTranslatef(1, 1, 0);
+	if (iqe) draw_iqe_model(iqe);
 	glPopMatrix();
 
 	glPushMatrix();
-	glTranslatef(1, 0, 0);
-	draw_obj_model_frame(model2, idx);
+	static int village_list = 0;
+	if (!village_list) {
+		village_list = glGenLists(1);
+		glNewList(village_list, GL_COMPILE);
+		draw_obj_model(village);
+		glEndList();
+	}
+	glCallList(village_list);
 	glPopMatrix();
 
 	glPushMatrix();
 	glTranslatef(0, 1, 0);
-	draw_obj_model(model3);
+	if (caravan) draw_iqm_model(caravan);
 	glPopMatrix();
 
 	glPushMatrix();
-	draw_obj_model(village);
+	glTranslatef(-1, 0, 0);
+	if (cute) draw_iqm_model(cute);
 	glPopMatrix();
 
-#if 0
 	glPushMatrix();
-	glScalef(2, 2, 1);
-	{
-		int row, col, tex = 0;
-		for (row = -40; row <= 40; row++)
-		{
-			for (col = -40; col <= 40; col++)
-			{
-				glBindTexture(GL_TEXTURE_2D, grasstex[tex]);
-				glBegin(GL_QUADS);
-				glNormal3f(0, 0, 1);
-				glTexCoord2f(0, 0); glVertex3f(row + 0, col + 0, 0);
-				glTexCoord2f(1, 0); glVertex3f(row + 1, col + 0, 0);
-				glTexCoord2f(1, 1); glVertex3f(row + 1, col + 1, 0);
-				glTexCoord2f(0, 1); glVertex3f(row + 0, col + 1, 0);
-				glEnd();
-				tex = (tex + 1) % nelem(grasstex);
-			}
-		}
-	}
+//	glScalef(2, 2, 1);
+	glTranslatef(-400, -420, -10);
+	draw_tile(land);
 	glPopMatrix();
-#endif
 
 	glPushMatrix();
 	glScalef(5, 5, 5);
@@ -328,8 +308,6 @@ void sys_hook_draw(int w, int h)
 	glDisable(GL_LIGHTING);
 	glDisable(GL_FOG);
 
-	glEnable(GL_CULL_FACE);
-
 	glDisable(GL_TEXTURE_2D);
 	glDisable(GL_DEPTH_TEST);
 
@@ -343,6 +321,21 @@ void sys_hook_draw(int w, int h)
 	glColor4f(0, 0, 1, 1);
 	glVertex3f(0, 0, 0); glVertex3f(0, 0, 1);
 	glEnd();
+
+	glPushMatrix();
+	glTranslatef(1, 10, 0);
+	if (caravan) draw_iqm_bones(caravan);
+	glPopMatrix();
+
+	glPushMatrix();
+	glTranslatef(2, 10, 0);
+	if (cute) draw_iqm_bones(cute);
+	glPopMatrix();
+
+	glPushMatrix();
+	glTranslatef(3, 10, 0);
+	if (iqe) draw_iqe_bones(iqe);
+	glPopMatrix();
 
 	/*
 	* Draw text overlay

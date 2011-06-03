@@ -198,7 +198,7 @@ load_material(struct model *model, char *name)
 	strlcat(buf, name, sizeof buf);
 	p = strrchr(buf, ',');
 	if (p) strlcpy(p, ".png", sizeof buf - (p-buf));
-	return load_texture(buf, 0, 0, 0, 0);
+	return load_texture(0, buf);
 }
 
 #define SEP " \t\r\n"

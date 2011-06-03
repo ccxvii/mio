@@ -3,7 +3,6 @@
 #include <string.h>
 
 #include "syshook.h"
-#include "sysevent.h"
 
 #define MAXQUEUE 32
 

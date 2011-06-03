@@ -19,9 +19,9 @@ LINK_CMD = $(QUIET_LINK) $(CC) -o $@ $^ $(LDFLAGS) $(LIBS)
 HDRS := $(wildcard *.h)
 OBJS := $(addprefix $(OUT)/, \
 	$(SYS_OBJ) sysevent.o rune.o runetype.o strlcpy.o \
-	font.o image.o \
-	model_md2.o model_obj.o model_iqm.o model_iqe.o \
-	skybox.o skydome.o \
+	glext.o font.o image.o vector.o \
+	model_obj.o model_iqm.o model_iqe.o \
+	terrain.o \
 	untitled.o )
 APP := $(OUT)/untitled
 

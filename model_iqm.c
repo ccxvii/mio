@@ -18,8 +18,8 @@ struct bone {
 	char name[NAMELEN];
 	int parent;
 	struct pose bind_pose;
-	float bind_matrix[4][4];
-	float inv_bind_matrix[4][4];
+	float bind_matrix[16];
+	float inv_bind_matrix[16];
 };
 
 struct bounds {
@@ -53,8 +53,8 @@ struct model {
 	struct anim *anims;
 
 	float *outpos, *outnorm;
-	float (*outbone)[4][4];
-	float (*outskin)[4][4];
+	float (*outbone)[16];
+	float (*outskin)[16];
 	struct pose *outpose;
 };
 
@@ -84,12 +84,6 @@ enum {
 	IQM_DOUBLE = 8,
 };
 
-static inline void restorew(float q[4])
-{
-	q[3] = -sqrt(max(1 - q[0]*q[0] - q[1]*q[1] - q[2]*q[2], 0));
-	if (q[3] > -0.01) printf("warning: q->w near zero (%g %g %g : %g)\n", q[0],q[1],q[2],q[3]);
-}
-
 static inline int read32(unsigned char *data)
 {
 	return data[0] | data[1] << 8 | data[2] << 16 | data[3] << 24;
@@ -105,137 +99,6 @@ static inline float readfloat(unsigned char *data)
 	union { float f; int i; } u;
 	u.i = data[0] | data[1] << 8 | data[2] << 16 | data[3] << 24;
 	return u.f;
-}
-
-static void float44_from_quat_vec(float m[4][4], float *q, float *v)
-{
-	float x2 = q[0] + q[0];
-	float y2 = q[1] + q[1];
-	float z2 = q[2] + q[2];
-	{
-		float xx2 = q[0] * x2;
-		float yy2 = q[1] * y2;
-		float zz2 = q[2] * z2;
-		m[0][0] = 1 - yy2 - zz2;
-		m[1][1] = 1 - xx2 - zz2;
-		m[2][2] = 1 - xx2 - yy2;
-	}
-	{
-		float yz2 = q[1] * z2;
-		float wx2 = q[3] * x2;
-		m[2][1] = yz2 + wx2;
-		m[1][2] = yz2 - wx2;
-	}
-	{
-		float xy2 = q[0] * y2;
-		float wz2 = q[3] * z2;
-		m[1][0] = xy2 + wz2;
-		m[0][1] = xy2 - wz2;
-	}
-	{
-		float xz2 = q[0] * z2;
-		float wy2 = q[3] * y2;
-		m[0][2] = xz2 + wy2;
-		m[2][0] = xz2 - wy2;
-	}
-
-	m[0][3] = v[0];
-	m[1][3] = v[1];
-	m[2][3] = v[2];
-
-	m[3][0] = 0;
-	m[3][1] = 0;
-	m[3][2] = 0;
-	m[3][3] = 1;
-}
-
-static void float44_vec_mul(float *out, float m[4][4], float *v)
-{
-	out[0] = m[0][0] * v[0] + m[0][1] * v[1] + m[0][2] * v[2] + m[0][3];
-	out[1] = m[1][0] * v[0] + m[1][1] * v[1] + m[1][2] * v[2] + m[1][3];
-	out[2] = m[2][0] * v[0] + m[2][1] * v[1] + m[2][2] * v[2] + m[2][3];
-}
-
-static void float44_vec_mul_n(float *out, float m[4][4], float *v)
-{
-	out[0] = m[0][0] * v[0] + m[0][1] * v[1] + m[0][2] * v[2];
-	out[1] = m[1][0] * v[0] + m[1][1] * v[1] + m[1][2] * v[2];
-	out[2] = m[2][0] * v[0] + m[2][1] * v[1] + m[2][2] * v[2];
-}
-
-static void float16_inverse(float out[16], const float m[16])
-{
-	float inv[16], det;
-	int i;
-
-	inv[0] = m[5]*m[10]*m[15] - m[5]*m[11]*m[14] - m[9]*m[6]*m[15] +
-		m[9]*m[7]*m[14] + m[13]*m[6]*m[11] - m[13]*m[7]*m[10];
-	inv[4] = -m[4]*m[10]*m[15] + m[4]*m[11]*m[14] + m[8]*m[6]*m[15] -
-		m[8]*m[7]*m[14] - m[12]*m[6]*m[11] + m[12]*m[7]*m[10];
-	inv[8] = m[4]*m[9]*m[15] - m[4]*m[11]*m[13] - m[8]*m[5]*m[15] +
-		m[8]*m[7]*m[13] + m[12]*m[5]*m[11] - m[12]*m[7]*m[9];
-	inv[12] = -m[4]*m[9]*m[14] + m[4]*m[10]*m[13] + m[8]*m[5]*m[14] -
-		m[8]*m[6]*m[13] - m[12]*m[5]*m[10] + m[12]*m[6]*m[9];
-	inv[1] = -m[1]*m[10]*m[15] + m[1]*m[11]*m[14] + m[9]*m[2]*m[15] -
-		m[9]*m[3]*m[14] - m[13]*m[2]*m[11] + m[13]*m[3]*m[10];
-	inv[5] = m[0]*m[10]*m[15] - m[0]*m[11]*m[14] - m[8]*m[2]*m[15] +
-		m[8]*m[3]*m[14] + m[12]*m[2]*m[11] - m[12]*m[3]*m[10];
-	inv[9] = -m[0]*m[9]*m[15] + m[0]*m[11]*m[13] + m[8]*m[1]*m[15] -
-		m[8]*m[3]*m[13] - m[12]*m[1]*m[11] + m[12]*m[3]*m[9];
-	inv[13] = m[0]*m[9]*m[14] - m[0]*m[10]*m[13] - m[8]*m[1]*m[14] +
-		m[8]*m[2]*m[13] + m[12]*m[1]*m[10] - m[12]*m[2]*m[9];
-	inv[2] = m[1]*m[6]*m[15] - m[1]*m[7]*m[14] - m[5]*m[2]*m[15] +
-		m[5]*m[3]*m[14] + m[13]*m[2]*m[7] - m[13]*m[3]*m[6];
-	inv[6] = -m[0]*m[6]*m[15] + m[0]*m[7]*m[14] + m[4]*m[2]*m[15] -
-		m[4]*m[3]*m[14] - m[12]*m[2]*m[7] + m[12]*m[3]*m[6];
-	inv[10] = m[0]*m[5]*m[15] - m[0]*m[7]*m[13] - m[4]*m[1]*m[15] +
-		m[4]*m[3]*m[13] + m[12]*m[1]*m[7] - m[12]*m[3]*m[5];
-	inv[14] = -m[0]*m[5]*m[14] + m[0]*m[6]*m[13] + m[4]*m[1]*m[14] -
-		m[4]*m[2]*m[13] - m[12]*m[1]*m[6] + m[12]*m[2]*m[5];
-	inv[3] = -m[1]*m[6]*m[11] + m[1]*m[7]*m[10] + m[5]*m[2]*m[11] -
-		m[5]*m[3]*m[10] - m[9]*m[2]*m[7] + m[9]*m[3]*m[6];
-	inv[7] = m[0]*m[6]*m[11] - m[0]*m[7]*m[10] - m[4]*m[2]*m[11] +
-		m[4]*m[3]*m[10] + m[8]*m[2]*m[7] - m[8]*m[3]*m[6];
-	inv[11] = -m[0]*m[5]*m[11] + m[0]*m[7]*m[9] + m[4]*m[1]*m[11] -
-		m[4]*m[3]*m[9] - m[8]*m[1]*m[7] + m[8]*m[3]*m[5];
-	inv[15] = m[0]*m[5]*m[10] - m[0]*m[6]*m[9] - m[4]*m[1]*m[10] +
-		m[4]*m[2]*m[9] + m[8]*m[1]*m[6] - m[8]*m[2]*m[5];
-
-	det = m[0] * inv[0] + m[1] * inv[4] + m[2] * inv[8] + m[3] * inv[12];
-	assert (det != 0);
-	det = 1.0 / det;
-	for (i = 0; i < 16; i++)
-		out[i] = inv[i] * det;
-}
-
-static void float44_inverse(float out[4][4], float mat[4][4])
-{
-	float16_inverse((float*)out, (float*)mat);
-}
-
-static void float44_mul(float out[4][4], float mat1[4][4], float mat2[4][4])
-{
-	float temp1[4][4], temp2[4][4];
-	int i, j;
-	if (mat1 == out) { memcpy(temp1, mat1, sizeof(temp1)); mat1 = temp1; }
-	if (mat2 == out) { memcpy(temp2, mat2, sizeof(temp2)); mat2 = temp2; }
-	for (j = 0; j < 4; ++j)
-		for (i = 0; i < 4; ++i)
-			out[j][i] =
-				mat1[0][i] * mat2[j][0] +
-				mat1[1][i] * mat2[j][1] +
-				mat1[2][i] * mat2[j][2] +
-				mat1[3][i] * mat2[j][3];
-}
-
-static void float44_print(float m[4][4])
-{
-	int i, j;
-	for (j = 0; j < 4; ++j) {
-		printf("\t");
-		for (i = 0; i < 4; i++)
-			printf("%+f%c", m[j][i], i==3?'\n':' ');
-	}
 }
 
 static void print_pose(struct pose *pose)
@@ -339,7 +202,7 @@ load_material(struct model *model, char *name)
 	strlcat(buf, name, sizeof buf);
 	p = strrchr(buf, ',');
 	if (p) strlcpy(p, ".png", sizeof buf - (p-buf));
-	return load_texture(buf, 0, 0, 0, 0);
+	return load_texture(0, buf);
 }
 
 static void
@@ -371,10 +234,7 @@ static void read_pose(struct pose *pose, unsigned char *data)
 	pose->scale[0] = readfloat(data + 28);
 	pose->scale[1] = readfloat(data + 32);
 	pose->scale[2] = readfloat(data + 36);
-	float *q = pose->rotate;
-	float mag = sqrtf(q[0]*q[0] + q[1]*q[1] + q[2]*q[2] + q[3]*q[3]);
-	if (fabs(mag-1) > 0.001)
-		printf("non-unit quat in bone! (len=%g)\n", mag);
+	quat_normalize(pose->rotate);
 }
 
 static void
@@ -384,17 +244,20 @@ load_bones(struct model *model, unsigned char *data, int ofs_text, int ofs_bones
 	model->num_bones = num_bones;
 	model->bones = malloc(num_bones * sizeof(struct bone));
 	for (i = 0; i < num_bones; i++) {
+		float m[16];
 		struct bone *bone = model->bones + i;
 		char *name = data + ofs_text + read32(data + ofs_bones + 0);
 		bone->parent = read32(data + ofs_bones + 4);
 		strlcpy(bone->name, name, NAMELEN);
 		read_pose(&bone->bind_pose, data + ofs_bones + 8);
-		float44_from_quat_vec(bone->bind_matrix, bone->bind_pose.rotate, bone->bind_pose.translate);
+		mat_from_quat_vec(m, bone->bind_pose.rotate, bone->bind_pose.translate);
 		if (bone->parent >= 0) {
 			struct bone *parent = model->bones + bone->parent;
-			float44_mul(bone->bind_matrix, bone->bind_matrix, parent->bind_matrix);
+			mat_mul(bone->bind_matrix, parent->bind_matrix, m);
+		} else {
+			mat_copy(bone->bind_matrix, m);
 		}
-		float44_inverse(bone->inv_bind_matrix, bone->bind_matrix); // must be orthogonal
+		mat_invert(bone->inv_bind_matrix, bone->bind_matrix);
 		ofs_bones += 48;
 	}
 }
@@ -589,8 +452,8 @@ animate_iqm_model(struct model *model, int anim, int frame)
 	if (model->outnorm == model->outnorm)
 		model->outnorm = malloc(model->num_verts * 3 * sizeof(float));
 	if (!model->outbone) {
-		model->outbone = malloc(model->num_bones * sizeof(float[4][4]));
-		model->outskin = malloc(model->num_bones * sizeof(float[4][4]));
+		model->outbone = malloc(model->num_bones * sizeof(float[16]));
+		model->outskin = malloc(model->num_bones * sizeof(float[16]));
 	}
 
 	frame %= model->anims[anim].count;
@@ -599,10 +462,13 @@ animate_iqm_model(struct model *model, int anim, int frame)
 	for (i = 0; i < model->num_bones; i++) {
 		int parent = model->bones[i].parent;
 		struct pose *pose = poses + i;
-		float44_from_quat_vec(model->outbone[i], pose->rotate, pose->translate);
+		float m[16];
+		mat_from_quat_vec(m, pose->rotate, pose->translate);
 		if (parent >= 0)
-			float44_mul(model->outbone[i], model->outbone[i], model->outbone[parent]);
-		float44_mul(model->outskin[i], model->bones[i].inv_bind_matrix, model->outbone[i]);
+			mat_mul(model->outbone[i], model->outbone[parent], m);
+		else
+			mat_copy(model->outbone[i], m);
+		mat_mul(model->outskin[i], model->outbone[i], model->bones[i].inv_bind_matrix);
 	}
 
 	idx = model->blend_index;
@@ -618,11 +484,11 @@ animate_iqm_model(struct model *model, int anim, int frame)
 			dstnorm[n] = 0;
 		}
 		for (k = 0; k < 4; k++) {
-			float (*m)[4] = model->outskin[idx[k]];
+			float *m = model->outskin[idx[k]];
 			if (w[k] > 0) {
 				float pv[3], nv[3];
-				float44_vec_mul(pv, m, srcpos);
-				float44_vec_mul_n(nv, m, srcnorm);
+				mat_vec_mul(pv, m, srcpos);
+				mat_vec_mul_n(nv, m, srcnorm);
 				for (n = 0; n < 3; n++) {
 					dstpos[n] += pv[n] * w[k];
 					dstnorm[n] += nv[n] * w[k];
@@ -682,12 +548,12 @@ draw_iqm_bones(struct model *model)
 		if (bone->parent >= 0) {
 			struct bone *pb = model->bones + bone->parent;
 			glColor3f(0, 1, 0);
-			glVertex3f(pb->bind_matrix[0][3], pb->bind_matrix[1][3], pb->bind_matrix[2][3]);
+			glVertex3f(pb->bind_matrix[12], pb->bind_matrix[13], pb->bind_matrix[14]);
 		} else {
 			glColor3f(0, 1, 0.5);
 			glVertex3f(0, 0, 0);
 		}
-		glVertex3f(bone->bind_matrix[0][3], bone->bind_matrix[1][3], bone->bind_matrix[2][3]);
+		glVertex3f(bone->bind_matrix[12], bone->bind_matrix[13], bone->bind_matrix[14]);
 	}
 
 	// current pose in red
@@ -695,15 +561,15 @@ draw_iqm_bones(struct model *model)
 		for (i = 0; i < model->num_bones; i++) {
 			struct bone *bone = model->bones + i;
 			if (bone->parent >= 0) {
-				float (*p)[4] = model->outbone[bone->parent];
+				float *p = model->outbone[bone->parent];
 				glColor3f(1, 0, 0);
-				glVertex3f(p[0][3], p[1][3], p[2][3]);
+				glVertex3f(p[12], p[13], p[14]);
 			} else {
 				glColor3f(1, 0.5, 0);
 				glVertex3f(0, 0, 0);
 			}
-			float (*m)[4] = model->outbone[i];
-			glVertex3f(m[0][3], m[1][3], m[2][3]);
+			float *m = model->outbone[i];
+			glVertex3f(m[12], m[13], m[14]);
 		}
 	}
 

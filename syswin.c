@@ -18,8 +18,8 @@ static HDC	g_hdc = NULL;
 static HGLRC	g_hrc = NULL;
 
 static int capture = 0;
-static int width = 640;
-static int height = 480;
+static int width = 800;
+static int height = 600;
 static int fullscreen = 0;
 static int active = 0;
 static int idle_loop = 0;
@@ -266,17 +266,26 @@ static LRESULT CALLBACK sys_win_proc(HWND hwnd, UINT message, WPARAM wparam, LPA
 
 #ifndef NDEBUG
 int main(int argc, char **argv)
-{
-	HINSTANCE instance = GetModuleHandle(NULL);
 #else
 int WINAPI WinMain(HINSTANCE instance, HINSTANCE previous, LPSTR cmdstr, int cmdshow)
-{
-	int argc;
-	char **argv = CommandLineToArgvA(GetCommandLineA(), &argc);
 #endif
+{
 	WNDCLASS wc;
 	MSG msg;
-	int error, okay;
+	int error;
+
+#ifndef NDEBUG
+	HINSTANCE instance = GetModuleHandle(NULL);
+#else
+	int i, n, argc;
+	wchar_t **argw = CommandLineToArgv(GetCommandLineA(), &argc);
+	char **argv = malloc(argc * sizeof(char*));
+	for (i = 0; i < argc; i++) {
+		n = WideCharToMultiByte(CP_UTF8, 0, argw[i], -1, 0, 0, 0, 0);
+		argv[i] = malloc(n);
+		WideCharToMultiByte(CP_UTF8, 0, argw[i], -1, argv[i], n, 0, 0);
+	}
+#endif
 
 	wc.style = CS_OWNDC | CS_HREDRAW | CS_VREDRAW;
 	wc.lpfnWndProc = sys_win_proc;
