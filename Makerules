@@ -3,10 +3,12 @@
 OS := $(shell uname)
 OS := $(OS:MINGW%=MINGW)
 
+CFLAGS := -Wall
+
 ifeq "$(build)" "debug"
-CFLAGS += -Wall -g
+CFLAGS += -g
 else ifeq "$(build)" "release"
-CFLAGS += -Wall -O2 -DNDEBUG -fomit-frame-pointer
+CFLAGS += -O2 -DNDEBUG -fomit-frame-pointer
 else
 $(error unknown build setting: '$(build)')
 endif
