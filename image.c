@@ -28,10 +28,8 @@ int make_texture(unsigned int texid, unsigned char *data, int w, int h, int n)
 {
 	int format;
 
-	if ((w & (w-1)) || (h & (h-1))) {
-		fprintf(stderr, "error: non-power-of-two texture size (%dx%d)!\n", w, h);
-		return 0;
-	}
+	if ((w & (w-1)) || (h & (h-1)))
+		fprintf(stderr, "warning: non-power-of-two texture size (%dx%d)!\n", w, h);
 
 	if (texid == 0)
 		glGenTextures(1, &texid);
@@ -70,10 +68,8 @@ static int load_dds_from_memory(unsigned int texid, unsigned char *data)
 	w = getint(data + 4*4);
 	mips = getint(data + 7*4);
 
-	if ((w & (w-1)) || (h & (h-1))) {
-		fprintf(stderr, "error: non-power-of-two DDS texture size (%dx%d)!\n", w, h);
-		return 0;
-	}
+	if ((w & (w-1)) || (h & (h-1)))
+		fprintf(stderr, "warning: non-power-of-two DDS texture size (%dx%d)!\n", w, h);
 
 	flags = getint(data + 2*4);
 	four = data + 21*4;
@@ -101,14 +97,14 @@ static int load_dds_from_memory(unsigned int texid, unsigned char *data)
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
 
-	size = MAX(4, w) / 4 * MAX(4, h) / 4 * bs;
+	size = MAX(4, w+3) / 4 * MAX(4, h+3) / 4 * bs;
 	data = data + 128;
 	for (i = 0; i < mips; i++) {
 		glCompressedTexImage2D(GL_TEXTURE_2D, i, fmt, w, h, 0, size, data);
 		data += size;
 		w = (w + 1) >> 1;
 		h = (h + 1) >> 1;
-		size = MAX(4, w) / 4 * MAX(4, h) / 4 * bs;
+		size = MAX(4, w+3) / 4 * MAX(4, h+3) / 4 * bs;
 	}
 
 	return texid;
