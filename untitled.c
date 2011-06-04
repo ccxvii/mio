@@ -19,10 +19,12 @@ static int action_backward = 0;
 static int action_left = 0;
 static int action_right = 0;
 
-float sunpos[] = { -5, -5, 10, 0 };
+static int show_console = 0;
+
+static int prog = 0;
+
+float sunpos[] = { -500, -500, 800, 1 };
 float suncolor[] = { 1, 1, 1, 1 };
-float torchpos[] = { 0, 0, 1, 1 };
-float torchcolor[] = { 1, 1, 0.5, 1 };
 float ambientcolor[] = { 0.1, 0.1, 0.1, 1 };
 float fogcolor[4] = { 73.0/255, 149.0/255, 204.0/255, 1 };
 
@@ -84,6 +86,10 @@ void sys_hook_init(int argc, char **argv)
 
 	printf("loading data files...\n");
 
+	prog = compile_shader("common.vs", "common.fs");
+
+	init_console("data/DroidSans.ttf", 15);
+
 	glTexParameteri(GL_TEXTURE_2D, GL_GENERATE_MIPMAP, GL_TRUE);
 
 	glClearColor(0.1, 0.1, 0.1, 1.0);
@@ -125,35 +131,48 @@ void sys_hook_draw(int w, int h)
 	{
 		if (evt->type == SYS_EVENT_KEY_CHAR)
 		{
-			if (evt->key == ' ')
-				sys_stop_idle_loop();
-			if (evt->key == 'r')
-				sys_start_idle_loop();
-			if (evt->key == '\r' && (evt->mod & SYS_MOD_ALT)) {
-				if (sys_is_fullscreen())
-					sys_leave_fullscreen();
+			if (!show_console) {
+				if (evt->key == '`')
+					show_console = 1;
+				if (evt->key == ' ')
+					sys_stop_idle_loop();
+				if (evt->key == 'r')
+					sys_start_idle_loop();
+				if (evt->key == '\r' && (evt->mod & SYS_MOD_ALT)) {
+					if (sys_is_fullscreen())
+						sys_leave_fullscreen();
+					else
+						sys_enter_fullscreen();
+				}
+				if (evt->key == 27)
+					exit(1);
+			} else {
+				if (evt->key == 27)
+					show_console = 0;
 				else
-					sys_enter_fullscreen();
-			}
-			if (evt->key == 27)
-				exit(0);
-		}
-		if (evt->type == SYS_EVENT_KEY_DOWN) {
-			switch (evt->key) {
-			case SYS_KEY_UP: action_forward = 1; break;
-			case SYS_KEY_DOWN: action_backward = 1; break;
-			case SYS_KEY_LEFT: action_left = 1; break;
-			case SYS_KEY_RIGHT: action_right = 1; break;
+					update_console(evt->key, evt->mod);
 			}
 		}
-		if (evt->type == SYS_EVENT_KEY_UP) {
-			switch (evt->key) {
-			case SYS_KEY_UP: action_forward = 0; break;
-			case SYS_KEY_DOWN: action_backward = 0; break;
-			case SYS_KEY_LEFT: action_left = 0; break;
-			case SYS_KEY_RIGHT: action_right = 0; break;
+
+		if (!show_console) {
+			if (evt->type == SYS_EVENT_KEY_DOWN) {
+				switch (evt->key) {
+				case SYS_KEY_UP: action_forward = 1; break;
+				case SYS_KEY_DOWN: action_backward = 1; break;
+				case SYS_KEY_LEFT: action_left = 1; break;
+				case SYS_KEY_RIGHT: action_right = 1; break;
+				}
+			}
+			if (evt->type == SYS_EVENT_KEY_UP) {
+				switch (evt->key) {
+				case SYS_KEY_UP: action_forward = 0; break;
+				case SYS_KEY_DOWN: action_backward = 0; break;
+				case SYS_KEY_LEFT: action_left = 0; break;
+				case SYS_KEY_RIGHT: action_right = 0; break;
+				}
 			}
 		}
+
 		if (evt->type == SYS_EVENT_MOUSE_MOVE)
 		{
 			mousex = evt->x;
@@ -220,11 +239,6 @@ void sys_hook_draw(int w, int h)
 	glLightfv(GL_LIGHT0, GL_POSITION, sunpos);
 	glLightfv(GL_LIGHT0, GL_DIFFUSE, suncolor);
 
-	glEnable(GL_LIGHT1);
-	glLightfv(GL_LIGHT1, GL_POSITION, torchpos);
-	glLightfv(GL_LIGHT1, GL_DIFFUSE, torchcolor);
-	glLightf(GL_LIGHT1, GL_QUADRATIC_ATTENUATION, 1.0/15);
-
 	glEnable(GL_DEPTH_TEST);
 	glEnable(GL_TEXTURE_2D);
 
@@ -240,20 +254,15 @@ void sys_hook_draw(int w, int h)
 	if (cute) animate_iqm_model(cute, 25, idx/2);
 	if (iqe) animate_iqe_model(iqe, 0, idx/2);
 
+	glUseProgram(prog);
+
 	glPushMatrix();
 	glTranslatef(1, 1, 0);
 	if (iqe) draw_iqe_model(iqe);
 	glPopMatrix();
 
 	glPushMatrix();
-	static int village_list = 0;
-	if (!village_list) {
-		village_list = glGenLists(1);
-		glNewList(village_list, GL_COMPILE);
-		draw_obj_model(village);
-		glEndList();
-	}
-	glCallList(village_list);
+	draw_obj_model(village);
 	glPopMatrix();
 
 	glPushMatrix();
@@ -268,9 +277,11 @@ void sys_hook_draw(int w, int h)
 
 	glPushMatrix();
 //	glScalef(2, 2, 1);
-	glTranslatef(-400, -420, -10);
+	glTranslatef(-485, -420, -7.7);
 	draw_tile(land);
 	glPopMatrix();
+
+	glUseProgram(0);
 
 	glPushMatrix();
 	glScalef(5, 5, 5);
@@ -350,27 +361,6 @@ void sys_hook_draw(int w, int h)
 	glMatrixMode(GL_MODELVIEW);
 	glLoadIdentity();
 
-	glEnable(GL_TEXTURE_2D);
-	glEnable(GL_BLEND);
-
-	glColor3f(1, 0.70, 0.7);
-	float x;
-	sprintf(status, "Angle: %g", angle);
-	draw_string(font, 20, 20, 30, status);
-	sprintf(status, "Frame: %d", idx);
-	x = measure_string(font, 20, status);
-	draw_string(font, 20, w - x - 20, 30, status);
-
-	#if 0
-	glColor3f(1, 1, 1);
-	glBegin(GL_QUADS);
-	glTexCoord2f(0, 0); glVertex2f(10, 50);
-	glTexCoord2f(0, 1); glVertex2f(10, 50 + 512);
-	glTexCoord2f(1, 1); glVertex2f(10 + 512, 50 + 512);
-	glTexCoord2f(1, 0); glVertex2f(10 + 512, 50);
-	glEnd();
-	#endif
-
-	glDisable(GL_BLEND);
-	glDisable(GL_TEXTURE_2D);
+	if (show_console)
+		draw_console(w, h);
 }
