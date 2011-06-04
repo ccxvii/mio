@@ -1,6 +1,5 @@
-#import <Cocoa/Cocoa.h>
-
 #include <GL/glew.h>
+#include <Cocoa/Cocoa.h>
 
 #include "syshook.h"
 

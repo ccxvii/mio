@@ -327,10 +327,10 @@ void vec_normalize(float v[3])
 
 void vec_face_normal(float n[3], const float *face, int p0, int p1, int p2)
 {
-	float v0[3], v1[3];
-	vec_sub(v0, face + p2 * 3, face + p0 * 3);
-	vec_sub(v1, face + p1 * 3, face + p0 * 3);
-	vec_cross(n, v0, v1);
+	float u[3], v[3];
+	vec_sub(u, face + p1 * 3, face + p0 * 3);
+	vec_sub(v, face + p2 * 3, face + p0 * 3);
+	vec_cross(n, u, v);
 }
 
 void vec_yup_to_zup(float v[3])
