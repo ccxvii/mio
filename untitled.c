@@ -19,6 +19,8 @@ static int action_backward = 0;
 static int action_left = 0;
 static int action_right = 0;
 
+static int old_x = 0, old_y = 0;
+
 static int show_console = 0;
 
 static int prog = 0;
@@ -125,7 +127,7 @@ void sys_hook_init(int argc, char **argv)
 void sys_hook_draw(int w, int h)
 {
 	struct event *evt;
-	static int mousex = 0, mousey = 0, mousez = 0;
+	static int isdown = 0;
 
 	while ((evt = sys_read_event()))
 	{
@@ -175,15 +177,26 @@ void sys_hook_draw(int w, int h)
 
 		if (evt->type == SYS_EVENT_MOUSE_MOVE)
 		{
-			mousex = evt->x;
-			mousey = evt->y;
+			int dx = evt->x - old_x;
+			int dy = evt->y - old_y;
+			if (isdown) {
+				camera_rot[2] -= dx * 0.3;
+				camera_rot[0] -= dy * 0.2;
+				if (camera_rot[0] < -85) camera_rot[0] = -85;
+				if (camera_rot[0] > 85) camera_rot[0] = 85;
+			}
+			old_x = evt->x;
+			old_y = evt->y;
 		}
 		if (evt->type == SYS_EVENT_MOUSE_DOWN)
 		{
-			if (evt->btn == 5)
-				mousez++;
-			else if (evt->btn == 4)
-				mousez--;
+			if (evt->btn & 1) isdown = 1;
+			old_x = evt->x;
+			old_y = evt->y;
+		}
+		if (evt->type == SYS_EVENT_MOUSE_UP)
+		{
+			if (evt->btn & 1) isdown = 0;
 		}
 	}
 
@@ -224,9 +237,9 @@ void sys_hook_draw(int w, int h)
 	glMatrixMode(GL_MODELVIEW);
 	glLoadIdentity();
 	glRotatef(-90, 1, 0, 0); /* Z-up */
-	glRotatef(-camera_rot[2], 0, 0, 1);
-	glRotatef(-camera_rot[0], 1, 0, 0);
 	glRotatef(-camera_rot[1], 0, 1, 0);
+	glRotatef(-camera_rot[0], 1, 0, 0);
+	glRotatef(-camera_rot[2], 0, 0, 1);
 	glTranslatef(-camera_pos[0], -camera_pos[1], -camera_pos[2]);
 
 	glColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE);
