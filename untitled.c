@@ -84,8 +84,6 @@ void sys_hook_init(int argc, char **argv)
 	float one = 1;
 	int i;
 
-	init_glext();
-
 	printf("loading data files...\n");
 
 	prog = compile_shader("common.vs", "common.fs");

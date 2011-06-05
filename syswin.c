@@ -9,7 +9,8 @@
 #define WM_MOUSEWHEEL 0x020A
 #endif
 
-#include <GL/gl.h>
+#include <GL/glew.h>
+#include <GL/wglew.h>
 
 #include "syshook.h"
 
@@ -26,7 +27,7 @@ static int idle_loop = 0;
 static int dirty = 0;
 static WINDOWPLACEMENT savedplace;
 
-static void sys_win_error(char *msg)
+static void sys_win_error(const char *msg)
 {
 	fprintf(stderr, "Error: %s\n", msg);
 	MessageBox(NULL, msg, "Error", MB_OK | MB_ICONERROR);
@@ -316,6 +317,12 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE previous, LPSTR cmdstr, int cmd
 	error = sys_win_enable_opengl();
 	if (error)
 		return 1;
+
+	error = glewInit();
+	if (error) {
+		sys_win_error((const char *)glewGetErrorString(error));
+		exit(1);
+	}
 
 	sys_hook_init(0, 0);
 

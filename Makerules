@@ -3,7 +3,7 @@
 OS := $(shell uname)
 OS := $(OS:MINGW%=MINGW)
 
-CFLAGS := -Wall
+CFLAGS := -Wall -DGLEW_STATIC -I.
 
 ifeq "$(build)" "debug"
 CFLAGS += -g

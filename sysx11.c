@@ -6,8 +6,8 @@
 #include <sys/time.h>
 #include <unistd.h>
 
-#include <GL/gl.h>
-#include <GL/glx.h>
+#include <GL/glew.h>
+#include <GL/glxew.h>
 
 #include <X11/keysym.h>
 
@@ -180,6 +180,7 @@ int main(int argc, char **argv)
 	XSizeHints sizehints;
 	GLXContext context;
 	int mask;
+	int error;
 
 	dpy = XOpenDisplay(NULL);
 	if (dpy == NULL) {
@@ -223,6 +224,12 @@ int main(int argc, char **argv)
 	XIfEvent(dpy, &event, WaitForNotify, (XPointer)win);
 
 	glXMakeCurrent(dpy, win, context);
+
+	error = glewInit();
+	if (error) {
+		fprintf(stderr, "error: %s\n", glewGetErrorString(error));
+		exit(1);
+	}
 
 	sys_hook_init(argc, argv);
 

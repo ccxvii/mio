@@ -5,6 +5,8 @@
 #include <assert.h>
 #include <errno.h>
 
+#include <GL/glew.h> /* Use GLEW for OpenGL extension voodoo */
+
 #include "utf.h"
 
 #undef nelem
@@ -19,47 +21,6 @@ int xstrlcpy(char *dst, const char *src, int siz);
 int xstrlcat(char *dst, const char *src, int siz);
 
 unsigned char *load_file(char *filename, int *lenp);
-
-/* OpenGL headers and extension voodoo */
-
-#ifdef __APPLE__
-#include <OpenGL/gl.h>
-// no extension voodoo for apple
-#else
-#include <GL/gl.h>
-#include "glext.h"
-
-#ifndef MIO_GLEXT_C
-#define glCompressedTexImage2D mioCompressedTexImage2D
-#define glCreateProgram mioCreateProgram
-#define glCreateShader mioCreateShader
-#define glShaderSource mioShaderSource
-#define glCompileShader mioCompileShader
-#define glAttachShader mioAttachShader
-#define glLinkProgram mioLinkProgram
-#define glValidateProgram mioValidateProgram
-#define glGetProgramiv mioGetProgramiv
-#define glGetProgramInfoLog mioGetProgramInfoLog
-#define glUseProgram mioUseProgram
-#define glMultiTexCoord4fv mioMultiTexCoord4fv
-#endif
-
-extern PFNGLCOMPRESSEDTEXIMAGE2DPROC mioCompressedTexImage2D;
-extern PFNGLCREATEPROGRAMPROC mioCreateProgram;
-extern PFNGLCREATESHADERPROC mioCreateShader;
-extern PFNGLSHADERSOURCEPROC mioShaderSource;
-extern PFNGLCOMPILESHADERPROC mioCompileShader;
-extern PFNGLATTACHSHADERPROC mioAttachShader;
-extern PFNGLLINKPROGRAMPROC mioLinkProgram;
-extern PFNGLVALIDATEPROGRAMPROC mioValidateProgram;
-extern PFNGLGETPROGRAMIVPROC mioGetProgramiv;
-extern PFNGLGETPROGRAMINFOLOGPROC mioGetProgramInfoLog;
-extern PFNGLUSEPROGRAMPROC mioUseProgram;
-extern PFNGLMULTITEXCOORD4FVPROC mioMultiTexCoord4fv;
-
-#endif
-
-extern void init_glext();
 
 int compile_shader(char *vertfile, char *fragfile);
 

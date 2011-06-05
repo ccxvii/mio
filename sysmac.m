@@ -1,6 +1,6 @@
 #import <Cocoa/Cocoa.h>
-#import <OpenGL/gl.h>
-#import <OpenGL/glu.h>
+
+#include <GL/glew.h>
 
 #include "syshook.h"
 
@@ -49,9 +49,15 @@ static SysView *view;
 
 - (void) prepareOpenGL
 {
-	GLint swap = 1;
-	[[self openGLContext] setValues: &swap
-		forParameter: NSOpenGLCPSwapInterval];
+	int error, swap = 1;
+
+	[[self openGLContext] setValues: &swap forParameter: NSOpenGLCPSwapInterval];
+
+	error = glewInit();
+	if (error) {
+		fprintf(stderr, "error: %s\n", glewGetErrorString(error));
+		exit(1);
+	}
 
 	sys_hook_init(g_argc, g_argv);
 }
