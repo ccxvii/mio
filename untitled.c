@@ -80,9 +80,7 @@ void updatecamera(void)
 
 void sys_hook_init(int argc, char **argv)
 {
-	char buf[100];
 	float one = 1;
-	int i;
 
 	printf("loading data files...\n");
 
@@ -206,19 +204,13 @@ void sys_hook_draw(int w, int h)
 	glEnable(GL_CULL_FACE);
 //	glPolygonMode(GL_BACK, GL_LINE);
 
-	static float angle = 0.0;
-	static float lerp = 0.0;
 	static int idx = 0;
-	angle += 1.0;
-	if (angle > 360)
-		angle = 0;
 	idx ++;
 
 	/*
 	 * Update camera
 	 */
 
-	float dir[3] = {0, 1, 0};
 	if (action_forward) camera_dir[1] = 1;
 	else if (action_backward) camera_dir[1] = -1;
 	else camera_dir[1] = 0;
@@ -352,8 +344,6 @@ void sys_hook_draw(int w, int h)
 	/*
 	* Draw text overlay
 	*/
-
-	char status[100];
 
 	glMatrixMode(GL_PROJECTION);
 	glLoadIdentity();

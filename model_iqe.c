@@ -173,23 +173,6 @@ static void float44_mul(float out[4][4], float mat1[4][4], float mat2[4][4])
 				mat1[3][i] * mat2[j][3];
 }
 
-static void float44_print(float m[4][4])
-{
-	int i, j;
-	for (j = 0; j < 4; ++j) {
-		printf("\t");
-		for (i = 0; i < 4; i++)
-			printf("%+f%c", m[j][i], i==3?'\n':' ');
-	}
-}
-
-static void print_pose(struct pose *pose)
-{
-	printf("pq %f %f %f\t%f %f %f %f\n",
-		pose->translate[0], pose->translate[1], pose->translate[2],
-		pose->rotate[0], pose->rotate[1], pose->rotate[2], pose->rotate[3]);
-}
-
 static int
 load_material(struct model *model, char *name)
 {

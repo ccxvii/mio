@@ -85,7 +85,6 @@ void init_console(char *fontname, float fontsize)
 
 void update_console(int key, int mod)
 {
-	int status;
 	char cmd[INPUT];
 
 	if (mod & SYS_MOD_ALT) return;
@@ -96,6 +95,7 @@ void update_console(int key, int mod)
 		scrollup();
 
 #ifdef USELUA
+		int status;
 		status = luaL_dostring(L, cmd);
 		if (status && !lua_isnil(L, -1)) {
 			const char *msg = lua_tostring(L, -1);

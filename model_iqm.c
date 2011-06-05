@@ -101,14 +101,6 @@ static inline float readfloat(unsigned char *data)
 	return u.f;
 }
 
-static void print_pose(struct pose *pose)
-{
-	printf("pq %f %f %f\t%f %f %f %f\t%g %g %g\n",
-		pose->translate[0], pose->translate[1], pose->translate[2],
-		pose->rotate[0], pose->rotate[1], pose->rotate[2], pose->rotate[3],
-		pose->scale[0], pose->scale[1], pose->scale[2]);
-}
-
 static float *
 load_float_array(unsigned char *data, int size, int count)
 {

@@ -155,6 +155,7 @@ struct material *find_material(struct model *model, char *matname)
 	for (mat = model->material; mat; mat = mat->next)
 		if (!strcmp(mat->name, matname))
 			return mat;
+	return NULL;
 }
 
 struct mesh *find_mesh(struct model *model, char *matname)
@@ -181,7 +182,6 @@ struct model *load_obj_model(char *filename)
 	struct mesh *curmesh = NULL;
 	int fvp[20], fvt[20], fvn[20];
 	char *p, *s;
-	float x, y, z, u, v;
 	int i, n;
 	FILE *fp;
 
