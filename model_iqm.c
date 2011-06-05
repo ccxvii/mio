@@ -513,12 +513,12 @@ draw_iqm_model(struct model *model)
 	glVertexPointer(3, GL_FLOAT, 0, model->outpos);
 	if (model->norm) glNormalPointer(GL_FLOAT, 0, model->outnorm);
 	if (model->texcoord) glTexCoordPointer(2, GL_FLOAT, 0, model->texcoord);
-	// if (model->color) glColorPointer(4, GL_BYTE, 0, model->color);
+	if (model->color) glColorPointer(4, GL_UNSIGNED_BYTE, 0, model->color);
 
 	glEnableClientState(GL_VERTEX_ARRAY);
 	if (model->norm) glEnableClientState(GL_NORMAL_ARRAY);
 	if (model->texcoord) glEnableClientState(GL_TEXTURE_COORD_ARRAY);
-	// if (model->color) glEnableClientState(GL_COLOR_ARRAY);
+	if (model->color) glEnableClientState(GL_COLOR_ARRAY);
 
 	for (i = 0; i < model->num_meshes; i++) {
 		struct mesh *mesh = model->meshes + i;
@@ -530,7 +530,7 @@ draw_iqm_model(struct model *model)
 	glDisableClientState(GL_VERTEX_ARRAY);
 	if (model->norm) glDisableClientState(GL_NORMAL_ARRAY);
 	if (model->texcoord) glDisableClientState(GL_TEXTURE_COORD_ARRAY);
-	// if (model->color) glDisableClientState(GL_COLOR_ARRAY);
+	if (model->color) glDisableClientState(GL_COLOR_ARRAY);
 
 	glColor3f(1,1,1);
 }

@@ -26,11 +26,8 @@ unsigned char *load_file(char *filename, int *lenp);
 #include <OpenGL/gl.h>
 // no extension voodoo for apple
 #else
-
 #include <GL/gl.h>
 #include "glext.h"
-
-extern void init_glext();
 
 #ifndef MIO_GLEXT_C
 #define glCompressedTexImage2D mioCompressedTexImage2D
@@ -44,6 +41,7 @@ extern void init_glext();
 #define glGetProgramiv mioGetProgramiv
 #define glGetProgramInfoLog mioGetProgramInfoLog
 #define glUseProgram mioUseProgram
+#define glMultiTexCoord4fv mioMultiTexCoord4fv
 #endif
 
 extern PFNGLCOMPRESSEDTEXIMAGE2DPROC mioCompressedTexImage2D;
@@ -57,12 +55,13 @@ extern PFNGLVALIDATEPROGRAMPROC mioValidateProgram;
 extern PFNGLGETPROGRAMIVPROC mioGetProgramiv;
 extern PFNGLGETPROGRAMINFOLOGPROC mioGetProgramInfoLog;
 extern PFNGLUSEPROGRAMPROC mioUseProgram;
-
-int compile_shader(char *vertfile, char *fragfile);
+extern PFNGLMULTITEXCOORD4FVPROC mioMultiTexCoord4fv;
 
 #endif
 
 extern void init_glext();
+
+int compile_shader(char *vertfile, char *fragfile);
 
 /* image and texture loading */
 

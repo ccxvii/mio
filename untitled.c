@@ -23,7 +23,7 @@ static int old_x = 0, old_y = 0;
 
 static int show_console = 0;
 
-static int prog = 0;
+static int prog = 0, treeprog = 0;
 
 float sunpos[] = { -500, -500, 800, 1 };
 float suncolor[] = { 1, 1, 1, 1 };
@@ -89,6 +89,7 @@ void sys_hook_init(int argc, char **argv)
 	printf("loading data files...\n");
 
 	prog = compile_shader("common.vs", "common.fs");
+	treeprog = compile_shader("tree.vs", "tree.fs");
 
 	init_console("data/DroidSans.ttf", 15);
 
@@ -104,7 +105,6 @@ void sys_hook_init(int argc, char **argv)
 	glLightModelfv(GL_LIGHT_MODEL_TWO_SIDE, &one);
 
 	font = load_font("data/CharterBT-Roman.ttf"); if (!font) exit(1);
-	tree = load_obj_model("data/vegetation/ju_s2_big_tree.obj"); if (!tree) exit(1);
 	village = load_obj_model("data/village/village.obj"); if (!village) exit(1);
 
 	printf("loading terrain\n");
@@ -116,6 +116,7 @@ void sys_hook_init(int argc, char **argv)
 	skydome1 = load_obj_model("data/sky/sky_fog_tryker.obj"); if (!skydome1) exit(1);
 	skydome2 = load_obj_model("data/sky/canope_tryker.obj"); if (!skydome2) exit(1);
 
+	tree = load_iqm_model("data/vegetation/ju_s2_big_tree.iqm"); if (!tree) exit(1);
 	cute = load_iqm_model("data/tr_mo_cute/tr_mo_cute.iqm");
 	caravan = load_iqm_model("data/ca_hof/ca_hof.iqm");
 
@@ -308,27 +309,16 @@ void sys_hook_draw(int w, int h)
 	draw_obj_model(skydome1);
 	glPopMatrix();
 
-	/* draw tree twice, once with alpha testing and depth write */
-	/* then again with blending and no depth write (or test) */
 	glDisable(GL_CULL_FACE);
-
-	glEnable(GL_FOG);
-	glEnable(GL_LIGHTING);
+	float fv[4] = {idx, 0, 0, 0};
+	glMultiTexCoord4fv(GL_TEXTURE1, fv);
+	glUseProgram(treeprog);
 	glPushMatrix();
 	glTranslatef(20, 40, 0);
-
-	glAlphaFunc(GL_GREATER, 0.9);
-	glEnable(GL_ALPHA_TEST);
-	draw_obj_model(tree);
-	glDisable(GL_ALPHA_TEST);
-
-	glEnable(GL_BLEND);
-	glDepthMask(GL_FALSE);
-	draw_obj_model(tree);
-	glDepthMask(GL_TRUE);
-	glDisable(GL_BLEND);
-
+	draw_iqm_model(tree);
 	glPopMatrix();
+	glUseProgram(0);
+
 	glDisable(GL_LIGHTING);
 	glDisable(GL_FOG);
 

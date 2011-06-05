@@ -1,10 +1,6 @@
 #define MIO_GLEXT_C
 #include "mio.h"
 
-#ifdef __APPLE__
-void init_glext(void) { }
-#else
-
 #ifdef _WIN32
 #include <windows.h>
 #define F(n) (void*)wglGetProcAddress(#n)
@@ -25,6 +21,7 @@ PFNGLVALIDATEPROGRAMPROC mioValidateProgram = 0;
 PFNGLGETPROGRAMIVPROC mioGetProgramiv = 0;
 PFNGLGETPROGRAMINFOLOGPROC mioGetProgramInfoLog = 0;
 PFNGLUSEPROGRAMPROC mioUseProgram = 0;
+PFNGLMULTITEXCOORD4FVPROC mioMultiTexCoord4fv = 0;
 
 void init_glext(void)
 {
@@ -39,6 +36,5 @@ void init_glext(void)
 	mioGetProgramiv = F(glGetProgramiv);
 	mioGetProgramInfoLog = F(glGetProgramInfoLog);
 	mioUseProgram = F(glUseProgram);
+	mioMultiTexCoord4fv = F(glMultiTexCoord4fv);
 }
-
-#endif
