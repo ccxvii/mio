@@ -97,14 +97,14 @@ static int load_dds_from_memory(unsigned int texid, unsigned char *data)
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
 
-	size = MAX(4, w+3) / 4 * MAX(4, h+3) / 4 * bs;
+	size = MAX(4, w) / 4 * MAX(4, h) / 4 * bs;
 	data = data + 128;
 	for (i = 0; i < mips; i++) {
 		glCompressedTexImage2D(GL_TEXTURE_2D, i, fmt, w, h, 0, size, data);
 		data += size;
 		w = (w + 1) >> 1;
 		h = (h + 1) >> 1;
-		size = MAX(4, w+3) / 4 * MAX(4, h+3) / 4 * bs;
+		size = MAX(4, w) / 4 * MAX(4, h) / 4 * bs;
 	}
 
 	return texid;
