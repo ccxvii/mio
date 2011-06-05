@@ -24,6 +24,8 @@ struct mesh {
 	int len, cap;
 	struct triangle *tri;
 	struct mesh *next;
+	float *vba;
+	unsigned int vbo;
 };
 
 struct model {
@@ -32,7 +34,6 @@ struct model {
 	struct array texcoord;
 	struct array normal;
 	struct mesh *mesh;
-	int list;
 };
 
 static inline void push(struct array *a, float v)
@@ -170,6 +171,8 @@ struct mesh *find_mesh(struct model *model, char *matname)
 	mesh->len = mesh->cap = 0;
 	mesh->tri = 0;
 	mesh->next = model->mesh;
+	mesh->vba = 0;
+	mesh->vbo = 0;
 	model->mesh = mesh;
 	return mesh;
 }
@@ -296,29 +299,65 @@ static inline void compute_face_normal(struct model *model, struct mesh *mesh, i
 	glNormal3fv(n);
 }
 
+static void make_vbo(struct model *model, struct mesh *mesh)
+{
+	int i, k, v = 0, n = mesh->len * 3 * 8;
+	mesh->vba = malloc(n * sizeof(float));
+	for (i = 0; i < mesh->len; i++) {
+		for (k = 0; k < 3; k++) {
+			int pi = mesh->tri[i].vp[k];
+			int ti = mesh->tri[i].vt[k];
+			int ni = mesh->tri[i].vn[k];
+			mesh->vba[v++] = model->position.data[pi+0];
+			mesh->vba[v++] = model->position.data[pi+1];
+			mesh->vba[v++] = model->position.data[pi+2];
+			if (ti) {
+				mesh->vba[v++] = model->texcoord.data[ti+0];
+				mesh->vba[v++] = model->texcoord.data[ti+1];
+			} else {
+				mesh->vba[v++] = 0;
+				mesh->vba[v++] = 0;
+			}
+			if (ni) {
+				mesh->vba[v++] = model->normal.data[ni+0];
+				mesh->vba[v++] = model->normal.data[ni+1];
+				mesh->vba[v++] = model->normal.data[ni+2];
+			} else {
+				mesh->vba[v++] = 0;
+				mesh->vba[v++] = 0;
+				mesh->vba[v++] = 1;
+			}
+		}
+	}
+
+	glGenBuffers(1, &mesh->vbo);
+	glBindBuffer(GL_ARRAY_BUFFER, mesh->vbo);
+	glBufferData(GL_ARRAY_BUFFER, n * sizeof(float), mesh->vba, GL_STATIC_DRAW);
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
+}
+
 void draw_obj_model(struct model *model)
 {
 	struct mesh *mesh;
-	int i, k, p, t, n;
-	if (model->list == 0) {
-		model->list = glGenLists(1);
-		glNewList(model->list, GL_COMPILE);
-		for (mesh = model->mesh; mesh; mesh = mesh->next) {
-			glBindTexture(GL_TEXTURE_2D, mesh->material->texture);
-			glBegin(GL_TRIANGLES);
-			for (i = 0; i < mesh->len; i++) {
-				for (k = 0; k < 3; k++) {
-					p = mesh->tri[i].vp[k];
-					t = mesh->tri[i].vt[k];
-					n = mesh->tri[i].vn[k];
-					if (n >= 0) glNormal3fv(model->normal.data + n);
-					if (t >= 0) glTexCoord2fv(model->texcoord.data + t);
-					glVertex3fv(model->position.data + p);
-				}
-			}
-			glEnd();
-		}
-		glEndList();
+
+	glEnableClientState(GL_VERTEX_ARRAY);
+	glEnableClientState(GL_TEXTURE_COORD_ARRAY);
+	glEnableClientState(GL_NORMAL_ARRAY);
+
+	for (mesh = model->mesh; mesh; mesh = mesh->next) {
+		glBindTexture(GL_TEXTURE_2D, mesh->material->texture);
+		if (!mesh->vbo)
+			make_vbo(model, mesh);
+		glBindBuffer(GL_ARRAY_BUFFER, mesh->vbo);
+		glVertexPointer(3, GL_FLOAT, 8*4, (float*)0+0);
+		glTexCoordPointer(2, GL_FLOAT, 8*4, (float*)0+3);
+		glNormalPointer(GL_FLOAT, 8*4, (float*)0+5);
+		glDrawArrays(GL_TRIANGLES, 0, mesh->len * 3);
 	}
-	glCallList(model->list);
+
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+	glDisableClientState(GL_VERTEX_ARRAY);
+	glDisableClientState(GL_TEXTURE_COORD_ARRAY);
+	glDisableClientState(GL_NORMAL_ARRAY);
 }
