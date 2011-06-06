@@ -32,12 +32,24 @@ void init_tileset(void)
 	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_GENERATE_MIPMAP, GL_TRUE);
 	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-	glTexImage3D(GL_TEXTURE_2D_ARRAY, 0, GL_RGB, 128, 128, 4, 0, GL_RGB, GL_UNSIGNED_BYTE, 0);
+	glTexImage3D(GL_TEXTURE_2D_ARRAY, 0, GL_RGB, 128, 128, 16, 0, GL_RGB, GL_UNSIGNED_BYTE, 0);
 
-	init_tileset_slice(0, "data/terrain/sand.png");
-	init_tileset_slice(1, "data/terrain/grass1.png");
-	init_tileset_slice(2, "data/terrain/grass2.png");
-	init_tileset_slice(3, "data/terrain/earth.png");
+	init_tileset_slice(0, "data/terrain/y-plages-128-a-01.png");
+	init_tileset_slice(1, "data/terrain/y-plages-128-a-02.png");
+	init_tileset_slice(2, "data/terrain/y-plages-128-a-03.png");
+	init_tileset_slice(3, "data/terrain/y-plages-128-a-04.png");
+	init_tileset_slice(4, "data/terrain/j-herbesechejungle-128-a-01_sp.png");
+	init_tileset_slice(5, "data/terrain/j-herbesechejungle-128-a-02_sp.png");
+	init_tileset_slice(6, "data/terrain/j-herbesechejungle-128-a-03_sp.png");
+	init_tileset_slice(7, "data/terrain/j-herbesechejungle-128-a-04_sp.png");
+	init_tileset_slice(8, "data/terrain/j-vieillehjungle-128-a-01_sp.png");
+	init_tileset_slice(9, "data/terrain/j-vieillehjungle-128-a-02_sp.png");
+	init_tileset_slice(10, "data/terrain/j-vieillehjungle-128-a-03_sp.png");
+	init_tileset_slice(11, "data/terrain/j-vieillehjungle-128-a-04_sp.png");
+	init_tileset_slice(12, "data/terrain/j-vieillehjungle-128-a-01_wi.png");
+	init_tileset_slice(13, "data/terrain/j-vieillehjungle-128-a-02_wi.png");
+	init_tileset_slice(14, "data/terrain/j-vieillehjungle-128-a-03_wi.png");
+	init_tileset_slice(15, "data/terrain/j-vieillehjungle-128-a-04_wi.png");
 }
 
 struct tile *load_tile(char *filename)
@@ -64,11 +76,11 @@ struct tile *load_tile(char *filename)
 	for (y = 0; y < h; y++) {
 		for (x = 0; x < w; x++) {
 			v = png[y * w + x];
-			tile->z[y * w + x] = v / 5.0f;
-			if (v < 64) t = 0;
-			else if (v < 128) t = 1;
-			else if (v < 160) t = 2;
-			else t = 3;
+			tile->z[y * w + x] = v / 3.0f;
+			if (v < 50) t = 0 + rand()%4;
+			else if (v < 75) t = 4 + rand()%4;
+			else if (v < 100) t = 8 + rand()%4;
+			else t = 12 + rand()%4;
 			tile->t[y * w + x] = t;
 		}
 	}
@@ -136,6 +148,14 @@ struct tile *load_tile(char *filename)
 
 	free(png);
 	return tile;
+}
+
+float height_at_tile_location(struct tile *tile, int x, int y)
+{
+	x /= 2; y /= 2;
+	if (x >= 0 && y >= 0 && x < tile->w && y < tile->h)
+		return tile->z[y * tile->w + x];
+	return 0;
 }
 
 void draw_tile(struct tile *tile)

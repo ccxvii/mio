@@ -4,6 +4,7 @@ uniform sampler2DArray tile_tex;
 varying vec3 normal;
 varying vec3 light_dir;
 varying vec2 texcoord;
+varying float fogfactor;
 
 void main()
 {
@@ -17,10 +18,10 @@ void main()
 	vec4 diff11 = texture2DArray(tile_tex, vec3(texcoord.s * 1024.0, texcoord.t * 1024.0, idx11));
 	vec4 diff10 = texture2DArray(tile_tex, vec3(texcoord.s * 1024.0, texcoord.t * 1024.0, idx10));
 
-//	float s = fract(texcoord.s * 1024.0);
-//	float t = fract(texcoord.t * 1024.0);
-	float s = smoothstep(0, 1, fract(texcoord.s * 1024.0));
-	float t = smoothstep(0, 1, fract(texcoord.t * 1024.0));
+	float s = fract(texcoord.s * 1024.0);
+	float t = fract(texcoord.t * 1024.0);
+//	s = smoothstep(0.5, 1.0, s);
+//	t = smoothstep(0.5, 1.0, t);
 
 	vec4 diffAB = mix(diff00, diff01, t);
 	vec4 diffBC = mix(diff10, diff11, t);
@@ -29,5 +30,5 @@ void main()
 	vec3 N = normalize(normal);
 	vec3 L = normalize(light_dir);
 	float term = clamp(dot(N, L)*0.7, 0.0, 0.7) + 0.3;
-	gl_FragColor = diffuse * term;
+	gl_FragColor = mix(gl_Fog.color, diffuse * term, fogfactor);
 }

@@ -22,7 +22,7 @@ HDRS := $(wildcard *.h)
 OBJS := $(addprefix $(OUT)/, \
 	$(SYS_OBJ) sysevent.o rune.o runetype.o strlcpy.o \
 	glew.o font.o image.o vector.o shader.o \
-	model_obj.o model_iqm.o model_iqe.o \
+	model_obj.o model_iqm.o \
 	terrain.o console.o \
 	untitled.o )
 APP := $(OUT)/untitled

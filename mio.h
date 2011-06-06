@@ -89,16 +89,12 @@ void draw_iqm_model(struct model *model);
 void draw_iqm_bones(struct model *model);
 void animate_iqm_model(struct model *model, int anim, int frame);
 
-struct model *load_iqe_model(char *filename);
-void draw_iqe_model(struct model *model);
-void draw_iqe_bones(struct model *model);
-void animate_iqe_model(struct model *model, int anim, int frame);
-
 // terrain height field
 
 void init_tileset(void);
 struct tile *load_tile(char *filename);
 void draw_tile(struct tile *tile);
+float height_at_tile_location(struct tile *tile, int x, int y);
 
 void init_console(char *fontname, float fontsize);
 void update_console(int key, int mod);

@@ -9,13 +9,12 @@ static struct model *village;
 static struct model *tree, *birch;
 static struct model *skydome1;
 static struct model *skydome2;
-static struct model *iqe;
 static struct model *cute, *caravan;
 static struct tile *land;
 static struct font *font;
 
 static float camera_dir[3] = { 0, 0, 0 };
-static float camera_pos[3] = { 0, -5, 1.8 };
+static float camera_pos[3] = { 469, 543, 100 };
 static float camera_rot[3] = { 0, 0, 0 };
 static int action_forward = 0;
 static int action_backward = 0;
@@ -122,13 +121,13 @@ void sys_hook_init(int argc, char **argv)
 	cute = load_iqm_model("data/tr_mo_cute/tr_mo_cute.iqm");
 	caravan = load_iqm_model("data/ca_hof/ca_hof.iqm");
 
-	iqe = load_iqe_model("data/ca_hof/ca_hof_scanne_loop.iqe");
-
 	for (i = 0; i < BIRCHES; i++) {
-		birch_pos[i*3+0] = (rand() % 10000 - 5000) * 0.04;
-		birch_pos[i*3+1] = (rand() % 10000 - 5000) * 0.04;
-		birch_pos[i*3+2] = 0;
+		birch_pos[i*3+0] = (rand() % 5000) * 0.1 + 300;
+		birch_pos[i*3+1] = (rand() % 5000) * 0.1 + 300;
+		birch_pos[i*3+2] = height_at_tile_location(land, birch_pos[i*3+0], birch_pos[i*3+1]);
 	}
+
+	camera_pos[2] = height_at_tile_location(land, camera_pos[0], camera_pos[1]) + 2;
 
 	sys_start_idle_loop();
 }
@@ -249,8 +248,6 @@ void sys_hook_draw(int w, int h)
 	glColor3f(1, 1, 1);
 	glEnable(GL_COLOR_MATERIAL);
 
-	glEnable(GL_LIGHTING);
-
 	glEnable(GL_LIGHT0);
 	glLightfv(GL_LIGHT0, GL_POSITION, sunpos);
 	glLightfv(GL_LIGHT0, GL_DIFFUSE, suncolor);
@@ -260,51 +257,42 @@ void sys_hook_draw(int w, int h)
 
 	glFogi(GL_FOG_MODE, GL_LINEAR);
 	glFogfv(GL_FOG_COLOR, fogcolor);
-	glFogf(GL_FOG_DENSITY, 0.30f);
-	glHint(GL_FOG_HINT, GL_DONT_CARE);
 	glFogf(GL_FOG_START, 1.0f);
-	glFogf(GL_FOG_END, 1000.0f);
-	glEnable(GL_FOG);
+	glFogf(GL_FOG_END, 1500.0f);
 
 	if (caravan) animate_iqm_model(caravan, 0, idx/2);
 	if (cute) animate_iqm_model(cute, 25, idx/2);
-	if (iqe) animate_iqe_model(iqe, 0, idx/2);
 
 	glUseProgram(prog);
 
 	glPushMatrix();
-	glTranslatef(1, 1, 0);
-	if (iqe) draw_iqe_model(iqe);
+	draw_obj_model(village, 474, 548, height_at_tile_location(land, 474, 548));
 	glPopMatrix();
 
 	glPushMatrix();
-	draw_obj_model(village, 0, 0, 0);
-	glPopMatrix();
-
-	glPushMatrix();
-	glTranslatef(0, 1, 0);
+	static float caravan_z = 600;
+	caravan_z -= 4.0/60.0;
+	glTranslatef(470, caravan_z, height_at_tile_location(land, 470, caravan_z));
 	if (caravan) draw_iqm_model(caravan);
 	glPopMatrix();
 
 	glPushMatrix();
-	glTranslatef(-1, 0, 0);
+	glTranslatef(469, 550, height_at_tile_location(land, 469, 550));
 	if (cute) draw_iqm_model(cute);
 	glPopMatrix();
 
-	glPushMatrix();
-	glTranslatef(-485*2, -420*2, -7.6);
 	draw_tile(land);
-	glPopMatrix();
 
-	glUseProgram(0);
+	glUseProgram(prog);
 
 	glPushMatrix();
+	glTranslatef(0, 0, 150);
 	glScalef(5, 5, 5);
 	draw_obj_model(skydome2, 0, 0, 0);
 	glPopMatrix();
 
-	glDisable(GL_LIGHTING);
-	glDisable(GL_FOG);
+	glUseProgram(0);
+
 	glPushMatrix();
 	glScalef(20, 20, 20);
 	draw_obj_model(skydome1, 0, 0, 0);
@@ -316,55 +304,18 @@ void sys_hook_draw(int w, int h)
 	float fv[4] = {idx, 0, 0, 0};
 	glMultiTexCoord4fv(GL_TEXTURE1, fv);
 	glPushMatrix();
-	glTranslatef(20, 40, 0);
+	glTranslatef(490, 590, height_at_tile_location(land, 490, 590));
 	draw_iqm_model(tree);
 	glPopMatrix();
 
-	int i;
-	//for (i = 0; i < BIRCHES; i++) draw_obj_model(birch, birch_pos[i*3+0], birch_pos[i*3+1], birch_pos[i*3+2]);
 	glColor3f(0,0,0);
 	draw_obj_instances(birch, birch_pos, BIRCHES);
-
-	glUseProgram(0);
-
-	glDisable(GL_LIGHTING);
-	glDisable(GL_FOG);
-
-	glDisable(GL_TEXTURE_2D);
-	// glDisable(GL_DEPTH_TEST);
-
-	/* Draw x-y-z-axes */
-	glDisable(GL_TEXTURE_2D);
-	glBegin(GL_LINES);
-	glColor4f(1, 0, 0, 1);
-	glVertex3f(0, 0, 0); glVertex3f(1, 0, 0);
-	glColor4f(0, 1, 0, 1);
-	glVertex3f(0, 0, 0); glVertex3f(0, 1, 0);
-	glColor4f(0, 0, 1, 1);
-	glVertex3f(0, 0, 0); glVertex3f(0, 0, 1);
-	glEnd();
-
-	glColor3f(1, 1, 1);
-	draw_obj_bbox(village);
-
-	glPushMatrix();
-	glTranslatef(1, 10, 0);
-	if (caravan) draw_iqm_bones(caravan);
-	glPopMatrix();
-
-	glPushMatrix();
-	glTranslatef(2, 10, 0);
-	if (cute) draw_iqm_bones(cute);
-	glPopMatrix();
-
-	glPushMatrix();
-	glTranslatef(3, 10, 0);
-	if (iqe) draw_iqe_bones(iqe);
-	glPopMatrix();
 
 	/*
 	* Draw text overlay
 	*/
+
+	glUseProgram(0);
 
 	glDisable(GL_DEPTH_TEST);
 
@@ -374,6 +325,16 @@ void sys_hook_draw(int w, int h)
 
 	glMatrixMode(GL_MODELVIEW);
 	glLoadIdentity();
+
+	glEnable(GL_BLEND);
+	glEnable(GL_TEXTURE_2D);
+	{
+		char buf[80];
+		sprintf(buf, "location: %d %d\n", (int)camera_pos[0], (int)camera_pos[1]);
+		glColor3f(1, 0.8, 0.8);
+		draw_string(font, 32, 8, 32+8, buf);
+	}
+	glDisable(GL_BLEND);
 
 	if (show_console)
 		draw_console(w, h);
