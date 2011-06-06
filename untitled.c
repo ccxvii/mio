@@ -2,8 +2,11 @@
 
 #include "syshook.h"
 
+#define BIRCHES 1000
+float birch_pos[BIRCHES * 3];
+
 static struct model *village;
-static struct model *tree;
+static struct model *tree, *birch;
 static struct model *skydome1;
 static struct model *skydome2;
 static struct model *iqe;
@@ -81,6 +84,7 @@ void updatecamera(void)
 void sys_hook_init(int argc, char **argv)
 {
 	float one = 1;
+	int i;
 
 	printf("loading data files...\n");
 
@@ -112,11 +116,19 @@ void sys_hook_init(int argc, char **argv)
 	skydome1 = load_obj_model("data/sky/sky_fog_tryker.obj"); if (!skydome1) exit(1);
 	skydome2 = load_obj_model("data/sky/canope_tryker.obj"); if (!skydome2) exit(1);
 
+	birch = load_obj_model("data/vegetation/fo_s2_birch.obj");
+
 	tree = load_iqm_model("data/vegetation/ju_s2_big_tree.iqm"); if (!tree) exit(1);
 	cute = load_iqm_model("data/tr_mo_cute/tr_mo_cute.iqm");
 	caravan = load_iqm_model("data/ca_hof/ca_hof.iqm");
 
 	iqe = load_iqe_model("data/ca_hof/ca_hof_scanne_loop.iqe");
+
+	for (i = 0; i < BIRCHES; i++) {
+		birch_pos[i*3+0] = (rand() % 10000 - 5000) * 0.04;
+		birch_pos[i*3+1] = (rand() % 10000 - 5000) * 0.04;
+		birch_pos[i*3+2] = 0;
+	}
 
 	sys_start_idle_loop();
 }
@@ -266,7 +278,7 @@ void sys_hook_draw(int w, int h)
 	glPopMatrix();
 
 	glPushMatrix();
-	draw_obj_model(village);
+	draw_obj_model(village, 0, 0, 0);
 	glPopMatrix();
 
 	glPushMatrix();
@@ -289,31 +301,38 @@ void sys_hook_draw(int w, int h)
 
 	glPushMatrix();
 	glScalef(5, 5, 5);
-	draw_obj_model(skydome2);
+	draw_obj_model(skydome2, 0, 0, 0);
 	glPopMatrix();
 
 	glDisable(GL_LIGHTING);
 	glDisable(GL_FOG);
 	glPushMatrix();
 	glScalef(20, 20, 20);
-	draw_obj_model(skydome1);
+	draw_obj_model(skydome1, 0, 0, 0);
 	glPopMatrix();
+
+	glUseProgram(treeprog);
 
 	glDisable(GL_CULL_FACE);
 	float fv[4] = {idx, 0, 0, 0};
 	glMultiTexCoord4fv(GL_TEXTURE1, fv);
-	glUseProgram(treeprog);
 	glPushMatrix();
 	glTranslatef(20, 40, 0);
 	draw_iqm_model(tree);
 	glPopMatrix();
+
+	int i;
+	//for (i = 0; i < BIRCHES; i++) draw_obj_model(birch, birch_pos[i*3+0], birch_pos[i*3+1], birch_pos[i*3+2]);
+	glColor3f(0,0,0);
+	draw_obj_instances(birch, birch_pos, BIRCHES);
+
 	glUseProgram(0);
 
 	glDisable(GL_LIGHTING);
 	glDisable(GL_FOG);
 
 	glDisable(GL_TEXTURE_2D);
-	glDisable(GL_DEPTH_TEST);
+	// glDisable(GL_DEPTH_TEST);
 
 	/* Draw x-y-z-axes */
 	glDisable(GL_TEXTURE_2D);
@@ -325,6 +344,9 @@ void sys_hook_draw(int w, int h)
 	glColor4f(0, 0, 1, 1);
 	glVertex3f(0, 0, 0); glVertex3f(0, 0, 1);
 	glEnd();
+
+	glColor3f(1, 1, 1);
+	draw_obj_bbox(village);
 
 	glPushMatrix();
 	glTranslatef(1, 10, 0);
@@ -344,6 +366,8 @@ void sys_hook_draw(int w, int h)
 	/*
 	* Draw text overlay
 	*/
+
+	glDisable(GL_DEPTH_TEST);
 
 	glMatrixMode(GL_PROJECTION);
 	glLoadIdentity();

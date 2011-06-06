@@ -79,9 +79,10 @@ void mat_from_quat_vec(float m[16], const float q[4], const float v[3]);
 /* 3d model loading: Wavefront OBJ and Inter-Quake Model */
 
 struct model *load_obj_model(char *filename);
-void draw_obj_model(struct model *model);
-void load_obj_animation(struct model *model, char *filename);
-void draw_obj_model_frame(struct model *model, int frame);
+void draw_obj_instances(struct model *model, float *translate, int count);
+void draw_obj_model(struct model *model, float x, float y, float z);
+float measure_obj_radius(struct model *model);
+void draw_obj_bbox(struct model *model);
 
 struct model *load_iqm_model(char *filename);
 void draw_iqm_model(struct model *model);

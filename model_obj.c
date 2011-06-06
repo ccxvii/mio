@@ -34,6 +34,7 @@ struct model {
 	struct array texcoord;
 	struct array normal;
 	struct mesh *mesh;
+	float min[3], max[3], radius;
 };
 
 static inline void push(struct array *a, float v)
@@ -47,9 +48,21 @@ static inline void push(struct array *a, float v)
 
 static void add_position(struct model *model, float x, float y, float z)
 {
+	float r, rxy, t = y; y = -z; z = t;
+	rxy = x*x + y*y;
+	r = rxy + z*z;
+
 	push(&model->position, x);
-	push(&model->position, -z);
 	push(&model->position, y);
+	push(&model->position, z);
+
+	if (x < model->min[0]) model->min[0] = x;
+	if (y < model->min[1]) model->min[1] = y;
+	if (z < model->min[2]) model->min[2] = z;
+	if (x > model->max[0]) model->max[0] = x;
+	if (y > model->max[1]) model->max[1] = y;
+	if (z > model->max[2]) model->max[2] = z;
+	if (r > model->radius) model->radius = r;
 }
 
 static void add_texcoord(struct model *model, float u, float v)
@@ -60,9 +73,10 @@ static void add_texcoord(struct model *model, float u, float v)
 
 static void add_normal(struct model *model, float x, float y, float z)
 {
+	float t = y; y = -z; z = t;
 	push(&model->normal, x);
-	push(&model->normal, -z);
 	push(&model->normal, y);
+	push(&model->normal, z);
 }
 
 static void add_triangle(struct mesh *mesh,
@@ -205,6 +219,10 @@ struct model *load_obj_model(char *filename)
 	model = malloc(sizeof(struct model));
 	memset(model, 0, sizeof(struct model));
 
+	model->min[0] = model->min[1] = model->min[2] = 1e10;
+	model->max[0] = model->max[1] = model->max[2] = -1e10;
+	model->radius = 0;
+
 	while (1) {
 		if (!fgets(line, sizeof line, fp))
 			break;
@@ -251,52 +269,10 @@ struct model *load_obj_model(char *filename)
 		}
 	}
 
+	model->radius = sqrtf(model->radius);
+
 	fclose(fp);
-
-	printf("\t%d vertices, %d texcoords, %d normals\n",
-			model->position.len,
-			model->texcoord.len,
-			model->normal.len);
-	for (curmesh = model->mesh; curmesh; curmesh = curmesh->next)
-		printf("\tmesh material=%s texture=%d triangles=%d\n",
-				curmesh->material->name,
-				curmesh->material->texture,
-				curmesh->len);
-
 	return model;
-}
-
-static inline float dot(float *u, float *v)
-{
-	return u[0]*v[0] + u[1]*v[1] + u[2]*v[2];
-}
-
-static inline void cross(float *u, float *v, float *out)
-{
-	out[0] = u[1]*v[2] - u[2]*v[1];
-	out[1] = u[2]*v[0] - u[0]*v[2];
-	out[2] = u[0]*v[1] - u[1]*v[0];
-}
-
-static inline void normalize(float *v)
-{
-	float l = sqrtf(v[0]*v[0] + v[1]*v[1] + v[2]*v[2]);
-	v[0] /= l;
-	v[1] /= l;
-	v[2] /= l;
-}
-
-static inline void compute_face_normal(struct model *model, struct mesh *mesh, int t)
-{
-	float ba[3], ca[3], n[3];
-	float *a = model->position.data + mesh->tri[t].vp[0];
-	float *b = model->position.data + mesh->tri[t].vp[1];
-	float *c = model->position.data + mesh->tri[t].vp[2];
-	ba[0] = b[0] - a[0]; ba[1] = b[1] - a[1]; ba[2] = b[2] - a[2];
-	ca[0] = c[0] - a[0]; ca[1] = c[1] - a[1]; ca[2] = c[2] - a[2];
-	cross(ba, ca, n);
-	normalize(n);
-	glNormal3fv(n);
 }
 
 static void make_vbo(struct model *model, struct mesh *mesh)
@@ -336,23 +312,64 @@ static void make_vbo(struct model *model, struct mesh *mesh)
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 }
 
-void draw_obj_model(struct model *model)
+float measure_obj_radius(struct model *model)
+{
+	return model->radius;
+}
+
+void draw_obj_bbox(struct model *model)
+{
+	glBegin(GL_LINE_LOOP);
+	glVertex3f(model->min[0], model->min[1], model->min[2]);
+	glVertex3f(model->max[0], model->min[1], model->min[2]);
+	glVertex3f(model->max[0], model->max[1], model->min[2]);
+	glVertex3f(model->min[0], model->max[1], model->min[2]);
+	glEnd();
+
+	glBegin(GL_LINE_LOOP);
+	glVertex3f(model->min[0], model->min[1], model->max[2]);
+	glVertex3f(model->max[0], model->min[1], model->max[2]);
+	glVertex3f(model->max[0], model->max[1], model->max[2]);
+	glVertex3f(model->min[0], model->max[1], model->max[2]);
+	glEnd();
+
+	glBegin(GL_LINES);
+	glVertex3f(model->min[0], model->min[1], model->min[2]);
+	glVertex3f(model->min[0], model->min[1], model->max[2]);
+	glVertex3f(model->min[0], model->max[1], model->min[2]);
+	glVertex3f(model->min[0], model->max[1], model->max[2]);
+	glVertex3f(model->max[0], model->max[1], model->min[2]);
+	glVertex3f(model->max[0], model->max[1], model->max[2]);
+	glVertex3f(model->max[0], model->min[1], model->min[2]);
+	glVertex3f(model->max[0], model->min[1], model->max[2]);
+	glEnd();
+}
+
+void draw_obj_instances(struct model *model, float *t, int count)
 {
 	struct mesh *mesh;
+	int i;
 
 	glEnableClientState(GL_VERTEX_ARRAY);
 	glEnableClientState(GL_TEXTURE_COORD_ARRAY);
 	glEnableClientState(GL_NORMAL_ARRAY);
 
 	for (mesh = model->mesh; mesh; mesh = mesh->next) {
-		glBindTexture(GL_TEXTURE_2D, mesh->material->texture);
 		if (!mesh->vbo)
 			make_vbo(model, mesh);
+
+		glBindTexture(GL_TEXTURE_2D, mesh->material->texture);
 		glBindBuffer(GL_ARRAY_BUFFER, mesh->vbo);
 		glVertexPointer(3, GL_FLOAT, 8*4, (float*)0+0);
 		glTexCoordPointer(2, GL_FLOAT, 8*4, (float*)0+3);
 		glNormalPointer(GL_FLOAT, 8*4, (float*)0+5);
-		glDrawArrays(GL_TRIANGLES, 0, mesh->len * 3);
+
+		for (i = 0; i < count; i++) {
+			glPushMatrix();
+			glTranslatef(t[i*3+0], t[i*3+1], t[i*3+2]);
+			glDrawArrays(GL_TRIANGLES, 0, mesh->len * 3);
+			glPopMatrix();
+		}
 	}
 
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
@@ -360,4 +377,10 @@ void draw_obj_model(struct model *model)
 	glDisableClientState(GL_VERTEX_ARRAY);
 	glDisableClientState(GL_TEXTURE_COORD_ARRAY);
 	glDisableClientState(GL_NORMAL_ARRAY);
+}
+
+void draw_obj_model(struct model *model, float x, float y, float z)
+{
+	float translate[3] = { x, y, z };
+	draw_obj_instances(model, translate, 1);
 }
