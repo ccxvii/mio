@@ -7,11 +7,24 @@ varying vec2 texcoord;
 
 void main()
 {
-	float idx = texture2D(control_tex, texcoord).r * 255.0;
-	vec3 tile_tc = vec3(texcoord.s * 1024, texcoord.t * 1024, idx);
-	vec4 diffuse = texture2DArray(tile_tex, tile_tc);
-//	vec4 diffuse = texture2D(control_tex, texcoord);
-// diffuse = vec4(1.0, 1.0, 0.5, 1.0);
+	float idx00 = texture2D(control_tex, texcoord).r * 255.0;
+	float idx01 = texture2D(control_tex, vec2(texcoord.s, texcoord.t+1.0/1024.0)).r * 255.0;
+	float idx11 = texture2D(control_tex, vec2(texcoord.s+1.0/1024.0, texcoord.t+1.0/1024.0)).r * 255.0;
+	float idx10 = texture2D(control_tex, vec2(texcoord.s+1.0/1024.0, texcoord.t)).r * 255.0;
+
+	vec4 diff00 = texture2DArray(tile_tex, vec3(texcoord.s * 1024.0, texcoord.t * 1024.0, idx00));
+	vec4 diff01 = texture2DArray(tile_tex, vec3(texcoord.s * 1024.0, texcoord.t * 1024.0, idx01));
+	vec4 diff11 = texture2DArray(tile_tex, vec3(texcoord.s * 1024.0, texcoord.t * 1024.0, idx11));
+	vec4 diff10 = texture2DArray(tile_tex, vec3(texcoord.s * 1024.0, texcoord.t * 1024.0, idx10));
+
+//	float s = fract(texcoord.s * 1024.0);
+//	float t = fract(texcoord.t * 1024.0);
+	float s = smoothstep(0, 1, fract(texcoord.s * 1024.0));
+	float t = smoothstep(0, 1, fract(texcoord.t * 1024.0));
+
+	vec4 diffAB = mix(diff00, diff01, t);
+	vec4 diffBC = mix(diff10, diff11, t);
+	vec4 diffuse = mix(diffAB, diffBC, s);
 
 	vec3 N = normalize(normal);
 	vec3 L = normalize(light_dir);

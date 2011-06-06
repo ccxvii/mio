@@ -115,6 +115,8 @@ struct tile *load_tile(char *filename)
 
 	tile->program = compile_shader("terrain.vs", "terrain.fs");
 	glUseProgram(tile->program);
+	glUniform1i(glGetUniformLocation(tile->program, "control_tex"), 0);
+	glUniform1i(glGetUniformLocation(tile->program, "tile_tex"), 1);
 
 	glGenBuffers(1, &tile->vbo);
 	glBindBuffer(GL_ARRAY_BUFFER, tile->vbo);
@@ -125,8 +127,6 @@ struct tile *load_tile(char *filename)
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, tile->ibo);
 	glBufferData(GL_ELEMENT_ARRAY_BUFFER, w*h*6*sizeof(int), tile->iba, GL_STATIC_DRAW);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-	glUniform1i(glGetUniformLocation(tile->program, "control_tex"), 0);
-	glUniform1i(glGetUniformLocation(tile->program, "tile_tex"), 1);
 
 	glGenTextures(1, &tile->tex);
 	glBindTexture(GL_TEXTURE_2D, tile->tex);
