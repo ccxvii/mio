@@ -142,7 +142,6 @@ static struct material *load_material(char *dirname, char *mtllib)
 				strlcat(filename, "/", sizeof filename);
 				strlcat(filename, s, sizeof filename);
 				mat->texture = load_texture(0, filename);
-				printf("\ttexture %s = %d\n", s, mat->texture);
 			}
 		}
 	}

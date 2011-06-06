@@ -1,3 +1,6 @@
+uniform sampler2D control_tex;
+uniform sampler2D tile_tex[4];
+
 varying vec3 normal;
 varying vec3 light_dir;
 varying vec2 control_tc;

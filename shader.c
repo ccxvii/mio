@@ -43,7 +43,7 @@ int compile_shader(char *vertfile, char *fragfile)
 	if (len > 0) {
 		char buf[800];
 		glGetProgramInfoLog(prog, sizeof buf, &len, buf);
-		fprintf(stderr, "%s\n", buf);
+		fprintf(stderr, "%s", buf);
 	}
 
 	free(vsrc);

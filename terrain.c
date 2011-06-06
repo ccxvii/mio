@@ -109,6 +109,8 @@ struct tile *load_tile(char *filename)
 
 	glGenTextures(1, &tile->tex);
 	glBindTexture(GL_TEXTURE_2D, tile->tex);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_LUMINANCE, w, h, 0, GL_LUMINANCE, GL_UNSIGNED_BYTE, tile->t);
 
 	free(png);
@@ -122,15 +124,14 @@ void draw_tile(struct tile *tile)
 	glUseProgram(tile->program);
 	loc = glGetUniformLocation(tile->program, "control_tex");
 	glUniform1i(loc, 0);
-	loc = glGetUniformLocation(tile->program, "tile_tex[0]");
 	for (i = 0; i < 4; i++)
-		glUniform1i(loc + i, 1 + i);
+		glUniform1i(loc + i + 1, 1 + i);
 
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, tile->tex);
 
 	for (i = 0; i < 4; i++) {
-		glActiveTexture(GL_TEXTURE1+i);
+		glActiveTexture(GL_TEXTURE0+i+1);
 		glBindTexture(GL_TEXTURE_2D, tileset[i]);
 	}
 
