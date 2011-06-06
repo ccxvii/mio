@@ -11,15 +11,33 @@ struct tile {
 	unsigned int vbo, ibo, tex, program;
 };
 
-static int tileset[5];
+static unsigned int tileset;
+
+void init_tileset_slice(int i, char *filename)
+{
+	int w, h;
+	unsigned char *data;
+	data = stbi_load(filename, &w, &h, 0, 3);
+	if (data) {
+		printf("loading slice %d with %s (%dx%d)\n", i, filename, w, h);
+		glTexSubImage3D(GL_TEXTURE_2D_ARRAY, 0, 0, 0, i, w, h, 1, GL_RGB, GL_UNSIGNED_BYTE, data);
+		free(data);
+	}
+}
 
 void init_tileset(void)
 {
-	tileset[0] = load_texture(0, "data/terrain/sand.png");
-	tileset[1] = load_texture(0, "data/terrain/grass1.png");
-	tileset[2] = load_texture(0, "data/terrain/grass2.png");
-	tileset[3] = load_texture(0, "data/terrain/earth.png");
-	tileset[4] = 0;
+	glGenTextures(1, &tileset);
+	glBindTexture(GL_TEXTURE_2D_ARRAY, tileset);
+	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_GENERATE_MIPMAP, GL_TRUE);
+	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexImage3D(GL_TEXTURE_2D_ARRAY, 0, GL_RGB, 128, 128, 4, 0, GL_RGB, GL_UNSIGNED_BYTE, 0);
+
+	init_tileset_slice(0, "data/terrain/sand.png");
+	init_tileset_slice(1, "data/terrain/grass1.png");
+	init_tileset_slice(2, "data/terrain/grass2.png");
+	init_tileset_slice(3, "data/terrain/earth.png");
 }
 
 struct tile *load_tile(char *filename)
@@ -96,6 +114,7 @@ struct tile *load_tile(char *filename)
 		vec_normalize(&tile->vba[t*8+5]);
 
 	tile->program = compile_shader("terrain.vs", "terrain.fs");
+	glUseProgram(tile->program);
 
 	glGenBuffers(1, &tile->vbo);
 	glBindBuffer(GL_ARRAY_BUFFER, tile->vbo);
@@ -106,6 +125,8 @@ struct tile *load_tile(char *filename)
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, tile->ibo);
 	glBufferData(GL_ELEMENT_ARRAY_BUFFER, w*h*6*sizeof(int), tile->iba, GL_STATIC_DRAW);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+	glUniform1i(glGetUniformLocation(tile->program, "control_tex"), 0);
+	glUniform1i(glGetUniformLocation(tile->program, "tile_tex"), 1);
 
 	glGenTextures(1, &tile->tex);
 	glBindTexture(GL_TEXTURE_2D, tile->tex);
@@ -119,21 +140,13 @@ struct tile *load_tile(char *filename)
 
 void draw_tile(struct tile *tile)
 {
-	int i, loc;
-
 	glUseProgram(tile->program);
-	loc = glGetUniformLocation(tile->program, "control_tex");
-	glUniform1i(loc, 0);
-	for (i = 0; i < 4; i++)
-		glUniform1i(loc + i + 1, 1 + i);
 
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, tile->tex);
 
-	for (i = 0; i < 4; i++) {
-		glActiveTexture(GL_TEXTURE0+i+1);
-		glBindTexture(GL_TEXTURE_2D, tileset[i]);
-	}
+	glActiveTexture(GL_TEXTURE1);
+	glBindTexture(GL_TEXTURE_2D_ARRAY, tileset);
 
 	glEnableClientState(GL_VERTEX_ARRAY);
 	glEnableClientState(GL_TEXTURE_COORD_ARRAY);
