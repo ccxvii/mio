@@ -3,9 +3,12 @@
 #define TILESIZE 128
 
 struct tile {
-	int w, h, list;
+	int w, h;
 	float *z;
-	char *t;
+	unsigned char *t;
+	float *vba;
+	int *iba;
+	unsigned int vbo, ibo, tex, program;
 };
 
 static int tileset[5];
@@ -22,7 +25,8 @@ void init_tileset(void)
 struct tile *load_tile(char *filename)
 {
 	struct tile *tile;
-	int w, h, x, y, v, t;
+	int w, h, x, y, v, t, *q;
+	float *p, z;
 
 	unsigned char *png = stbi_load(filename, &w, &h, 0, 1);
 	if (!png) {
@@ -33,9 +37,11 @@ struct tile *load_tile(char *filename)
 	tile = malloc(sizeof *tile);
 	tile->w = w;
 	tile->h = h;
-	tile->list = 0;
 	tile->z = malloc(w * h * sizeof(float));
 	tile->t = malloc(w * h);
+	tile->vba = 0;
+	tile->iba = 0;
+	tile->vbo = tile->ibo = tile->tex = 0;
 
 	for (y = 0; y < h; y++) {
 		for (x = 0; x < w; x++) {
@@ -49,68 +55,103 @@ struct tile *load_tile(char *filename)
 		}
 	}
 
+	tile->vba = p = malloc((w + 1) * (h + 1) * 8 * sizeof(float));
+	for (y = 0; y < h + 1; y++) {
+		for (x = 0; x < w + 1; x++) {
+			if (x < w && y < h) z = tile->z[y * w + x];
+			else z = 0;
+			*p++ = x * 2;
+			*p++ = y * 2;
+			*p++ = z;
+			*p++ = (float) x / w;
+			*p++ = (float) y / h;
+			*p++ = 0;
+			*p++ = 0;
+			*p++ = 1;
+		}
+	}
+
+	tile->iba = q = malloc(w * h * 6 * sizeof(int));
+	for (y = 0; y < h; y++) {
+		for (x = 0; x < w; x++) {
+			int i00 = (x+0) + (y+0) * (w+1);
+			int i10 = (x+1) + (y+0) * (w+1);
+			int i11 = (x+1) + (y+1) * (w+1);
+			int i01 = (x+0) + (y+1) * (w+1);
+			*q++ = i00; *q++ = i10; *q++ = i11;
+			*q++ = i00; *q++ = i11; *q++ = i01;
+		}
+	}
+
+	for (t = 0; t < w * h * 6; t += 3) {
+		float n[3];
+		q = tile->iba + t;
+		vec_face_normal(n, &tile->vba[q[0]*8], &tile->vba[q[1]*8], &tile->vba[q[2]*8]);
+		vec_add(&tile->vba[q[0]*8+5], &tile->vba[q[0]*8+5], n);
+		vec_add(&tile->vba[q[1]*8+5], &tile->vba[q[1]*8+5], n);
+		vec_add(&tile->vba[q[2]*8+5], &tile->vba[q[2]*8+5], n);
+	}
+
+	for (t = 0; t < (w+1) * (h+1); t++)
+		vec_normalize(&tile->vba[t*8+5]);
+
+	tile->program = compile_shader("terrain.vs", "terrain.fs");
+
+	glGenBuffers(1, &tile->vbo);
+	glBindBuffer(GL_ARRAY_BUFFER, tile->vbo);
+	glBufferData(GL_ARRAY_BUFFER, (w+1)*(h+1)*8*sizeof(float), tile->vba, GL_STATIC_DRAW);
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+	glGenBuffers(1, &tile->ibo);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, tile->ibo);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, w*h*6*sizeof(int), tile->iba, GL_STATIC_DRAW);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+
+	glGenTextures(1, &tile->tex);
+	glBindTexture(GL_TEXTURE_2D, tile->tex);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_LUMINANCE, w, h, 0, GL_LUMINANCE, GL_UNSIGNED_BYTE, tile->t);
+
 	free(png);
 	return tile;
 }
 
-static void draw_square(struct tile *tile, int x, int y)
-{
-	float z00, z01, z11, z10;
-	float v[4][3];
-	float a[3], b[3], c[3], ab[3], ac[3], bc[3];
-	float n[3];
-
-	z00 = tile->z[x+0 + (y+0) * tile->w];
-	z10 = tile->z[x+1 + (y+0) * tile->w];
-	z11 = tile->z[x+1 + (y+1) * tile->w];
-	z01 = tile->z[x+0 + (y+1) * tile->w];
-
-	#define SCALE 2
-
-	v[0][0] = (x+0)*SCALE; v[0][1] = (y+0)*SCALE; v[0][2] = z00;
-	v[1][0] = (x+1)*SCALE; v[1][1] = (y+0)*SCALE; v[1][2] = z10;
-	v[2][0] = (x+1)*SCALE; v[2][1] = (y+1)*SCALE; v[2][2] = z11;
-	v[3][0] = (x+0)*SCALE; v[3][1] = (y+1)*SCALE; v[3][2] = z01;
-
-	vec_sub(a, v[1], v[0]);
-	vec_sub(b, v[2], v[0]);
-	vec_sub(c, v[3], v[0]);
-	vec_cross(ab, a, b);
-	vec_cross(ac, a, c);
-	vec_cross(bc, b, c);
-
-	vec_add(n, ab, ac);
-	vec_add(n, n, bc);
-	vec_normalize(n);
-	glNormal3fv(n);
-
-	glTexCoord2f(0,0); glVertex3fv(v[0]);
-	glTexCoord2f(1,0); glVertex3fv(v[1]);
-	glTexCoord2f(1,1); glVertex3fv(v[2]);
-
-	glTexCoord2f(0,0); glVertex3fv(v[0]);
-	glTexCoord2f(1,1); glVertex3fv(v[2]);
-	glTexCoord2f(0,1); glVertex3fv(v[3]);
-}
-
 void draw_tile(struct tile *tile)
 {
-	int k, x, y;
+	int i, loc;
 
-	if (!tile->list) {
-		tile->list = glGenLists(1);
-		glNewList(tile->list, GL_COMPILE);
-		for (k = 0; k < nelem(tileset); k++) {
-			glBindTexture(GL_TEXTURE_2D, tileset[k]);
-			glBegin(GL_TRIANGLES);
-			for (y = 0; y < tile->h - 1; y++)
-				for (x = 0; x < tile->w - 1; x++)
-					if (tile->t[y * tile->w + x] == k)
-						draw_square(tile, x, y);
-			glEnd();
-		}
-		glEndList();
+	glUseProgram(tile->program);
+	loc = glGetUniformLocation(tile->program, "control_tex");
+	glUniform1i(loc, 0);
+	loc = glGetUniformLocation(tile->program, "tile_tex[0]");
+	for (i = 0; i < 4; i++)
+		glUniform1i(loc + i, 1 + i);
+
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, tile->tex);
+
+	for (i = 0; i < 4; i++) {
+		glActiveTexture(GL_TEXTURE1+i);
+		glBindTexture(GL_TEXTURE_2D, tileset[i]);
 	}
 
-	glCallList(tile->list);
+	glEnableClientState(GL_VERTEX_ARRAY);
+	glEnableClientState(GL_TEXTURE_COORD_ARRAY);
+	glEnableClientState(GL_NORMAL_ARRAY);
+
+	glBindBuffer(GL_ARRAY_BUFFER, tile->vbo);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, tile->ibo);
+	glVertexPointer(3, GL_FLOAT, 8*4, (float*)0+0);
+	glTexCoordPointer(2, GL_FLOAT, 8*4, (float*)0+3);
+	glNormalPointer(GL_FLOAT, 8*4, (float*)0+5);
+	glDrawElements(GL_TRIANGLES, tile->w * tile->h * 6, GL_UNSIGNED_INT, 0);
+
+	glActiveTexture(GL_TEXTURE0);
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+
+	glDisableClientState(GL_VERTEX_ARRAY);
+	glDisableClientState(GL_TEXTURE_COORD_ARRAY);
+	glDisableClientState(GL_NORMAL_ARRAY);
+
+	glUseProgram(0);
 }

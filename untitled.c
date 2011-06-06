@@ -292,8 +292,7 @@ void sys_hook_draw(int w, int h)
 	glPopMatrix();
 
 	glPushMatrix();
-//	glScalef(2, 2, 1);
-	glTranslatef(-485, -420, -7.7);
+	glTranslatef(-485*2, -420*2, -7.6);
 	draw_tile(land);
 	glPopMatrix();
 

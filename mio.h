@@ -67,7 +67,7 @@ float vec_dot(const float a[3], const float b[3]);
 float vec_dist2(const float a[3], const float b[3]);
 float vec_dist(const float a[3], const float b[3]);
 void vec_normalize(float v[3]);
-void vec_face_normal(float n[3], const float *face, int p0, int p1, int p2);
+void vec_face_normal(float n[3], const float *p0, const float *p1, const float *p2);
 void vec_yup_to_zup(float v[3]);
 
 void quat_normalize(float q[4]);
@@ -96,6 +96,7 @@ void animate_iqe_model(struct model *model, int anim, int frame);
 
 // terrain height field
 
+void init_tileset(void);
 struct tile *load_tile(char *filename);
 void draw_tile(struct tile *tile);
 

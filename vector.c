@@ -325,11 +325,11 @@ void vec_normalize(float v[3])
 	}
 }
 
-void vec_face_normal(float n[3], const float *face, int p0, int p1, int p2)
+void vec_face_normal(float n[3], const float *p0, const float *p1, const float *p2)
 {
 	float u[3], v[3];
-	vec_sub(u, face + p1 * 3, face + p0 * 3);
-	vec_sub(v, face + p2 * 3, face + p0 * 3);
+	vec_sub(u, p1, p0);
+	vec_sub(v, p2, p0);
 	vec_cross(n, u, v);
 }
 
