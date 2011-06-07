@@ -103,7 +103,7 @@ void sys_hook_init(int argc, char **argv)
 	//glLightModelfv(GL_LIGHT_MODEL_AMBIENT, fogcolor);
 	glLightModelfv(GL_LIGHT_MODEL_TWO_SIDE, &one);
 
-	font = load_font("data/CharterBT-Roman.ttf"); if (!font) exit(1);
+	font = load_font("data/DroidSans.ttf"); if (!font) exit(1);
 	village = load_obj_model("data/village/village.obj"); if (!village) exit(1);
 
 	printf("loading terrain\n");
@@ -261,7 +261,7 @@ void sys_hook_draw(int w, int h)
 	glFogf(GL_FOG_END, 1500.0f);
 
 	if (caravan) animate_iqm_model(caravan, 0, idx/2);
-	if (cute) animate_iqm_model(cute, 25, idx/2);
+	if (cute) animate_iqm_model(cute, 33, idx/2);
 
 	glUseProgram(prog);
 
@@ -330,9 +330,9 @@ void sys_hook_draw(int w, int h)
 	glEnable(GL_TEXTURE_2D);
 	{
 		char buf[80];
-		sprintf(buf, "location: %d %d\n", (int)camera_pos[0], (int)camera_pos[1]);
+		sprintf(buf, "Location: %d %d", (int)camera_pos[0], (int)camera_pos[1]);
 		glColor3f(1, 0.8, 0.8);
-		draw_string(font, 32, 8, 32+8, buf);
+		draw_string(font, 24, 8, 24+4, buf);
 	}
 	glDisable(GL_BLEND);
 

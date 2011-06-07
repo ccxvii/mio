@@ -12,6 +12,7 @@ struct tile {
 };
 
 static unsigned int tileset;
+static unsigned int maskset;
 
 void init_tileset_slice(int i, char *filename)
 {
@@ -25,6 +26,18 @@ void init_tileset_slice(int i, char *filename)
 	}
 }
 
+void init_maskset_slice(int i, char *filename)
+{
+	int w, h;
+	unsigned char *data;
+	data = stbi_load(filename, &w, &h, 0, 1);
+	if (data) {
+		printf("loading slice %d with %s (%dx%d)\n", i, filename, w, h);
+		glTexSubImage3D(GL_TEXTURE_2D_ARRAY, 0, 0, 0, i, w, h, 1, GL_LUMINANCE, GL_UNSIGNED_BYTE, data);
+		free(data);
+	}
+}
+
 void init_tileset(void)
 {
 	glGenTextures(1, &tileset);
@@ -32,6 +45,7 @@ void init_tileset(void)
 	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_GENERATE_MIPMAP, GL_TRUE);
 	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexParameterf(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAX_ANISOTROPY_EXT, 4);
 	glTexImage3D(GL_TEXTURE_2D_ARRAY, 0, GL_RGB, 128, 128, 16, 0, GL_RGB, GL_UNSIGNED_BYTE, 0);
 
 	init_tileset_slice(0, "data/terrain/y-plages-128-a-01.png");
@@ -50,6 +64,29 @@ void init_tileset(void)
 	init_tileset_slice(13, "data/terrain/j-vieillehjungle-128-a-02_wi.png");
 	init_tileset_slice(14, "data/terrain/j-vieillehjungle-128-a-03_wi.png");
 	init_tileset_slice(15, "data/terrain/j-vieillehjungle-128-a-04_wi.png");
+
+	glGenTextures(1, &maskset);
+	glBindTexture(GL_TEXTURE_2D_ARRAY, maskset);
+	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_GENERATE_MIPMAP, GL_TRUE);
+	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+	glTexParameterf(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAX_ANISOTROPY_EXT, 4);
+	glTexImage3D(GL_TEXTURE_2D_ARRAY, 0, GL_LUMINANCE, 64, 64, 12, 0, GL_LUMINANCE, GL_UNSIGNED_BYTE, 0);
+
+	init_maskset_slice(0, "data/terrain/alpha_noise_00_sp.png");
+	init_maskset_slice(1, "data/terrain/alpha_noise_01_sp.png");
+	init_maskset_slice(2, "data/terrain/alpha_noise_02_sp.png");
+	init_maskset_slice(3, "data/terrain/alpha_noise_06_sp.png");
+	init_maskset_slice(4, "data/terrain/alpha_noise_07_sp.png");
+	init_maskset_slice(5, "data/terrain/alpha_noise_08_sp.png");
+	init_maskset_slice(6, "data/terrain/alpha_noise_12_sp.png");
+	init_maskset_slice(7, "data/terrain/alpha_noise_13_sp.png");
+	init_maskset_slice(8, "data/terrain/alpha_noise_14_sp.png");
+	init_maskset_slice(9, "data/terrain/alpha_noise_18_sp.png");
+	init_maskset_slice(10, "data/terrain/alpha_noise_19_sp.png");
+	init_maskset_slice(11, "data/terrain/alpha_noise_20_sp.png");
 }
 
 struct tile *load_tile(char *filename)
@@ -68,7 +105,7 @@ struct tile *load_tile(char *filename)
 	tile->w = w;
 	tile->h = h;
 	tile->z = malloc(w * h * sizeof(float));
-	tile->t = malloc(w * h);
+	tile->t = malloc(w * h * 4);
 	tile->vba = 0;
 	tile->iba = 0;
 	tile->vbo = tile->ibo = tile->tex = 0;
@@ -81,7 +118,10 @@ struct tile *load_tile(char *filename)
 			else if (v < 75) t = 4 + rand()%4;
 			else if (v < 100) t = 8 + rand()%4;
 			else t = 12 + rand()%4;
-			tile->t[y * w + x] = t;
+			tile->t[y * w * 4 + x * 4 + 0] = t;
+			tile->t[y * w * 4 + x * 4 + 1] = rand()%16;
+			tile->t[y * w * 4 + x * 4 + 2] = rand()%12;
+			tile->t[y * w * 4 + x * 4 + 3] = 0;
 		}
 	}
 
@@ -129,6 +169,7 @@ struct tile *load_tile(char *filename)
 	glUseProgram(tile->program);
 	glUniform1i(glGetUniformLocation(tile->program, "control_tex"), 0);
 	glUniform1i(glGetUniformLocation(tile->program, "tile_tex"), 1);
+	glUniform1i(glGetUniformLocation(tile->program, "mask_tex"), 2);
 
 	glGenBuffers(1, &tile->vbo);
 	glBindBuffer(GL_ARRAY_BUFFER, tile->vbo);
@@ -144,7 +185,7 @@ struct tile *load_tile(char *filename)
 	glBindTexture(GL_TEXTURE_2D, tile->tex);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_LUMINANCE, w, h, 0, GL_LUMINANCE, GL_UNSIGNED_BYTE, tile->t);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, tile->t);
 
 	free(png);
 	return tile;
@@ -167,6 +208,9 @@ void draw_tile(struct tile *tile)
 
 	glActiveTexture(GL_TEXTURE1);
 	glBindTexture(GL_TEXTURE_2D_ARRAY, tileset);
+
+	glActiveTexture(GL_TEXTURE2);
+	glBindTexture(GL_TEXTURE_2D_ARRAY, maskset);
 
 	glEnableClientState(GL_VERTEX_ARRAY);
 	glEnableClientState(GL_TEXTURE_COORD_ARRAY);

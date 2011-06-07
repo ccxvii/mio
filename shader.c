@@ -21,29 +21,40 @@ static char *load_source(char *filename)
 
 int compile_shader(char *vertfile, char *fragfile)
 {
+	char log[800];
 	char *vsrc, *fsrc;
 	int prog, vs, fs, len;
 
 	vsrc = load_source(vertfile);
 	fsrc = load_source(fragfile);
 
-	prog = glCreateProgram();
 	vs = glCreateShader(GL_VERTEX_SHADER);
-	fs = glCreateShader(GL_FRAGMENT_SHADER);
 	glShaderSource(vs, 1, (const char **)&vsrc, 0);
-	glShaderSource(fs, 1, (const char **)&fsrc, 0);
 	glCompileShader(vs);
+	glGetShaderiv(vs, GL_INFO_LOG_LENGTH, &len);
+	if (len > 1) {
+		glGetShaderInfoLog(vs, sizeof log, &len, log);
+		fprintf(stderr, "%s:\n%s", vertfile, log);
+	}
+
+	fs = glCreateShader(GL_FRAGMENT_SHADER);
+	glShaderSource(fs, 1, (const char **)&fsrc, 0);
 	glCompileShader(fs);
+	glGetShaderiv(fs, GL_INFO_LOG_LENGTH, &len);
+	if (len > 1) {
+		glGetShaderInfoLog(fs, sizeof log, &len, log);
+		fprintf(stderr, "%s:\n%s", fragfile, log);
+	}
+
+	prog = glCreateProgram();
 	glAttachShader(prog, vs);
 	glAttachShader(prog, fs);
 	glLinkProgram(prog);
-	glValidateProgram(prog);
 
 	glGetProgramiv(prog, GL_INFO_LOG_LENGTH, &len);
-	if (len > 0) {
-		char buf[800];
-		glGetProgramInfoLog(prog, sizeof buf, &len, buf);
-		fprintf(stderr, "%s", buf);
+	if (len > 1) {
+		glGetProgramInfoLog(prog, sizeof log, &len, log);
+		fprintf(stderr, "%s/%s:\n%s", vertfile, fragfile, log);
 	}
 
 	free(vsrc);

@@ -345,6 +345,12 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE previous, LPSTR cmdstr, int cmd
 		sys_hook_draw(width, height);
 		SwapBuffers(g_hdc);
 		dirty = 0;
+
+#ifndef NDEBUG
+		error = glGetError();
+		if (error != GL_NO_ERROR)
+			fprintf(stderr, "error: opengl error %d\n", error);
+#endif
 	}
 
 quit:
