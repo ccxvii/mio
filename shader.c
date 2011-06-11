@@ -28,6 +28,9 @@ int compile_shader(char *vertfile, char *fragfile)
 	vsrc = load_source(vertfile);
 	fsrc = load_source(fragfile);
 
+	if (!vsrc || !fsrc)
+		return 0;
+
 	vs = glCreateShader(GL_VERTEX_SHADER);
 	glShaderSource(vs, 1, (const char **)&vsrc, 0);
 	glCompileShader(vs);

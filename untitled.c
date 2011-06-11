@@ -14,7 +14,8 @@ static struct tile *land;
 static struct font *font;
 
 static float camera_dir[3] = { 0, 0, 0 };
-static float camera_pos[3] = { 469, 543, 100 };
+//static float camera_pos[3] = { 469, 543, 100 };
+static float camera_pos[3] = { 430, 580, 100 };
 static float camera_rot[3] = { 0, 0, 0 };
 static int action_forward = 0;
 static int action_backward = 0;
@@ -25,7 +26,7 @@ static int old_x = 0, old_y = 0;
 
 static int show_console = 0;
 
-static int prog = 0, treeprog = 0;
+static int prog = 0, treeprog = 0, skelprog = 0;
 
 float sunpos[] = { -500, -500, 800, 1 };
 float suncolor[] = { 1, 1, 1, 1 };
@@ -89,6 +90,7 @@ void sys_hook_init(int argc, char **argv)
 
 	prog = compile_shader("common.vs", "common.fs");
 	treeprog = compile_shader("tree.vs", "tree.fs");
+	skelprog = compile_shader("skel.vs", "common.fs");
 
 	init_console("data/DroidSans.ttf", 15);
 
@@ -269,17 +271,21 @@ void sys_hook_draw(int w, int h)
 	draw_obj_model(village, 474, 548, height_at_tile_location(land, 474, 548));
 	glPopMatrix();
 
+	glUseProgram(skelprog);
+
 	glPushMatrix();
 	static float caravan_z = 600;
 	caravan_z -= 4.0/60.0;
 	glTranslatef(470, caravan_z, height_at_tile_location(land, 470, caravan_z));
-	if (caravan) draw_iqm_model(caravan);
+	if (caravan) draw_iqm_model(caravan, skelprog);
 	glPopMatrix();
 
 	glPushMatrix();
 	glTranslatef(469, 550, height_at_tile_location(land, 469, 550));
-	if (cute) draw_iqm_model(cute);
+	if (cute) draw_iqm_model(cute, skelprog);
 	glPopMatrix();
+
+	glUseProgram(prog);
 
 	draw_tile(land);
 
@@ -305,7 +311,7 @@ void sys_hook_draw(int w, int h)
 	glMultiTexCoord4fv(GL_TEXTURE1, fv);
 	glPushMatrix();
 	glTranslatef(490, 590, height_at_tile_location(land, 490, 590));
-	draw_iqm_model(tree);
+	draw_iqm_model(tree, treeprog);
 	glPopMatrix();
 
 	glColor3f(0,0,0);

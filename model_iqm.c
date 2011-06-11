@@ -52,7 +52,6 @@ struct model {
 	struct pose **poses; // poses for each frame
 	struct anim *anims;
 
-	float *outpos, *outnorm;
 	float (*outbone)[16];
 	float (*outskin)[16];
 	struct pose *outpose;
@@ -122,11 +121,11 @@ load_byte_array(unsigned char *data, int size, int count)
 static void
 load_vertex_arrays(struct model *model, unsigned char *data, int ofs_va, int num_va, int num_v)
 {
-	int i, k;
+	int i;
 	model->num_verts = num_v;
 	for (i = 0; i < num_va; i++) {
 		int type = read32(data + ofs_va + 0);
-		int flags = read32(data + ofs_va + 4);
+		// int flags = read32(data + ofs_va + 4);
 		int format = read32(data + ofs_va + 8);
 		int size = read32(data + ofs_va + 12);
 		int offset = read32(data + ofs_va + 16);
@@ -143,6 +142,7 @@ load_vertex_arrays(struct model *model, unsigned char *data, int ofs_va, int num
 			assert(format == IQM_FLOAT && size == 3);
 			model->norm = load_float_array(data + offset, size, num_v);
 #ifdef FLIP
+			int k;
 			for (k = 0; k < num_v * 3; k++)
 				model->norm[k] = -model->norm[k]; // IQM has reversed winding
 #endif
@@ -204,8 +204,8 @@ load_meshes(struct model *model, unsigned char *data, int ofs_text, int ofs_mesh
 	model->num_meshes = num_meshes;
 	model->meshes = malloc(num_meshes * sizeof(struct mesh));
 	for (i = 0; i < num_meshes; i++) {
-		char *name = data + ofs_text + read32(data + ofs_meshes + 0);
-		char *material = data + ofs_text + read32(data + ofs_meshes + 4);
+		char *name = (char*)data + ofs_text + read32(data + ofs_meshes + 0);
+		char *material = (char*)data + ofs_text + read32(data + ofs_meshes + 4);
 		strlcpy(model->meshes[i].name, name, NAMELEN);
 		model->meshes[i].material = load_material(model, material);
 		model->meshes[i].first = read32(data + ofs_meshes + 16);
@@ -238,7 +238,7 @@ load_bones(struct model *model, unsigned char *data, int ofs_text, int ofs_bones
 	for (i = 0; i < num_bones; i++) {
 		float m[16];
 		struct bone *bone = model->bones + i;
-		char *name = data + ofs_text + read32(data + ofs_bones + 0);
+		char *name = (char*)data + ofs_text + read32(data + ofs_bones + 0);
 		bone->parent = read32(data + ofs_bones + 4);
 		strlcpy(bone->name, name, NAMELEN);
 		read_pose(&bone->bind_pose, data + ofs_bones + 8);
@@ -262,7 +262,7 @@ load_anims(struct model *model, unsigned char *data, int ofs_text, int ofs_anims
 	model->anims = malloc(num_anims * sizeof(struct anim));
 	for (i = 0; i < num_anims; i++) {
 		struct anim *anim = model->anims + i;
-		char *name = data + ofs_text + read32(data + ofs_anims + 0);
+		char *name = (char*)data + ofs_text + read32(data + ofs_anims + 0);
 		strlcpy(anim->name, name, NAMELEN);
 		anim->first = read32(data + ofs_anims + 4);
 		anim->count = read32(data + ofs_anims + 8);
@@ -332,8 +332,8 @@ load_iqm_model_from_memory(unsigned char *data, char *filename)
 	struct model *model;
 	char *p;
 
-	int flags = read32(data + 24);
-	int num_text = read32(data + 28);
+//	int flags = read32(data + 24);
+//	int num_text = read32(data + 28);
 	int ofs_text = read32(data + 32);
 	int num_meshes = read32(data + 36);
 	int ofs_meshes = read32(data + 40);
@@ -342,7 +342,7 @@ load_iqm_model_from_memory(unsigned char *data, char *filename)
 	int ofs_vertexarrays = read32(data + 52);
 	int num_triangles = read32(data + 56);
 	int ofs_triangles = read32(data + 60);
-	int ofs_adjacency = read32(data + 64);
+//	int ofs_adjacency = read32(data + 64);
 	int num_bones = read32(data + 68);
 	int ofs_bones = read32(data + 72);
 	int num_poses = read32(data + 76);
@@ -353,10 +353,10 @@ load_iqm_model_from_memory(unsigned char *data, char *filename)
 	int num_framechannels = read32(data + 96);
 	int ofs_frames = read32(data + 100);
 	int ofs_bounds = read32(data + 104);
-	int num_comment = read32(data + 108);
-	int ofs_comment = read32(data + 112);
-	int num_extensions = read32(data + 116);
-	int ofs_extensions = read32(data + 120);
+//	int num_comment = read32(data + 108);
+//	int ofs_comment = read32(data + 112);
+//	int num_extensions = read32(data + 116);
+//	int ofs_extensions = read32(data + 120);
 
 	model = malloc(sizeof *model);
 	memset(model, 0, sizeof *model);
@@ -381,8 +381,7 @@ load_iqm_model_from_memory(unsigned char *data, char *filename)
 		load_frames(model, data, ofs_poses, ofs_frames, ofs_bounds,	
 			num_frames, num_framechannels);
 
-	model->outpos = model->pos;
-	model->outnorm = model->norm;
+	model->outpose = NULL;
 	model->outbone = NULL;
 	model->outskin = NULL;
 
@@ -432,17 +431,11 @@ void
 animate_iqm_model(struct model *model, int anim, int frame)
 {
 	struct pose *poses;
-	float *dstpos, *dstnorm, *srcpos, *srcnorm;
-	unsigned char *idx, *w;
-	int i, k, n;
+	int i;
 
 	if (!model->num_bones || !model->num_anims)
 		return;
 
-	if (model->outpos == model->pos)
-		model->outpos = malloc(model->num_verts * 3 * sizeof(float));
-	if (model->outnorm == model->outnorm)
-		model->outnorm = malloc(model->num_verts * 3 * sizeof(float));
 	if (!model->outbone) {
 		model->outbone = malloc(model->num_bones * sizeof(float[16]));
 		model->outskin = malloc(model->num_bones * sizeof(float[16]));
@@ -456,61 +449,46 @@ animate_iqm_model(struct model *model, int anim, int frame)
 		struct pose *pose = poses + i;
 		float m[16];
 		mat_from_quat_vec(m, pose->rotate, pose->translate);
+		// TODO: interpolate between poses
 		if (parent >= 0)
 			mat_mul(model->outbone[i], model->outbone[parent], m);
 		else
 			mat_copy(model->outbone[i], m);
 		mat_mul(model->outskin[i], model->outbone[i], model->bones[i].inv_bind_matrix);
 	}
-
-	idx = model->blend_index;
-	w = model->blend_weight;
-	srcpos = model->pos;
-	srcnorm = model->norm;
-	dstpos = model->outpos;
-	dstnorm = model->outnorm;
-
-	for (i = 0; i < model->num_verts; i++) {
-		for (n = 0; n < 3; n++) {
-			dstpos[n] = 0;
-			dstnorm[n] = 0;
-		}
-		for (k = 0; k < 4; k++) {
-			float *m = model->outskin[idx[k]];
-			if (w[k] > 0) {
-				float pv[3], nv[3];
-				mat_vec_mul(pv, m, srcpos);
-				mat_vec_mul_n(nv, m, srcnorm);
-				for (n = 0; n < 3; n++) {
-					dstpos[n] += pv[n] * w[k];
-					dstnorm[n] += nv[n] * w[k];
-				}
-			}
-		}
-		for (n = 0; n < 3; n++) {
-			dstpos[n] *= 1/255.0f;
-			dstnorm[n] *= 1/255.0f;
-		}
-		srcpos+=3; srcnorm+=3;
-		dstpos+=3; dstnorm+=3;
-		idx += 4; w += 4;
-	}
 }
 
 void
-draw_iqm_model(struct model *model)
+draw_iqm_model(struct model *model, int prog)
 {
-	int i;
+	int i, loc, bw_loc, bi_loc;
 
-	glVertexPointer(3, GL_FLOAT, 0, model->outpos);
-	if (model->norm) glNormalPointer(GL_FLOAT, 0, model->outnorm);
-	if (model->texcoord) glTexCoordPointer(2, GL_FLOAT, 0, model->texcoord);
-	if (model->color) glColorPointer(4, GL_UNSIGNED_BYTE, 0, model->color);
-
+	glVertexPointer(3, GL_FLOAT, 0, model->pos);
 	glEnableClientState(GL_VERTEX_ARRAY);
-	if (model->norm) glEnableClientState(GL_NORMAL_ARRAY);
-	if (model->texcoord) glEnableClientState(GL_TEXTURE_COORD_ARRAY);
-	if (model->color) glEnableClientState(GL_COLOR_ARRAY);
+
+	if (model->norm) {
+		glNormalPointer(GL_FLOAT, 0, model->norm);
+		glEnableClientState(GL_NORMAL_ARRAY);
+	}
+	if (model->texcoord) {
+		glTexCoordPointer(2, GL_FLOAT, 0, model->texcoord);
+		glEnableClientState(GL_TEXTURE_COORD_ARRAY);
+	}
+	if (model->color) {
+		glColorPointer(4, GL_UNSIGNED_BYTE, 0, model->color);
+		glEnableClientState(GL_COLOR_ARRAY);
+	}
+
+	if (model->blend_index && model->blend_weight) {
+		loc = glGetUniformLocation(prog, "bones");
+		bi_loc = glGetAttribLocation(prog, "blend_index");
+		bw_loc = glGetAttribLocation(prog, "blend_weight");
+		glUniformMatrix4fv(loc, model->num_bones, 0, model->outskin[0]);
+		glVertexAttribPointer(bi_loc, 4, GL_UNSIGNED_BYTE, 0, 4, model->blend_index);
+		glVertexAttribPointer(bw_loc, 4, GL_UNSIGNED_BYTE, 1, 4, model->blend_weight);
+		glEnableVertexAttribArray(bi_loc);
+		glEnableVertexAttribArray(bw_loc);
+	}
 
 	for (i = 0; i < model->num_meshes; i++) {
 		struct mesh *mesh = model->meshes + i;
@@ -520,11 +498,13 @@ draw_iqm_model(struct model *model)
 	}
 
 	glDisableClientState(GL_VERTEX_ARRAY);
-	if (model->norm) glDisableClientState(GL_NORMAL_ARRAY);
-	if (model->texcoord) glDisableClientState(GL_TEXTURE_COORD_ARRAY);
-	if (model->color) glDisableClientState(GL_COLOR_ARRAY);
-
-	glColor3f(1,1,1);
+	glDisableClientState(GL_NORMAL_ARRAY);
+	glDisableClientState(GL_TEXTURE_COORD_ARRAY);
+	glDisableClientState(GL_COLOR_ARRAY);
+	if (model->blend_index && model->blend_weight) {
+		glDisableVertexAttribArray(bi_loc);
+		glDisableVertexAttribArray(bw_loc);
+	}
 }
 
 void

@@ -20,7 +20,7 @@ void init_tileset_slice(int i, char *filename)
 	unsigned char *data;
 	data = stbi_load(filename, &w, &h, 0, 3);
 	if (data) {
-		printf("loading slice %d with %s (%dx%d)\n", i, filename, w, h);
+//		printf("loading slice %d with %s (%dx%d)\n", i, filename, w, h);
 		glTexSubImage3D(GL_TEXTURE_2D_ARRAY, 0, 0, 0, i, w, h, 1, GL_RGB, GL_UNSIGNED_BYTE, data);
 		free(data);
 	}
@@ -32,7 +32,7 @@ void init_maskset_slice(int i, char *filename)
 	unsigned char *data;
 	data = stbi_load(filename, &w, &h, 0, 1);
 	if (data) {
-		printf("loading slice %d with %s (%dx%d)\n", i, filename, w, h);
+//		printf("loading slice %d with %s (%dx%d)\n", i, filename, w, h);
 		glTexSubImage3D(GL_TEXTURE_2D_ARRAY, 0, 0, 0, i, w, h, 1, GL_LUMINANCE, GL_UNSIGNED_BYTE, data);
 		free(data);
 	}
@@ -133,8 +133,8 @@ struct tile *load_tile(char *filename)
 			*p++ = x * 2;
 			*p++ = y * 2;
 			*p++ = z;
-			*p++ = (float) x / w;
-			*p++ = (float) y / h;
+			*p++ = x;
+			*p++ = y;
 			*p++ = 0;
 			*p++ = 0;
 			*p++ = 1;
