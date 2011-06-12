@@ -3,6 +3,7 @@
 uniform sampler2D texture;
 
 varying vec3 normal;
+varying vec4 position;
 varying vec3 light_dir;
 varying vec2 texcoord;
 varying float fogfactor;

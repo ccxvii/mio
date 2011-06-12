@@ -262,8 +262,8 @@ void sys_hook_draw(int w, int h)
 	glFogf(GL_FOG_START, 1.0f);
 	glFogf(GL_FOG_END, 1500.0f);
 
-	if (caravan) animate_iqm_model(caravan, 0, idx/2);
-	if (cute) animate_iqm_model(cute, 33, idx/2);
+	if (caravan) animate_iqm_model(caravan, 0, idx/2, (idx%2)/2.0);
+	if (cute) animate_iqm_model(cute, 33, idx/2, (idx%2)/2.0);
 
 	glUseProgram(prog);
 
@@ -307,8 +307,7 @@ void sys_hook_draw(int w, int h)
 	glUseProgram(treeprog);
 
 	glDisable(GL_CULL_FACE);
-	float fv[4] = {idx, 0, 0, 0};
-	glMultiTexCoord4fv(GL_TEXTURE1, fv);
+	glMultiTexCoord2f(GL_TEXTURE1, idx, 1);
 	glPushMatrix();
 	glTranslatef(490, 590, height_at_tile_location(land, 490, 590));
 	draw_iqm_model(tree, treeprog);

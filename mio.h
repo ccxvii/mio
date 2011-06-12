@@ -45,6 +45,7 @@ float draw_string(struct font *font, float size, float x, float y, char *str);
 
 void mat_identity(float m[16]);
 void mat_copy(float p[16], const float m[16]);
+void mat_mix(float m[16], const float a[16], const float b[16], float v);
 void mat_mul(float m[16], const float a[16], const float b[16]);
 void mat_mul44(float m[16], const float a[16], const float b[16]);
 void mat_frustum(float m[16], float left, float right, float bottom, float top, float n, float f);
@@ -87,7 +88,8 @@ void draw_obj_bbox(struct model *model);
 struct model *load_iqm_model(char *filename);
 void draw_iqm_model(struct model *model, int prog);
 void draw_iqm_bones(struct model *model);
-void animate_iqm_model(struct model *model, int anim, int frame);
+void animate_iqm_model(struct model *model, int anim, int frame, float v);
+float measure_iqm_radius(struct model *model);
 
 // terrain height field
 

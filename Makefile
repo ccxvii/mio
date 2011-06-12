@@ -23,9 +23,9 @@ OBJS := $(addprefix $(OUT)/, \
 	$(SYS_OBJ) sysevent.o rune.o runetype.o strlcpy.o \
 	glew.o font.o image.o vector.o shader.o \
 	model_obj.o model_iqm.o \
-	terrain.o console.o \
-	untitled.o )
-APP := $(OUT)/untitled
+	terrain.o console.o )
+UNTITLED := $(OUT)/untitled
+VIEWER := $(OUT)/viewer
 
 $(OUT) :
 	mkdir -p $@
@@ -38,10 +38,13 @@ $(OUT)/%.o : %.m $(HDRS) | $(OUT)
 $(OUT)/font.o : font.c $(HDRS) | $(OUT)
 	$(CC_CMD) $(FT_CFLAGS)
 
-$(APP) : $(OBJS) | $(OUT)
+$(UNTITLED) : $(OBJS) $(OUT)/untitled.o | $(OUT)
 	$(LINK_CMD)
 
-all: $(APP)
+$(VIEWER) : $(OBJS) $(OUT)/viewer.o | $(OUT)
+	$(LINK_CMD)
+
+all: $(UNTITLED) $(VIEWER)
 
 clean:
 	rm -rf $(OUT)

@@ -7,8 +7,9 @@ void main()
 {
 	float wind = gl_Color.r;
 	float time = gl_MultiTexCoord1.x / 60.0;
+	float strength = gl_MultiTexCoord1.y;
 	vec4 vertex = gl_Vertex;
-	vertex.x += wind * sin(time);
+	vertex.x += wind * sin(time) * strength;
 	gl_Position = gl_ModelViewProjectionMatrix * vertex;
 	normal = normalize(gl_NormalMatrix * gl_Normal);
 	texcoord = vec2(gl_MultiTexCoord0);

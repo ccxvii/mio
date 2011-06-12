@@ -102,6 +102,14 @@ void mat_ortho(float m[16],
 	M(3,3) = 1;
 }
 
+void mat_mix(float m[16], const float a[16], const float b[16], float v)
+{
+	float iv = 1 - v;
+	int i;
+	for (i = 0; i < 16; i++)
+		m[i] = a[i] * iv + b[i] * v;
+}
+
 void mat_scale(float m[16], float x, float y, float z)
 {
 	m[0] *= x; m[4] *= y; m[8] *= z;

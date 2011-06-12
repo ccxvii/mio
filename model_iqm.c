@@ -52,6 +52,8 @@ struct model {
 	struct pose **poses; // poses for each frame
 	struct anim *anims;
 
+	float min[3], max[3], radius;
+
 	float (*outbone)[16];
 	float (*outskin)[16];
 	struct pose *outpose;
@@ -331,6 +333,7 @@ load_iqm_model_from_memory(unsigned char *data, char *filename)
 {
 	struct model *model;
 	char *p;
+	int i;
 
 //	int flags = read32(data + 24);
 //	int num_text = read32(data + 28);
@@ -381,6 +384,26 @@ load_iqm_model_from_memory(unsigned char *data, char *filename)
 		load_frames(model, data, ofs_poses, ofs_frames, ofs_bounds,	
 			num_frames, num_framechannels);
 
+	model->min[0] = model->min[1] = model->min[2] = 1e10;
+	model->max[0] = model->max[1] = model->max[2] = -1e10;
+	model->radius = 0;
+
+	for (i = 0; i < model->num_verts * 3; i += 3) {
+		float x = model->pos[i];
+		float y = model->pos[i+1];
+		float z = model->pos[i+2];
+		float r = x*x + y*y + z*z;
+		if (x < model->min[0]) model->min[0] = x;
+		if (y < model->min[1]) model->min[1] = y;
+		if (z < model->min[2]) model->min[2] = z;
+		if (x > model->max[0]) model->max[0] = x;
+		if (y > model->max[1]) model->max[1] = y;
+		if (z > model->max[2]) model->max[2] = z;
+		if (r > model->radius) model->radius = r;
+	}
+
+	model->radius = sqrtf(model->radius);
+
 	model->outpose = NULL;
 	model->outbone = NULL;
 	model->outskin = NULL;
@@ -427,10 +450,17 @@ load_iqm_model(char *filename)
 	return model;
 }
 
-void
-animate_iqm_model(struct model *model, int anim, int frame)
+float measure_iqm_radius(struct model *model)
 {
-	struct pose *poses;
+	return model->radius;
+}
+
+void
+animate_iqm_model(struct model *model, int anim, int frame, float t)
+{
+	struct pose *pose0, *pose1;
+	float m[16], q[4], v[3];
+	int frame0, frame1;
 	int i;
 
 	if (!model->num_bones || !model->num_anims)
@@ -441,19 +471,21 @@ animate_iqm_model(struct model *model, int anim, int frame)
 		model->outskin = malloc(model->num_bones * sizeof(float[16]));
 	}
 
-	frame %= model->anims[anim].count;
-	poses = model->poses[model->anims[anim].first + frame];
+	frame0 = frame % model->anims[anim].count;
+	frame1 = (frame + 1) % model->anims[anim].count;
+	pose0 = model->poses[model->anims[anim].first + frame0];
+	pose1 = model->poses[model->anims[anim].first + frame1];
 
 	for (i = 0; i < model->num_bones; i++) {
 		int parent = model->bones[i].parent;
-		struct pose *pose = poses + i;
-		float m[16];
-		mat_from_quat_vec(m, pose->rotate, pose->translate);
-		// TODO: interpolate between poses
-		if (parent >= 0)
+		quat_lerp_neighbor_normalize(q, pose0[i].rotate, pose1[i].rotate, t);
+		vec_lerp(v, pose0[i].translate, pose1[i].translate, t);
+		if (parent >= 0) {
+			mat_from_quat_vec(m, q, v);
 			mat_mul(model->outbone[i], model->outbone[parent], m);
-		else
-			mat_copy(model->outbone[i], m);
+		} else {
+			mat_from_quat_vec(model->outbone[i], q, v);
+		}
 		mat_mul(model->outskin[i], model->outbone[i], model->bones[i].inv_bind_matrix);
 	}
 }
@@ -461,7 +493,7 @@ animate_iqm_model(struct model *model, int anim, int frame)
 void
 draw_iqm_model(struct model *model, int prog)
 {
-	int i, loc, bw_loc, bi_loc;
+	int i, loc=-1, bw_loc=-1, bi_loc=-1;
 
 	glVertexPointer(3, GL_FLOAT, 0, model->pos);
 	glEnableClientState(GL_VERTEX_ARRAY);
@@ -480,14 +512,16 @@ draw_iqm_model(struct model *model, int prog)
 	}
 
 	if (model->blend_index && model->blend_weight) {
-		loc = glGetUniformLocation(prog, "bones");
+		loc = glGetUniformLocation(prog, "bone_matrix");
 		bi_loc = glGetAttribLocation(prog, "blend_index");
 		bw_loc = glGetAttribLocation(prog, "blend_weight");
-		glUniformMatrix4fv(loc, model->num_bones, 0, model->outskin[0]);
-		glVertexAttribPointer(bi_loc, 4, GL_UNSIGNED_BYTE, 0, 4, model->blend_index);
-		glVertexAttribPointer(bw_loc, 4, GL_UNSIGNED_BYTE, 1, 4, model->blend_weight);
-		glEnableVertexAttribArray(bi_loc);
-		glEnableVertexAttribArray(bw_loc);
+		if (loc >= 0 && bi_loc >= 0 && bw_loc >= 0) {
+			glUniformMatrix4fv(loc, model->num_bones, 0, model->outskin[0]);
+			glVertexAttribPointer(bi_loc, 4, GL_UNSIGNED_BYTE, 0, 4, model->blend_index);
+			glVertexAttribPointer(bw_loc, 4, GL_UNSIGNED_BYTE, 1, 4, model->blend_weight);
+			glEnableVertexAttribArray(bi_loc);
+			glEnableVertexAttribArray(bw_loc);
+		}
 	}
 
 	for (i = 0; i < model->num_meshes; i++) {
@@ -501,7 +535,7 @@ draw_iqm_model(struct model *model, int prog)
 	glDisableClientState(GL_NORMAL_ARRAY);
 	glDisableClientState(GL_TEXTURE_COORD_ARRAY);
 	glDisableClientState(GL_COLOR_ARRAY);
-	if (model->blend_index && model->blend_weight) {
+	if (loc >= 0 && bi_loc >= 0 && bw_loc >= 0) {
 		glDisableVertexAttribArray(bi_loc);
 		glDisableVertexAttribArray(bw_loc);
 	}

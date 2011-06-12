@@ -1,32 +1,36 @@
 #version 120
 
-varying vec3 normal;
-varying vec3 light_dir;
-varying vec2 texcoord;
-varying float fogfactor;
+uniform mat4 bone_matrix[256];
 
 attribute vec4 blend_index;
 attribute vec4 blend_weight;
 
-uniform mat4 bones[256];
+varying vec3 normal;
+varying vec4 position;
+varying vec3 light_dir;
+varying vec2 texcoord;
+varying float fogfactor;
 
 void main()
 {
-	mat4 m0 = bones[int(blend_index[0])];
-	mat4 m1 = bones[int(blend_index[1])];
-	mat4 m2 = bones[int(blend_index[2])];
-	mat4 m3 = bones[int(blend_index[3])];
+	vec4 v = vec4(0.0);
+	vec3 n = vec3(0.0);
 
-	vec4 v = (m0 * gl_Vertex) * blend_weight[0];
-	v += (m1 * gl_Vertex) * blend_weight[1];
-	v += (m2 * gl_Vertex) * blend_weight[2];
-	v += (m3 * gl_Vertex) * blend_weight[3];
+	vec4 cur_index = blend_index;
+	vec4 cur_weight = blend_weight;
 
-	vec3 n = mat3(m0[0].xyz, m0[1].xyz, m0[2].xyz) * gl_Normal;
+	for (int i = 0; i < 4; i++) {
+		mat4 m44 = bone_matrix[int(cur_index.x)];
+		mat3 m33 = mat3(m44[0].xyz, m44[1].xyz, m44[2].xyz);
+		v += m44 * gl_Vertex * cur_weight.x;
+		n += m33 * gl_Normal * cur_weight.x;
+		cur_index = cur_index.yzwx;
+		cur_weight = cur_weight.yzwx;
+	}
 
 	gl_Position = gl_ModelViewProjectionMatrix * v;
+	position = gl_ModelViewMatrix * v;
 	normal = normalize(gl_NormalMatrix * n);
-	vec4 position = gl_ModelViewMatrix * v;
 	texcoord = vec2(gl_MultiTexCoord0);
 	light_dir = normalize(vec3(gl_LightSource[0].position - position));
 	gl_FogFragCoord = length(position);

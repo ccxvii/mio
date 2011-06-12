@@ -9,11 +9,12 @@ static struct font *font;
 static int frame = 0;
 static int anim = 0;
 
+static int showanim = 1;
 static int showskel = 0;
 
+float dist = 1;
+
 float sunpos[] = { -500, -500, 800, 1 };
-float suncolor[] = { 1, 1, 1, 1 };
-float ambientcolor[] = { 0.1, 0.1, 0.1, 1 };
 float fogcolor[4] = { 73.0/255, 149.0/255, 204.0/255, 1 };
 
 unsigned int prog, treeprog, skelprog;
@@ -31,8 +32,13 @@ void sys_hook_init(int argc, char **argv)
 	treeprog = compile_shader("tree.vs", "tree.fs");
 	skelprog = compile_shader("skel.vs", "common.fs");
 
-	glClearColor(0.1, 0.1, 0.1, 1.0);
+	glClearColor(0.3, 0.3, 0.3, 1.0);
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+	glFogi(GL_FOG_MODE, GL_LINEAR);
+	glFogf(GL_FOG_START, 1.0f);
+	glFogf(GL_FOG_END, 150.0f);
+	glFogfv(GL_FOG_COLOR, fogcolor);
 
 	if (argc < 2) {
 		fprintf(stderr, "usage: viewer model.iqm\n");
@@ -42,6 +48,7 @@ void sys_hook_init(int argc, char **argv)
 	modelname = argv[1];
 	font = load_font("data/DroidSans.ttf");
 	model = load_iqm_model(modelname);
+	dist = 2 + measure_iqm_radius(model);
 
 	sys_start_idle_loop();
 }
@@ -61,6 +68,8 @@ void sys_hook_draw(int w, int h)
 				anim++;
 			if (evt->key == 'A')
 				anim--;
+			if (evt->key == 't')
+				showanim = !showanim;
 			if (evt->key == ' ')
 				sys_stop_idle_loop();
 			if (evt->key == 'r')
@@ -86,18 +95,15 @@ void sys_hook_draw(int w, int h)
 	glMatrixMode(GL_MODELVIEW);
 	glLoadIdentity();
 	glRotatef(-90, 1, 0, 0); /* Z-up */
-	glTranslatef(0, 3, -1);
-	glRotatef(30, 0, 0, 1);
+	glTranslatef(0, dist, -dist/3);
 
-	glFogi(GL_FOG_MODE, GL_LINEAR);
-	glFogfv(GL_FOG_COLOR, fogcolor);
-	glFogf(GL_FOG_START, 1.0f);
-	glFogf(GL_FOG_END, 1500.0f);
+	glLightfv(GL_LIGHT0, GL_POSITION, sunpos);
 
+	glRotatef(-frame/2, 0, 0, 1);
 
 	glUseProgram(0);
 	glEnable(GL_DEPTH_TEST);
-	glColor3f(0.7, 0.7, 0.7);
+	glColor3f(0.5, 0.5, 0.5);
 	glBegin(GL_LINES);
 	for (i = -4; i <= 4; i++) {
 		glVertex3f(i, -4, 0);
@@ -107,12 +113,18 @@ void sys_hook_draw(int w, int h)
 	}
 	glEnd();
 
-	animate_iqm_model(model, anim, frame/3);
+	animate_iqm_model(model, anim, frame/4, (frame%4)/4.0);
 
-	glUseProgram(skelprog);
 	glEnable(GL_DEPTH_TEST);
-	draw_iqm_model(model, skelprog);
-	
+	if (showanim) {
+		glUseProgram(skelprog);
+		draw_iqm_model(model, skelprog);
+	} else {
+		glUseProgram(treeprog);
+		glMultiTexCoord2f(GL_TEXTURE1, frame, measure_iqm_radius(model) * 0.1);
+		draw_iqm_model(model, treeprog);
+	}
+
 	if (showskel) {
 		glUseProgram(0);
 		glDisable(GL_DEPTH_TEST);
@@ -122,6 +134,15 @@ void sys_hook_draw(int w, int h)
 	glUseProgram(0);
 	glEnable(GL_DEPTH_TEST);
 	glEnable(GL_BLEND);
+
+	glColor4f(0.4, 0.4, 0.4, 0.5);
+	glBegin(GL_QUADS);
+	glVertex3f(-4, 4, -0.01f);
+	glVertex3f(4, 4, -0.01f);
+	glVertex3f(4, -4, -0.01f);
+	glVertex3f(-4, -4, -0.01f);
+	glEnd();
+
 	glEnable(GL_TEXTURE_2D);
 
 	glMatrixMode(GL_PROJECTION);
