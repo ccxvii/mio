@@ -32,7 +32,7 @@ void mat_mul44(float m[16], const float a[16], const float b[16])
 {
 	int i;
 	for (i = 0; i < 4; i++) {
-		const float ai0=A(i,0),  ai1=A(i,1),  ai2=A(i,2),  ai3=A(i,3);
+		const float ai0=A(i,0), ai1=A(i,1), ai2=A(i,2), ai3=A(i,3);
 		M(i,0) = ai0 * B(0,0) + ai1 * B(1,0) + ai2 * B(2,0) + ai3 * B(3,0);
 		M(i,1) = ai0 * B(0,1) + ai1 * B(1,1) + ai2 * B(2,1) + ai3 * B(3,1);
 		M(i,2) = ai0 * B(0,2) + ai1 * B(1,2) + ai2 * B(2,2) + ai3 * B(3,2);
@@ -44,7 +44,7 @@ void mat_mul(float m[16], const float a[16], const float b[16])
 {
 	int i;
 	for (i = 0; i < 3; i++) {
-		const float ai0=A(i,0),  ai1=A(i,1),  ai2=A(i,2),  ai3=A(i,3);
+		const float ai0=A(i,0), ai1=A(i,1), ai2=A(i,2), ai3=A(i,3);
 		M(i,0) = ai0 * B(0,0) + ai1 * B(1,0) + ai2 * B(2,0);
 		M(i,1) = ai0 * B(0,1) + ai1 * B(1,1) + ai2 * B(2,1);
 		M(i,2) = ai0 * B(0,2) + ai1 * B(1,2) + ai2 * B(2,2);
@@ -120,8 +120,8 @@ void mat_scale(float m[16], float x, float y, float z)
 
 void mat_translate(float m[16], float x, float y, float z)
 {
-	m[12] = m[0] * x + m[4] * y + m[8]  * z + m[12];
-	m[13] = m[1] * x + m[5] * y + m[9]  * z + m[13];
+	m[12] = m[0] * x + m[4] * y + m[8] * z + m[12];
+	m[13] = m[1] * x + m[5] * y + m[9] * z + m[13];
 	m[14] = m[2] * x + m[6] * y + m[10] * z + m[14];
 	m[15] = m[3] * x + m[7] * y + m[11] * z + m[15];
 }
@@ -250,7 +250,7 @@ void mat_vec_mul_n(float p[3], const float m[16], const float v[3])
 	p[2] = m[2] * v[0] + m[6] * v[1] + m[10] * v[2];
 }
 
-/* Transform a normal (row vector) by a matrix:  [px py pz] = v * m */
+/* Transform a normal (row vector) by a matrix: [px py pz] = v * m */
 void mat_vec_mul_t(float p[3], const float m[16], const float v[3])
 {
 	assert(p != v);
