@@ -86,7 +86,8 @@ float measure_obj_radius(struct model *model);
 void draw_obj_bbox(struct model *model);
 
 struct model *load_iqm_model(char *filename);
-void draw_iqm_model(struct model *model, int prog);
+void draw_iqm_instances(struct model *model, float *translate, int count);
+void draw_iqm_model(struct model *model, float x, float y, float z);
 void draw_iqm_bones(struct model *model);
 void animate_iqm_model(struct model *model, int anim, int frame, float v);
 float measure_iqm_radius(struct model *model);

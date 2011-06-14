@@ -13,14 +13,14 @@ const float shininess = 32.0;
 
 void main()
 {
-	vec3 N = normalize(normal);
+	vec4 diffuse = texture2D(texture, texcoord);
+	vec3 N = normalize(gl_FrontFacing ? normal : -normal);
 	vec3 L = normalize(light_dir);
 	vec3 E = normalize(-vec3(position));
 	vec3 R = reflect(-L, N);
 
-	vec4 diffuse = texture2D(texture, texcoord);
 	float specular = pow(max(dot(R, E), 0.0), shininess);
-	float lambert_term = clamp(dot(N, L), 0.0, 1.0);
+	float lambert_term = clamp(dot(N, L), 0.0, 1.0) * (1.0 - ambient) + ambient;
 	vec4 final_color = diffuse * lambert_term;
 	if (diffuse.a < 1.0)
 		final_color += vec4(specular * diffuse.a * 2);

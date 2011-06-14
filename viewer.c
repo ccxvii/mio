@@ -36,8 +36,8 @@ void sys_hook_init(int argc, char **argv)
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
 	glFogi(GL_FOG_MODE, GL_LINEAR);
-	glFogf(GL_FOG_START, 1.0f);
-	glFogf(GL_FOG_END, 150.0f);
+	glFogf(GL_FOG_START, 10.0f);
+	glFogf(GL_FOG_END, 1000.0f);
 	glFogfv(GL_FOG_COLOR, fogcolor);
 
 	if (argc < 2) {
@@ -99,7 +99,8 @@ void sys_hook_draw(int w, int h)
 
 	glLightfv(GL_LIGHT0, GL_POSITION, sunpos);
 
-	glRotatef(-frame/2, 0, 0, 1);
+	if (showanim)
+		glRotatef(-frame/2, 0, 0, 1);
 
 	glUseProgram(0);
 	glEnable(GL_DEPTH_TEST);
@@ -118,12 +119,11 @@ void sys_hook_draw(int w, int h)
 	glEnable(GL_DEPTH_TEST);
 	if (showanim) {
 		glUseProgram(skelprog);
-		draw_iqm_model(model, skelprog);
 	} else {
 		glUseProgram(treeprog);
 		glMultiTexCoord2f(GL_TEXTURE1, frame, measure_iqm_radius(model) * 0.1);
-		draw_iqm_model(model, treeprog);
 	}
+	draw_iqm_model(model, 0, 0, 0);
 
 	if (showskel) {
 		glUseProgram(0);

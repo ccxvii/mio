@@ -117,7 +117,7 @@ void sys_hook_init(int argc, char **argv)
 	skydome1 = load_obj_model("data/sky/sky_fog_tryker.obj"); if (!skydome1) exit(1);
 	skydome2 = load_obj_model("data/sky/canope_tryker.obj"); if (!skydome2) exit(1);
 
-	birch = load_obj_model("data/vegetation/fo_s2_birch.obj");
+	birch = load_iqm_model("data/vegetation/fo_s2_birch.iqm");
 
 	tree = load_iqm_model("data/vegetation/ju_s2_big_tree.iqm"); if (!tree) exit(1);
 	cute = load_iqm_model("data/tr_mo_cute/tr_mo_cute.iqm");
@@ -214,7 +214,6 @@ void sys_hook_draw(int w, int h)
 
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-	glEnable(GL_CULL_FACE);
 //	glPolygonMode(GL_BACK, GL_LINE);
 
 	static int idx = 0;
@@ -266,6 +265,7 @@ void sys_hook_draw(int w, int h)
 	if (cute) animate_iqm_model(cute, 33, idx/2, (idx%2)/2.0);
 
 	glUseProgram(prog);
+	glDisable(GL_CULL_FACE);
 
 	glPushMatrix();
 	draw_obj_model(village, 474, 548, height_at_tile_location(land, 474, 548));
@@ -273,19 +273,16 @@ void sys_hook_draw(int w, int h)
 
 	glUseProgram(skelprog);
 
-	glPushMatrix();
-	static float caravan_z = 600;
-	caravan_z -= 4.0/60.0;
-	glTranslatef(470, caravan_z, height_at_tile_location(land, 470, caravan_z));
-	if (caravan) draw_iqm_model(caravan, skelprog);
-	glPopMatrix();
-
-	glPushMatrix();
-	glTranslatef(469, 550, height_at_tile_location(land, 469, 550));
-	if (cute) draw_iqm_model(cute, skelprog);
-	glPopMatrix();
+	if (caravan) {
+		static float caravan_z = 600;
+		caravan_z -= 4.0/60.0;
+		draw_iqm_model(caravan, 470, caravan_z, height_at_tile_location(land, 470, caravan_z));
+	}
+	if (cute)
+		draw_iqm_model(cute, 469, 550, height_at_tile_location(land, 469, 550));
 
 	glUseProgram(prog);
+	glEnable(GL_CULL_FACE);
 
 	draw_tile(land);
 
@@ -298,23 +295,24 @@ void sys_hook_draw(int w, int h)
 	glPopMatrix();
 
 	glUseProgram(0);
+	glColor3f(1,1,1);
 
 	glPushMatrix();
 	glScalef(20, 20, 20);
 	draw_obj_model(skydome1, 0, 0, 0);
 	glPopMatrix();
 
-	glUseProgram(treeprog);
-
 	glDisable(GL_CULL_FACE);
-	glMultiTexCoord2f(GL_TEXTURE1, idx, 1);
-	glPushMatrix();
-	glTranslatef(490, 590, height_at_tile_location(land, 490, 590));
-	draw_iqm_model(tree, treeprog);
-	glPopMatrix();
 
-	glColor3f(0,0,0);
-	draw_obj_instances(birch, birch_pos, BIRCHES);
+	glUseProgram(treeprog);
+//	glEnable(GL_SAMPLE_ALPHA_TO_COVERAGE_ARB);
+
+	glMultiTexCoord2f(GL_TEXTURE1, idx, 1);
+	draw_iqm_model(tree, 490, 590, height_at_tile_location(land, 490, 590));
+
+	glColor3f(1,0,0);
+	draw_iqm_instances(birch, birch_pos, BIRCHES);
+//	glDisable(GL_SAMPLE_ALPHA_TO_COVERAGE_ARB);
 
 	/*
 	* Draw text overlay

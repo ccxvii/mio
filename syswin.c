@@ -324,7 +324,7 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE previous, LPSTR cmdstr, int cmd
 		exit(1);
 	}
 
-	sys_hook_init(0, 0);
+	sys_hook_init(argc, argv);
 
 	while (1) {
 		while (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE)) {

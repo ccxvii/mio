@@ -1,6 +1,6 @@
 #version 120
 
-uniform mat4 bone_matrix[256];
+uniform mat4 bone_matrix[128];
 
 attribute vec4 blend_index;
 attribute vec4 blend_weight;

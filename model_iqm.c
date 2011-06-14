@@ -57,6 +57,8 @@ struct model {
 	float (*outbone)[16];
 	float (*outskin)[16];
 	struct pose *outpose;
+
+	unsigned int vbo, ibo;
 };
 
 #define IQM_MAGIC "INTERQUAKEMODEL\0"
@@ -447,6 +449,7 @@ load_iqm_model(char *filename)
 	fclose(file);
 	model = load_iqm_model_from_memory(data, filename);
 	free(data);
+
 	return model;
 }
 
@@ -490,45 +493,106 @@ animate_iqm_model(struct model *model, int anim, int frame, float t)
 	}
 }
 
-void
-draw_iqm_model(struct model *model, int prog)
+static void make_vbo(struct model *model)
 {
-	int i, loc=-1, bw_loc=-1, bi_loc=-1;
+	int norm_ofs = 0, texcoord_ofs = 0, color_ofs = 0, blend_index_ofs = 0, blend_weight_ofs = 0;
+	int n = 12;
+	if (model->norm) { norm_ofs = n; n += 12; }
+	if (model->texcoord) { texcoord_ofs = n; n += 8; }
+	if (model->color) { color_ofs = n; n += 4; }
+	if (model->blend_index && model->blend_weight) {
+		blend_index_ofs = n; n += 4;
+		blend_weight_ofs = n; n += 4;
+	}
 
-	glVertexPointer(3, GL_FLOAT, 0, model->pos);
+	glGenBuffers(1, &model->vbo);
+	glBindBuffer(GL_ARRAY_BUFFER, model->vbo);
+	glBufferData(GL_ARRAY_BUFFER, n * model->num_verts, NULL, GL_STATIC_DRAW);
+	glBufferSubData(GL_ARRAY_BUFFER, 0, 12 * model->num_verts, model->pos);
+	if (model->norm)
+		glBufferSubData(GL_ARRAY_BUFFER, norm_ofs * model->num_verts, 12 * model->num_verts, model->norm);
+	if (model->texcoord)
+		glBufferSubData(GL_ARRAY_BUFFER, texcoord_ofs * model->num_verts, 8 * model->num_verts, model->texcoord);
+	if (model->color)
+		glBufferSubData(GL_ARRAY_BUFFER, color_ofs * model->num_verts, 4 * model->num_verts, model->color);
+	if (model->blend_index && model->blend_weight) {
+		glBufferSubData(GL_ARRAY_BUFFER, blend_index_ofs * model->num_verts, 4 * model->num_verts, model->blend_index);
+		glBufferSubData(GL_ARRAY_BUFFER, blend_weight_ofs * model->num_verts, 4 * model->num_verts, model->blend_weight);
+	}
+
+	glGenBuffers(1, &model->ibo);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, model->ibo);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, model->num_tris * 3 * sizeof(int), model->tris, GL_STATIC_DRAW);
+}
+
+void
+draw_iqm_instances(struct model *model, float *trafo, int count)
+{
+	int i, k, n;
+	int prog, loc, bi_loc, bw_loc;
+
+	glGetIntegerv(GL_CURRENT_PROGRAM, &prog);
+	loc = glGetUniformLocation(prog, "bone_matrix");
+	bi_loc = glGetAttribLocation(prog, "blend_index");
+	bw_loc = glGetAttribLocation(prog, "blend_weight");
+
+	if (!model->vbo)
+		make_vbo(model);
+
+	glBindBuffer(GL_ARRAY_BUFFER, model->vbo);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, model->ibo);
+
+	glVertexPointer(3, GL_FLOAT, 0, 0);
 	glEnableClientState(GL_VERTEX_ARRAY);
+	n = 12 * model->num_verts;
 
 	if (model->norm) {
-		glNormalPointer(GL_FLOAT, 0, model->norm);
+		glNormalPointer(GL_FLOAT, 0, (char*)n);
 		glEnableClientState(GL_NORMAL_ARRAY);
+		n += 12 * model->num_verts;
 	}
 	if (model->texcoord) {
-		glTexCoordPointer(2, GL_FLOAT, 0, model->texcoord);
+		glTexCoordPointer(2, GL_FLOAT, 0, (char*)n);
 		glEnableClientState(GL_TEXTURE_COORD_ARRAY);
+		n += 8 * model->num_verts;
 	}
 	if (model->color) {
-		glColorPointer(4, GL_UNSIGNED_BYTE, 0, model->color);
+		glColorPointer(4, GL_UNSIGNED_BYTE, 0, (char*)n);
 		glEnableClientState(GL_COLOR_ARRAY);
+		n += 4 * model->num_verts;
+	} else {
+		glColor4f(0, 0, 0, 1);
 	}
 
-	if (model->blend_index && model->blend_weight) {
-		loc = glGetUniformLocation(prog, "bone_matrix");
-		bi_loc = glGetAttribLocation(prog, "blend_index");
-		bw_loc = glGetAttribLocation(prog, "blend_weight");
-		if (loc >= 0 && bi_loc >= 0 && bw_loc >= 0) {
+	if (loc >= 0 && bi_loc >= 0 && bw_loc >= 0) {
+		if (model->blend_index && model->blend_weight) {
 			glUniformMatrix4fv(loc, model->num_bones, 0, model->outskin[0]);
-			glVertexAttribPointer(bi_loc, 4, GL_UNSIGNED_BYTE, 0, 4, model->blend_index);
-			glVertexAttribPointer(bw_loc, 4, GL_UNSIGNED_BYTE, 1, 4, model->blend_weight);
+			glVertexAttribPointer(bi_loc, 4, GL_UNSIGNED_BYTE, 0, 4, (char*)n);
+			n += 4 * model->num_verts;
+			glVertexAttribPointer(bw_loc, 4, GL_UNSIGNED_BYTE, 1, 4, (char*)n);
+			n += 4 * model->num_verts;
 			glEnableVertexAttribArray(bi_loc);
 			glEnableVertexAttribArray(bw_loc);
+		} else {
+			float m[16];
+			mat_identity(m);
+			glUniformMatrix4fv(loc, 1, 0, m);
+			glVertexAttrib4f(bi_loc, 0, 0, 0, 0);
+			glVertexAttrib4f(bw_loc, 1, 0, 0, 0);
 		}
 	}
 
 	for (i = 0; i < model->num_meshes; i++) {
 		struct mesh *mesh = model->meshes + i;
 		glBindTexture(GL_TEXTURE_2D, mesh->material);
-		glDrawElements(GL_TRIANGLES, 3 * mesh->count,
-			GL_UNSIGNED_INT, &model->tris[mesh->first*3]);
+		for (k = 0; k < count; k++) {
+			glPushMatrix();
+			glTranslatef(trafo[k*3+0], trafo[k*3+1], trafo[k*3+2]);
+			glMultiTexCoord2f(GL_TEXTURE2, k, 0);
+			glDrawElements(GL_TRIANGLES, 3 * mesh->count,
+				GL_UNSIGNED_INT, (char*)(mesh->first*12));
+			glPopMatrix();
+		}
 	}
 
 	glDisableClientState(GL_VERTEX_ARRAY);
@@ -539,6 +603,16 @@ draw_iqm_model(struct model *model, int prog)
 		glDisableVertexAttribArray(bi_loc);
 		glDisableVertexAttribArray(bw_loc);
 	}
+
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+}
+
+void
+draw_iqm_model(struct model *model, float x, float y, float z)
+{
+	float translate[3] = { x, y, z };
+	draw_iqm_instances(model, translate, 1);
 }
 
 void
