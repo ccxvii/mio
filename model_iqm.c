@@ -582,16 +582,30 @@ draw_iqm_instances(struct model *model, float *trafo, int count)
 		}
 	}
 
+	glMultiTexCoord4f(GL_TEXTURE1, 1, 0, 0, 0);
+	glMultiTexCoord4f(GL_TEXTURE2, 0, 1, 0, 0);
+	glMultiTexCoord4f(GL_TEXTURE3, 0, 0, 1, 0);
+	glMultiTexCoord4f(GL_TEXTURE4, 0, 0, 0, 1);
+
 	for (i = 0; i < model->num_meshes; i++) {
 		struct mesh *mesh = model->meshes + i;
 		glBindTexture(GL_TEXTURE_2D, mesh->material);
 		for (k = 0; k < count; k++) {
+#if 0
+			// dog slow!
 			glPushMatrix();
-			glTranslatef(trafo[k*3+0], trafo[k*3+1], trafo[k*3+2]);
-			glMultiTexCoord2f(GL_TEXTURE2, k, 0);
-			glDrawElements(GL_TRIANGLES, 3 * mesh->count,
-				GL_UNSIGNED_INT, (char*)(mesh->first*12));
+			glMultMatrixf(&trafo[k*16]);
+			glDrawElements(GL_TRIANGLES, 3 * mesh->count, GL_UNSIGNED_INT, (char*)(mesh->first*12));
 			glPopMatrix();
+#else
+			// pseudo-instancing
+			glMultiTexCoord4fv(GL_TEXTURE1, &trafo[k*16+0]);
+			glMultiTexCoord4fv(GL_TEXTURE2, &trafo[k*16+4]);
+			glMultiTexCoord4fv(GL_TEXTURE3, &trafo[k*16+8]);
+			glMultiTexCoord4fv(GL_TEXTURE4, &trafo[k*16+12]);
+			glMultiTexCoord1f(GL_TEXTURE5, k);
+			glDrawElements(GL_TRIANGLES, 3 * mesh->count, GL_UNSIGNED_INT, (char*)(mesh->first*12));
+#endif
 		}
 	}
 
@@ -609,10 +623,11 @@ draw_iqm_instances(struct model *model, float *trafo, int count)
 }
 
 void
-draw_iqm_model(struct model *model, float x, float y, float z)
+draw_iqm_model(struct model *model)
 {
-	float translate[3] = { x, y, z };
-	draw_iqm_instances(model, translate, 1);
+	float transform[16];
+	mat_identity(transform);
+	draw_iqm_instances(model, transform, 1);
 }
 
 void

@@ -3,7 +3,7 @@
 #include "syshook.h"
 
 #define BIRCHES 1000
-float birch_pos[BIRCHES * 3];
+float birch_pos[BIRCHES * 16];
 
 static struct model *village;
 static struct model *tree, *birch;
@@ -14,8 +14,8 @@ static struct tile *land;
 static struct font *font;
 
 static float camera_dir[3] = { 0, 0, 0 };
-//static float camera_pos[3] = { 469, 543, 100 };
-static float camera_pos[3] = { 430, 580, 100 };
+static float camera_pos[3] = { 469, 543, 100 };
+//static float camera_pos[3] = { 430, 580, 100 };
 static float camera_rot[3] = { 0, 0, 0 };
 static int action_forward = 0;
 static int action_backward = 0;
@@ -28,7 +28,7 @@ static int show_console = 0;
 
 static int prog = 0, treeprog = 0, skelprog = 0;
 
-float sunpos[] = { -500, -500, 800, 1 };
+float sunpos[] = { 0, 0, 800, 1 };
 float suncolor[] = { 1, 1, 1, 1 };
 float ambientcolor[] = { 0.1, 0.1, 0.1, 1 };
 float fogcolor[4] = { 73.0/255, 149.0/255, 204.0/255, 1 };
@@ -124,9 +124,16 @@ void sys_hook_init(int argc, char **argv)
 	caravan = load_iqm_model("data/ca_hof/ca_hof.iqm");
 
 	for (i = 0; i < BIRCHES; i++) {
-		birch_pos[i*3+0] = (rand() % 5000) * 0.1 + 300;
-		birch_pos[i*3+1] = (rand() % 5000) * 0.1 + 300;
-		birch_pos[i*3+2] = height_at_tile_location(land, birch_pos[i*3+0], birch_pos[i*3+1]);
+		float *m = &birch_pos[i*16];
+		float x = (rand() % 5000) * 0.1 + 300;
+		float y = (rand() % 5000) * 0.1 + 300;
+		float z = height_at_tile_location(land, x, y);
+		float s = 1.0 + sinf((rand() % 628) * 0.01) * 0.3;
+		float r = rand() % 360;
+		mat_identity(m);
+		mat_translate(m, x, y, z);
+		mat_rotate_z(m, r);
+		mat_scale(m, s, s, s);
 	}
 
 	camera_pos[2] = height_at_tile_location(land, camera_pos[0], camera_pos[1]) + 2;
@@ -276,10 +283,17 @@ void sys_hook_draw(int w, int h)
 	if (caravan) {
 		static float caravan_z = 600;
 		caravan_z -= 4.0/60.0;
-		draw_iqm_model(caravan, 470, caravan_z, height_at_tile_location(land, 470, caravan_z));
+		glPushMatrix();
+		glTranslatef(470, caravan_z, height_at_tile_location(land, 470, caravan_z));
+		draw_iqm_model(caravan);
+		glPopMatrix();
 	}
-	if (cute)
-		draw_iqm_model(cute, 469, 550, height_at_tile_location(land, 469, 550));
+	if (cute) {
+		glPushMatrix();
+		glTranslatef(469, 550, height_at_tile_location(land, 469, 550));
+		draw_iqm_model(cute);
+		glPopMatrix();
+	}
 
 	glUseProgram(prog);
 	glEnable(GL_CULL_FACE);
@@ -307,8 +321,11 @@ void sys_hook_draw(int w, int h)
 	glUseProgram(treeprog);
 //	glEnable(GL_SAMPLE_ALPHA_TO_COVERAGE_ARB);
 
-	glMultiTexCoord2f(GL_TEXTURE1, idx, 1);
-	draw_iqm_model(tree, 490, 590, height_at_tile_location(land, 490, 590));
+	glMultiTexCoord2f(GL_TEXTURE6, idx, 1);
+	glPushMatrix();
+	glTranslatef(490, 590, height_at_tile_location(land, 490, 590));
+	draw_iqm_model(tree);
+	glPopMatrix();
 
 	glColor3f(1,0,0);
 	draw_iqm_instances(birch, birch_pos, BIRCHES);
@@ -333,7 +350,7 @@ void sys_hook_draw(int w, int h)
 	glEnable(GL_TEXTURE_2D);
 	{
 		char buf[80];
-		sprintf(buf, "Location: %d %d", (int)camera_pos[0], (int)camera_pos[1]);
+		sprintf(buf, "Location: %d %d %d", (int)camera_pos[0], (int)camera_pos[1], (int)camera_pos[2]);
 		glColor3f(1, 0.8, 0.8);
 		draw_string(font, 24, 8, 24+4, buf);
 	}

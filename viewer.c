@@ -123,7 +123,7 @@ void sys_hook_draw(int w, int h)
 		glUseProgram(treeprog);
 		glMultiTexCoord2f(GL_TEXTURE1, frame, measure_iqm_radius(model) * 0.1);
 	}
-	draw_iqm_model(model, 0, 0, 0);
+	draw_iqm_model(model);
 
 	if (showskel) {
 		glUseProgram(0);
