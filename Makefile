@@ -27,6 +27,9 @@ OBJS := $(addprefix $(OUT)/, \
 UNTITLED := $(OUT)/untitled
 VIEWER := $(OUT)/viewer
 
+ASSIQE := $(OUT)/assiqe
+IQM := $(OUT)/iqm
+
 $(OUT) :
 	mkdir -p $@
 
@@ -43,6 +46,18 @@ $(UNTITLED) : $(OBJS) $(OUT)/untitled.o | $(OUT)
 
 $(VIEWER) : $(OBJS) $(OUT)/viewer.o | $(OUT)
 	$(LINK_CMD)
+
+$(ASSIQE) : tools/assiqe.c | $(OUT)
+	$(CC) $(CFLAGS) -o $@ $< -I/usr/local/include/assimp -L/usr/local/lib -lassimp
+
+$(IQM) : tools/iqm/iqm.cpp | $(OUT)
+	$(CXX) $(CFLAGS) -o $@ $<
+
+%.iqm : %.iqe $(IQM)
+	$(IQM) $@ $<
+%.iqe : %.dae $(ASSIQE)
+	$(ASSIQE) -o $@ $<
+.PRECIOUS : %.iqe
 
 all: $(UNTITLED) $(VIEWER)
 
