@@ -28,6 +28,7 @@ UNTITLED := $(OUT)/untitled
 VIEWER := $(OUT)/viewer
 
 ASSIQE := $(OUT)/assiqe
+ASSOBJ := $(OUT)/assobj
 IQM := $(OUT)/iqm
 
 $(OUT) :
@@ -49,6 +50,8 @@ $(VIEWER) : $(OBJS) $(OUT)/viewer.o | $(OUT)
 
 $(ASSIQE) : tools/assiqe.c | $(OUT)
 	$(CC) $(CFLAGS) -o $@ $< -I/usr/local/include/assimp -L/usr/local/lib -lassimp
+$(ASSOBJ) : tools/assobj.c | $(OUT)
+	$(CC) $(CFLAGS) -o $@ $< -I/usr/local/include/assimp -L/usr/local/lib -lassimp
 
 $(IQM) : tools/iqm/iqm.cpp | $(OUT)
 	$(CXX) $(CFLAGS) -o $@ $<
@@ -57,6 +60,8 @@ $(IQM) : tools/iqm/iqm.cpp | $(OUT)
 	$(IQM) $@ $<
 %.iqe : %.dae $(ASSIQE)
 	$(ASSIQE) -o $@ $<
+%.obj : %.dae $(ASSOBJ)
+	$(ASSOBJ) $<
 .PRECIOUS : %.iqe
 
 all: $(UNTITLED) $(VIEWER)
