@@ -234,7 +234,7 @@ static void read_pose(struct pose *pose, unsigned char *data)
 }
 
 static void
-load_bones(struct model *model, unsigned char *data, int ofs_text, int ofs_bones, int ofs_poses, int num_bones)
+load_bones(struct model *model, unsigned char *data, int ofs_text, int ofs_bones, int num_bones)
 {
 	int i;
 	model->num_bones = num_bones;
@@ -371,19 +371,17 @@ load_iqm_model_from_memory(unsigned char *data, char *filename)
 	if (!p) p = strrchr(model->dir, '\\');
 	if (p) p[1] = 0; else strlcpy(model->dir, "./", NAMELEN);
 
-	assert(num_bones == num_poses);
-
 	if (num_vertexarrays && num_vertexes && num_triangles && num_meshes) {
 		load_vertex_arrays(model, data, ofs_vertexarrays, num_vertexarrays, num_vertexes);
 		load_triangles(model, data, ofs_triangles, num_triangles);
 		load_meshes(model, data, ofs_text, ofs_meshes, num_meshes);
 	}
 	if (num_bones)
-		load_bones(model, data, ofs_text, ofs_bones, ofs_poses, num_bones);
+		load_bones(model, data, ofs_text, ofs_bones, num_bones);
 	if (num_anims)
 		load_anims(model, data, ofs_text, ofs_anims, num_anims);
 	if (num_frames)
-		load_frames(model, data, ofs_poses, ofs_frames, ofs_bounds,	
+		load_frames(model, data, ofs_poses, ofs_frames, ofs_bounds,
 			num_frames, num_framechannels);
 
 	model->min[0] = model->min[1] = model->min[2] = 1e10;
@@ -458,6 +456,15 @@ float measure_iqm_radius(struct model *model)
 	return model->radius;
 }
 
+char *
+get_iqm_animation_name(struct model *model, int anim)
+{
+	if (!model->num_bones || !model->num_anims)
+		return "<none>";
+	anim = anim % model->num_anims;
+	return model->anims[anim].name;
+}
+
 void
 animate_iqm_model(struct model *model, int anim, int frame, float t)
 {
@@ -474,6 +481,7 @@ animate_iqm_model(struct model *model, int anim, int frame, float t)
 		model->outskin = malloc(model->num_bones * sizeof(float[16]));
 	}
 
+	anim = anim % model->num_anims;
 	frame0 = frame % model->anims[anim].count;
 	frame1 = (frame + 1) % model->anims[anim].count;
 	pose0 = model->poses[model->anims[anim].first + frame0];
@@ -565,7 +573,7 @@ draw_iqm_instances(struct model *model, float *trafo, int count)
 	}
 
 	if (loc >= 0 && bi_loc >= 0 && bw_loc >= 0) {
-		if (model->blend_index && model->blend_weight) {
+		if (model->outskin && model->blend_index && model->blend_weight) {
 			glUniformMatrix4fv(loc, model->num_bones, 0, model->outskin[0]);
 			glVertexAttribPointer(bi_loc, 4, GL_UNSIGNED_BYTE, 0, 4, (char*)n);
 			n += 4 * model->num_verts;

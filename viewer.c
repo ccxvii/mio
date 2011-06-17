@@ -10,14 +10,16 @@ static int frame = 0;
 static int anim = 0;
 
 static int showanim = 1;
-static int showskel = 0;
+static int showbone = 0;
+static int showwire = 0;
 
 float dist = 1;
+float yaw = 0, pitch = 0;
 
 float sunpos[] = { -500, -500, 800, 1 };
 float fogcolor[4] = { 73.0/255, 149.0/255, 204.0/255, 1 };
 
-unsigned int prog, treeprog, skelprog;
+unsigned int prog, treeprog, boneprog;
 
 void perspective(float fov, float aspect, float near, float far)
 {
@@ -30,7 +32,7 @@ void sys_hook_init(int argc, char **argv)
 {
 	prog = compile_shader("common.vs", "common.fs");
 	treeprog = compile_shader("tree.vs", "tree.fs");
-	skelprog = compile_shader("skel.vs", "common.fs");
+	boneprog = compile_shader("skel.vs", "common.fs");
 
 	glClearColor(0.3, 0.3, 0.3, 1.0);
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -48,6 +50,8 @@ void sys_hook_init(int argc, char **argv)
 	modelname = argv[1];
 	font = load_font("data/DroidSans.ttf");
 	model = load_iqm_model(modelname);
+	if (!model)
+		exit(1);
 	dist = 2 + measure_iqm_radius(model);
 
 	sys_start_idle_loop();
@@ -60,16 +64,15 @@ void sys_hook_draw(int w, int h)
 
 	while ((evt = sys_read_event()))
 	{
+		static int isdown = 0;
+		static int old_x = 0, old_y = 0;
 		if (evt->type == SYS_EVENT_KEY_CHAR)
 		{
-			if (evt->key == 'b')
-				showskel = !showskel;
-			if (evt->key == 'a')
-				anim++;
-			if (evt->key == 'A')
-				anim--;
-			if (evt->key == 't')
-				showanim = !showanim;
+			if (evt->key == 'w') showwire = !showwire;
+			if (evt->key == 'b') showbone = !showbone;
+			if (evt->key == 'a') anim++;
+			if (evt->key == 'A') anim--;
+			if (evt->key == 't') showanim = !showanim;
 			if (evt->key == ' ')
 				sys_stop_idle_loop();
 			if (evt->key == 'r')
@@ -82,6 +85,31 @@ void sys_hook_draw(int w, int h)
 			}
 			if (evt->key == 27)
 				exit(1);
+		}
+		if (evt->type == SYS_EVENT_MOUSE_MOVE)
+		{
+			int dx = evt->x - old_x;
+			int dy = evt->y - old_y;
+			if (isdown) {
+				yaw -= dx * 0.3;
+				pitch -= dy * 0.2;
+				if (pitch < -85) pitch = -85;
+				if (pitch > 85) pitch = 85;
+			}
+			old_x = evt->x;
+			old_y = evt->y;
+		}
+		if (evt->type == SYS_EVENT_MOUSE_DOWN)
+		{
+			if (evt->btn == SYS_BTN_LEFT) isdown = 1;
+			if (evt->btn == SYS_BTN_WHEEL_UP) dist -= 0.1 * dist;
+			if (evt->btn == SYS_BTN_WHEEL_DOWN) dist += 0.1 * dist;
+			old_x = evt->x;
+			old_y = evt->y;
+		}
+		if (evt->type == SYS_EVENT_MOUSE_UP)
+		{
+			if (evt->btn == SYS_BTN_LEFT) isdown = 0;
 		}
 	}
 
@@ -99,8 +127,10 @@ void sys_hook_draw(int w, int h)
 
 	glLightfv(GL_LIGHT0, GL_POSITION, sunpos);
 
-	if (showanim)
-		glRotatef(-frame/2, 0, 0, 1);
+	glRotatef(-pitch, 1, 0, 0);
+	glRotatef(-yaw, 0, 0, 1);
+
+	glPolygonMode(GL_FRONT_AND_BACK, showwire ? GL_LINE : GL_FILL);
 
 	glUseProgram(0);
 	glEnable(GL_DEPTH_TEST);
@@ -118,18 +148,20 @@ void sys_hook_draw(int w, int h)
 
 	glEnable(GL_DEPTH_TEST);
 	if (showanim) {
-		glUseProgram(skelprog);
+		glUseProgram(boneprog);
 	} else {
 		glUseProgram(treeprog);
-		glMultiTexCoord2f(GL_TEXTURE1, frame, measure_iqm_radius(model) * 0.1);
+		glMultiTexCoord2f(GL_TEXTURE6, frame, measure_iqm_radius(model) * 0.1);
 	}
 	draw_iqm_model(model);
 
-	if (showskel) {
+	if (showbone) {
 		glUseProgram(0);
 		glDisable(GL_DEPTH_TEST);
 		draw_iqm_bones(model);
 	}
+
+	glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
 	glUseProgram(0);
 	glEnable(GL_DEPTH_TEST);
@@ -157,6 +189,11 @@ void sys_hook_draw(int w, int h)
 		sprintf(buf, "model: %s", modelname);
 		glColor3f(1, 0.8, 0.8);
 		draw_string(font, 20, 8, 20+8, buf);
+		sprintf(buf, "animation: %s", get_iqm_animation_name(model, anim));
+		glColor3f(1, 0.8, 0.8);
+		draw_string(font, 20, 8, 40+8, buf);
+		if (showanim) draw_string(font, 20, 8, 60+8, "shader: bone");
+		else draw_string(font, 20, 8, 60+8, "shader: wind");
 	}
 
 	glDisable(GL_BLEND);

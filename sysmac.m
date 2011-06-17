@@ -164,6 +164,18 @@ NSPoint translate_point(NSView *view, NSEvent *evt)
 	[self setNeedsDisplay: YES];
 }
 
+- (void) scrollWheel:(NSEvent *)evt
+{
+	float dy = [evt deltaY];
+	NSPoint p = translate_point(self, evt);
+	int mod = translate_modifiers(evt);
+	if (dy <= -1 || dy >= 1) {
+		int btn = dy > 0 ? SYS_BTN_WHEEL_UP : SYS_BTN_WHEEL_DOWN;
+		sys_hook_mouse_down(p.x, p.y, btn, mod);
+		sys_hook_mouse_up(p.x, p.y, btn, mod);
+	}
+}
+
 - (void) rightMouseDown:(NSEvent *)evt { [self mouseDown:evt]; }
 - (void) rightMouseUp:(NSEvent *)evt { [self mouseUp:evt]; }
 - (void) rightMouseDragged:(NSEvent *)evt { [self mouseDragged:evt]; }
@@ -275,12 +287,6 @@ NSPoint translate_point(NSView *view, NSEvent *evt)
 	menuItem = [aMenu addItemWithTitle:[NSString stringWithFormat:@"%@ %@", NSLocalizedString(@"Hide", nil), applicationName]
 		action:@selector(hide:)
 		keyEquivalent:@"h"];
-	[menuItem setTarget:NSApp];
-
-	menuItem = [aMenu addItemWithTitle:NSLocalizedString(@"Hide Others", nil)
-		action:@selector(hideOtherApplications:)
-		keyEquivalent:@"h"];
-	[menuItem setKeyEquivalentModifierMask:NSCommandKeyMask | NSAlternateKeyMask];
 	[menuItem setTarget:NSApp];
 
 	menuItem = [aMenu addItemWithTitle:NSLocalizedString(@"Hide Others", nil)

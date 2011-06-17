@@ -94,6 +94,7 @@ void draw_iqm_model(struct model *model);
 void draw_iqm_bones(struct model *model);
 void animate_iqm_model(struct model *model, int anim, int frame, float v);
 float measure_iqm_radius(struct model *model);
+char *get_iqm_animation_name(struct model *model, int anim);
 
 // terrain height field
 
