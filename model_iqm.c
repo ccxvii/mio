@@ -543,9 +543,9 @@ draw_iqm_instances(struct model *model, float *trafo, int count)
 	int prog, loc, bi_loc, bw_loc;
 
 	glGetIntegerv(GL_CURRENT_PROGRAM, &prog);
-	loc = glGetUniformLocation(prog, "bone_matrix");
-	bi_loc = glGetAttribLocation(prog, "blend_index");
-	bw_loc = glGetAttribLocation(prog, "blend_weight");
+	loc = glGetUniformLocation(prog, "BoneMatrix");
+	bi_loc = glGetAttribLocation(prog, "in_BlendIndex");
+	bw_loc = glGetAttribLocation(prog, "in_BlendWeight");
 
 	if (!model->vbo)
 		make_vbo(model);
@@ -553,61 +553,54 @@ draw_iqm_instances(struct model *model, float *trafo, int count)
 	glBindBuffer(GL_ARRAY_BUFFER, model->vbo);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, model->ibo);
 
-	glVertexPointer(3, GL_FLOAT, 0, 0);
-	glEnableClientState(GL_VERTEX_ARRAY);
+	glVertexAttribPointer(ATT_POSITION, 3, GL_FLOAT, 0, 0, 0);
+	glEnableVertexAttribArray(ATT_POSITION);
 	n = 12 * model->num_verts;
 
 	if (model->norm) {
-		glNormalPointer(GL_FLOAT, 0, (char*)n);
-		glEnableClientState(GL_NORMAL_ARRAY);
+		glVertexAttribPointer(ATT_NORMAL, 3, GL_FLOAT, 0, 0, (char*)n);
+		glEnableVertexAttribArray(ATT_NORMAL);
 		n += 12 * model->num_verts;
 	}
 	if (model->texcoord) {
-		glTexCoordPointer(2, GL_FLOAT, 0, (char*)n);
-		glEnableClientState(GL_TEXTURE_COORD_ARRAY);
+		glVertexAttribPointer(ATT_TEXCOORD, 2, GL_FLOAT, 0, 0, (char*)n);
+		glEnableVertexAttribArray(ATT_TEXCOORD);
 		n += 8 * model->num_verts;
 	}
 	if (model->color) {
-		glColorPointer(4, GL_UNSIGNED_BYTE, 0, (char*)n);
-		glEnableClientState(GL_COLOR_ARRAY);
+		glVertexAttribPointer(ATT_COLOR, 4, GL_UNSIGNED_BYTE, 1, 0, (char*)n);
+		glEnableVertexAttribArray(ATT_COLOR);
 		n += 4 * model->num_verts;
-	} else {
-		glColor4f(0, 0, 0, 1);
 	}
 
 	if (loc >= 0 && bi_loc >= 0 && bw_loc >= 0) {
 		if (model->outskin && model->blend_index && model->blend_weight) {
 			glUniformMatrix4fv(loc, model->num_bones, 0, model->outskin[0]);
-			glVertexAttribPointer(bi_loc, 4, GL_UNSIGNED_BYTE, 0, 4, (char*)n);
+			glVertexAttribPointer(bi_loc, 4, GL_UNSIGNED_BYTE, 0, 0, (char*)n);
 			n += 4 * model->num_verts;
-			glVertexAttribPointer(bw_loc, 4, GL_UNSIGNED_BYTE, 1, 4, (char*)n);
+			glVertexAttribPointer(bw_loc, 4, GL_UNSIGNED_BYTE, 1, 0, (char*)n);
 			n += 4 * model->num_verts;
 			glEnableVertexAttribArray(bi_loc);
 			glEnableVertexAttribArray(bw_loc);
 		}
 	}
 
-	glMultiTexCoord4f(GL_TEXTURE1, 1, 0, 0, 0);
-	glMultiTexCoord4f(GL_TEXTURE2, 0, 1, 0, 0);
-	glMultiTexCoord4f(GL_TEXTURE3, 0, 0, 1, 0);
-	glMultiTexCoord4f(GL_TEXTURE4, 0, 0, 0, 1);
-
 	for (i = 0; i < model->num_meshes; i++) {
 		struct mesh *mesh = model->meshes + i;
 		glBindTexture(GL_TEXTURE_2D, mesh->material);
 		for (k = 0; k < count; k++) {
 			// dog slow! should use our own uniforms, or instanced array
-			glPushMatrix();
-			glMultMatrixf(&trafo[k*16]);
+//			glPushMatrix();
+//			glMultMatrixf(&trafo[k*16]);
 			glDrawElements(GL_TRIANGLES, 3 * mesh->count, GL_UNSIGNED_INT, (char*)(mesh->first*12));
-			glPopMatrix();
+//			glPopMatrix();
 		}
 	}
 
-	glDisableClientState(GL_VERTEX_ARRAY);
-	glDisableClientState(GL_NORMAL_ARRAY);
-	glDisableClientState(GL_TEXTURE_COORD_ARRAY);
-	glDisableClientState(GL_COLOR_ARRAY);
+	glDisableVertexAttribArray(ATT_POSITION);
+	glDisableVertexAttribArray(ATT_NORMAL);
+	glDisableVertexAttribArray(ATT_TEXCOORD);
+	glDisableVertexAttribArray(ATT_COLOR);
 	if (loc >= 0 && bi_loc >= 0 && bw_loc >= 0) {
 		glDisableVertexAttribArray(bi_loc);
 		glDisableVertexAttribArray(bw_loc);

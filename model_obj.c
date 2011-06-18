@@ -349,9 +349,9 @@ void draw_obj_instances(struct model *model, float *t, int count)
 	struct mesh *mesh;
 	int i;
 
-	glEnableClientState(GL_VERTEX_ARRAY);
-	glEnableClientState(GL_TEXTURE_COORD_ARRAY);
-	glEnableClientState(GL_NORMAL_ARRAY);
+	glEnableVertexAttribArray(ATT_POSITION);
+	glEnableVertexAttribArray(ATT_TEXCOORD);
+	glEnableVertexAttribArray(ATT_NORMAL);
 
 	for (mesh = model->mesh; mesh; mesh = mesh->next) {
 		if (!mesh->vbo)
@@ -359,23 +359,24 @@ void draw_obj_instances(struct model *model, float *t, int count)
 
 		glBindTexture(GL_TEXTURE_2D, mesh->material->texture);
 		glBindBuffer(GL_ARRAY_BUFFER, mesh->vbo);
-		glVertexPointer(3, GL_FLOAT, 8*4, (float*)0+0);
-		glTexCoordPointer(2, GL_FLOAT, 8*4, (float*)0+3);
-		glNormalPointer(GL_FLOAT, 8*4, (float*)0+5);
+
+		glVertexAttribPointer(ATT_POSITION, 3, GL_FLOAT, 0, 8*4, (float*)0+0);
+		glVertexAttribPointer(ATT_TEXCOORD, 2, GL_FLOAT, 0, 8*4, (float*)0+3);
+		glVertexAttribPointer(ATT_NORMAL, 3, GL_FLOAT, 0, 8*4, (float*)0+5);
 
 		for (i = 0; i < count; i++) {
-			glPushMatrix();
-			glTranslatef(t[i*3+0], t[i*3+1], t[i*3+2]);
+			// glPushMatrix();
+			// glTranslatef(t[i*3+0], t[i*3+1], t[i*3+2]);
 			glDrawArrays(GL_TRIANGLES, 0, mesh->len * 3);
-			glPopMatrix();
+			// glPopMatrix();
 		}
 	}
 
-	glBindBuffer(GL_ARRAY_BUFFER, 0);
+	glDisableVertexAttribArray(ATT_POSITION);
+	glDisableVertexAttribArray(ATT_TEXCOORD);
+	glDisableVertexAttribArray(ATT_NORMAL);
 
-	glDisableClientState(GL_VERTEX_ARRAY);
-	glDisableClientState(GL_TEXTURE_COORD_ARRAY);
-	glDisableClientState(GL_NORMAL_ARRAY);
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
 }
 
 void draw_obj_model(struct model *model, float x, float y, float z)

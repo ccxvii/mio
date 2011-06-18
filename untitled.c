@@ -26,19 +26,22 @@ static int old_x = 0, old_y = 0;
 
 static int show_console = 0;
 
-static int prog = 0, treeprog = 0, skelprog = 0;
+struct program *flatprog, *textprog, *statprog, *boneprog, *windprog, *landprog;
 
-float sunpos[] = { 0, 0, 800, 1 };
-float suncolor[] = { 1, 1, 1, 1 };
-float ambientcolor[] = { 0.1, 0.1, 0.1, 1 };
-float fogcolor[4] = { 73.0/255, 149.0/255, 204.0/255, 1 };
+float model_view[16];
+float projection[16];
 
-void perspective(float fov, float aspect, float near, float far)
-{
-	fov = fov * 3.14159 / 360.0;
-	fov = tan(fov) * near;
-	glFrustum(-fov * aspect, fov * aspect, -fov, fov, near, far);
-}
+float light_dir[3] = { -500, -500, 800 };
+float light_dir_mv[3];
+float light_ambient[3] = { 0.2, 0.2, 0.2 };
+float light_diffuse[3] = { 0.8, 0.8, 0.8 };
+float light_specular[3] = { 1, 1, 1 };
+
+float wind_dir[3] = { -1, 0, 0 };
+float wind_dir_mv[3];
+float wind_phase = 0;
+
+float fog_color[4] = { 73.0/255, 149.0/255, 204.0/255, 1 };
 
 void rotvec(float a, float b, float c, float *in, float *out)
 {
@@ -83,27 +86,20 @@ void updatecamera(void)
 
 void sys_hook_init(int argc, char **argv)
 {
-	float one = 1;
 	int i;
 
 	printf("loading data files...\n");
 
-	prog = compile_shader("common.vs", "common.fs");
-	treeprog = compile_shader("tree.vs", "tree.fs");
-	skelprog = compile_shader("skel.vs", "common.fs");
+	textprog = compile_shader("shaders/static.vs", "shaders/text.fs");
+	statprog = compile_shader("shaders/static.vs", "shaders/simple.fs");
+	boneprog = compile_shader("shaders/bone.vs", "shaders/specular.fs");
+	windprog = compile_shader("shaders/wind.vs", "shaders/transparent.fs");
+	landprog = compile_shader("shaders/static.vs", "shaders/terrain.fs");
 
 	init_console("data/DroidSans.ttf", 15);
 
-	glTexParameteri(GL_TEXTURE_2D, GL_GENERATE_MIPMAP, GL_TRUE);
-
 	glClearColor(0.1, 0.1, 0.1, 1.0);
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-	glCullFace(GL_BACK);
-	glFrontFace(GL_CCW);
-
-	glShadeModel(GL_SMOOTH);
-	//glLightModelfv(GL_LIGHT_MODEL_AMBIENT, fogcolor);
-	glLightModelfv(GL_LIGHT_MODEL_TWO_SIDE, &one);
 
 	font = load_font("data/DroidSans.ttf"); if (!font) exit(1);
 	village = load_obj_model("data/village/village.obj"); if (!village) exit(1);
@@ -140,6 +136,14 @@ void sys_hook_init(int argc, char **argv)
 	camera_pos[2] = height_at_tile_location(land, camera_pos[0], camera_pos[1]) + 2;
 
 	sys_start_idle_loop();
+}
+
+void setup_lights(struct program *prog)
+{
+	glUniform3fv(prog->light_dir, 1, light_dir_mv);
+	glUniform3fv(prog->light_ambient, 1, light_ambient);
+	glUniform3fv(prog->light_diffuse, 1, light_diffuse);
+	glUniform3fv(prog->light_specular, 1, light_specular);
 }
 
 void sys_hook_draw(int w, int h)
@@ -218,18 +222,10 @@ void sys_hook_draw(int w, int h)
 		}
 	}
 
-	glViewport(0, 0, w, h);
-
-	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-	// glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+	/* Update camera */
 
 	static int idx = 0;
 	idx ++;
-
-	/*
-	 * Update camera
-	 */
 
 	if (action_forward) camera_dir[1] = 1;
 	else if (action_backward) camera_dir[1] = -1;
@@ -238,79 +234,76 @@ void sys_hook_draw(int w, int h)
 	if (action_right) camera_rot[2] -= 3;
 	updatecamera();
 
-	 /*
-	 * Draw rotating models
-	 */
-	glMatrixMode(GL_PROJECTION);
-	glLoadIdentity();
-	perspective(60, (float) w / h, 0.05, 6000); /* 5cm to 6km clip planes */
-
-	glMatrixMode(GL_MODELVIEW);
-	glLoadIdentity();
-	glRotatef(-90, 1, 0, 0); /* Z-up */
-	glRotatef(-camera_rot[1], 0, 1, 0);
-	glRotatef(-camera_rot[0], 1, 0, 0);
-	glRotatef(-camera_rot[2], 0, 0, 1);
-	glTranslatef(-camera_pos[0], -camera_pos[1], -camera_pos[2]);
-
-	glColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE);
-	glColor3f(1, 1, 1);
-	glEnable(GL_COLOR_MATERIAL);
-
-	glEnable(GL_LIGHT0);
-	glLightfv(GL_LIGHT0, GL_POSITION, sunpos);
-	glLightfv(GL_LIGHT0, GL_DIFFUSE, suncolor);
-
-	glEnable(GL_DEPTH_TEST);
-	glEnable(GL_TEXTURE_2D);
-
-	glFogi(GL_FOG_MODE, GL_LINEAR);
-	glFogfv(GL_FOG_COLOR, fogcolor);
-	glFogf(GL_FOG_START, 1.0f);
-	glFogf(GL_FOG_END, 1500.0f);
-
 	if (caravan) animate_iqm_model(caravan, 0, idx/2, (idx%2)/2.0);
 	if (cute) animate_iqm_model(cute, 33, idx/2, (idx%2)/2.0);
 	if (monster) animate_iqm_model(monster, 0, idx/2, (idx%2)/2.0);
 
-	glUseProgram(prog);
-	glDisable(GL_CULL_FACE);
+	 /*
+	 * Draw rotating models
+	 */
 
-	glPushMatrix();
+	glViewport(0, 0, w, h);
+
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+	mat_perspective(projection, 60, (float) w / h, 0.05, 6000); /* 5cm to 6km clip planes */
+
+	mat_identity(model_view);
+	mat_rotate_x(model_view, -90); /* Z-up */
+	mat_rotate_y(model_view, -camera_rot[1]);
+	mat_rotate_x(model_view, -camera_rot[0]);
+	mat_rotate_z(model_view, -camera_rot[2]);
+	mat_translate(model_view, -camera_pos[0], -camera_pos[1], -camera_pos[2]);
+
+	mat_vec_mul_n(wind_dir_mv, model_view, wind_dir);
+	mat_vec_mul_n(light_dir_mv, model_view, light_dir);
+	vec_normalize(light_dir_mv);
+
+	glUseProgram(statprog->program);
+	glUniformMatrix4fv(statprog->projection, 1, 0, projection);
+	glUniformMatrix4fv(statprog->model_view, 1, 0, model_view);
+	setup_lights(statprog);
+
+	float mat[16];
+	memcpy(mat, model_view, sizeof mat);
+	mat_translate(mat, 474, 548, height_at_tile_location(land, 474, 548));
+	glUniformMatrix4fv(statprog->model_view, 1, 0, mat);
 	draw_obj_model(village, 474, 548, height_at_tile_location(land, 474, 548));
-	glPopMatrix();
 
-	glUseProgram(skelprog);
+	glUseProgram(boneprog->program);
+	glUniformMatrix4fv(boneprog->projection, 1, 0, projection);
+	glUniformMatrix4fv(boneprog->model_view, 1, 0, model_view);
+	setup_lights(boneprog);
 
 	if (caravan) {
 		static float caravan_z = 600;
 		caravan_z -= 4.0/60.0;
-		glPushMatrix();
-		glTranslatef(470, caravan_z, height_at_tile_location(land, 470, caravan_z));
+		memcpy(mat, model_view, sizeof mat);
+		mat_translate(mat, 470, caravan_z, height_at_tile_location(land, 470, caravan_z));
+		glUniformMatrix4fv(boneprog->model_view, 1, 0, mat);
 		draw_iqm_model(caravan);
-		glPopMatrix();
 	}
 	if (cute) {
-		glPushMatrix();
-		glTranslatef(469, 550, height_at_tile_location(land, 469, 550));
+		memcpy(mat, model_view, sizeof mat);
+		mat_translate(mat, 469, 550, height_at_tile_location(land, 469, 550));
+		glUniformMatrix4fv(boneprog->model_view, 1, 0, mat);
 		draw_iqm_model(cute);
-		glPopMatrix();
 	}
 	if (monster) {
-		glPushMatrix();
-		glTranslatef(473, 552, height_at_tile_location(land, 473, 552));
+		memcpy(mat, model_view, sizeof mat);
+		mat_translate(mat, 473, 552, height_at_tile_location(land, 473, 552));
+		glUniformMatrix4fv(boneprog->model_view, 1, 0, mat);
 		draw_iqm_model(monster);
-		glPopMatrix();
 	}
 
-
-	glUseProgram(prog);
-	glEnable(GL_CULL_FACE);
+	glUseProgram(landprog->program);
+	glUniformMatrix4fv(landprog->projection, 1, 0, projection);
+	glUniformMatrix4fv(landprog->model_view, 1, 0, model_view);
+	setup_lights(landprog);
 
 	draw_tile(land);
 
-	glUseProgram(prog);
-
+#if 0
 	glPushMatrix();
 	glTranslatef(0, 0, 150);
 	glScalef(5, 5, 5);
@@ -318,53 +311,53 @@ void sys_hook_draw(int w, int h)
 	glPopMatrix();
 
 	glUseProgram(0);
-	glColor3f(1,1,1);
-
-	glPushMatrix();
-	glScalef(20, 20, 20);
 	draw_obj_model(skydome1, 0, 0, 0);
-	glPopMatrix();
+#endif
 
-	glDisable(GL_CULL_FACE);
+	glUseProgram(windprog->program);
+	glUniformMatrix4fv(windprog->projection, 1, 0, projection);
+	glUniformMatrix4fv(windprog->model_view, 1, 0, model_view);
+	setup_lights(windprog);
 
-	glUseProgram(treeprog);
-//	glEnable(GL_SAMPLE_ALPHA_TO_COVERAGE_ARB);
+	glUniform3fv(windprog->wind, 1, wind_dir_mv);
+	glUniform1f(windprog->phase, sin(idx/60.0));
 
-	glMultiTexCoord2f(GL_TEXTURE6, idx, 1);
-	glPushMatrix();
-	glTranslatef(490, 590, height_at_tile_location(land, 490, 590));
+	memcpy(mat, model_view, sizeof mat);
+	mat_translate(mat, 490, 590, height_at_tile_location(land, 490, 590));
+	glUniformMatrix4fv(windprog->model_view, 1, 0, mat);
 	draw_iqm_model(tree);
-	glPopMatrix();
 
-	glColor3f(1,0,0);
-	draw_iqm_instances(birch, birch_pos, BIRCHES);
-//	glDisable(GL_SAMPLE_ALPHA_TO_COVERAGE_ARB);
+	// draw_iqm_instances(birch, birch_pos, BIRCHES);
+	int i;
+	for (i = 0; i < BIRCHES; i++) {
+		memcpy(mat, model_view, sizeof mat);
+		mat_mul(mat, mat, &birch_pos[i*16]);
+		glUniformMatrix4fv(windprog->model_view, 1, 0, mat);
+		draw_iqm_model(birch);
+	}
 
-	/*
-	* Draw text overlay
-	*/
+	/* Draw text overlay */
 
-	glUseProgram(0);
+	mat_ortho(projection, 0, w, h, 0, -1, 1);
+	mat_identity(model_view);
+
+	glUseProgram(textprog->program);
+	glUniformMatrix4fv(textprog->projection, 1, 0, projection);
+	glUniformMatrix4fv(textprog->model_view, 1, 0, model_view);
 
 	glDisable(GL_DEPTH_TEST);
-
-	glMatrixMode(GL_PROJECTION);
-	glLoadIdentity();
-	glOrtho(0, w, h, 0, -1, 1);
-
-	glMatrixMode(GL_MODELVIEW);
-	glLoadIdentity();
-
 	glEnable(GL_BLEND);
-	glEnable(GL_TEXTURE_2D);
+
 	{
 		char buf[80];
 		sprintf(buf, "Location: %d %d %d", (int)camera_pos[0], (int)camera_pos[1], (int)camera_pos[2]);
-		glColor3f(1, 0.8, 0.8);
+		glVertexAttrib3f(ATT_COLOR, 1, 0.8, 0.8);
 		draw_string(font, 24, 8, 24+4, buf);
 	}
-	glDisable(GL_BLEND);
 
 	if (show_console)
 		draw_console(w, h);
+
+	glEnable(GL_DEPTH_TEST);
+	glDisable(GL_BLEND);
 }

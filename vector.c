@@ -76,6 +76,14 @@ void mat_frustum(float m[16],
 	M(3,0) = 0; M(3,1) = 0; M(3,2) = -1; M(3,3) = 0;
 }
 
+void mat_perspective(float m[16],
+	float fov, float aspect, float near, float far)
+{
+	fov = fov * 3.14159 / 360.0;
+	fov = tan(fov) * near;
+	mat_frustum(m, -fov * aspect, fov * aspect, -fov, fov, near, far);
+}
+
 void mat_ortho(float m[16],
 	float left, float right,
 	float bottom, float top,
@@ -100,14 +108,6 @@ void mat_ortho(float m[16],
 	M(3,1) = 0;
 	M(3,2) = 0;
 	M(3,3) = 1;
-}
-
-void mat_mix(float m[16], const float a[16], const float b[16], float v)
-{
-	float iv = 1 - v;
-	int i;
-	for (i = 0; i < 16; i++)
-		m[i] = a[i] * iv + b[i] * v;
 }
 
 void mat_scale(float m[16], float x, float y, float z)

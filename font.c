@@ -274,10 +274,14 @@ static float draw_glyph(struct font *font, float scale, int gid, float x, float 
 	float xc = floor(x) + glyph->x;
 	float yc = floor(y) + glyph->y;
 
-	glTexCoord2f(s0, t0); glVertex2f(xc, yc);
-	glTexCoord2f(s0, t1); glVertex2f(xc, yc + glyph->h);
-	glTexCoord2f(s1, t1); glVertex2f(xc + glyph->w, yc + glyph->h);
-	glTexCoord2f(s1, t0); glVertex2f(xc + glyph->w, yc);
+	glVertexAttrib2f(ATT_TEXCOORD, s0, t0);
+	glVertex2f(xc, yc);
+	glVertexAttrib2f(ATT_TEXCOORD, s0, t1);
+	glVertex2f(xc, yc + glyph->h);
+	glVertexAttrib2f(ATT_TEXCOORD, s1, t1);
+	glVertex2f(xc + glyph->w, yc + glyph->h);
+	glVertexAttrib2f(ATT_TEXCOORD, s1, t0);
+	glVertex2f(xc + glyph->w, yc);
 
 	return glyph->advance;
 }

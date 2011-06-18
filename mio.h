@@ -22,7 +22,35 @@ int xstrlcat(char *dst, const char *src, int siz);
 
 unsigned char *load_file(char *filename, int *lenp);
 
-int compile_shader(char *vertfile, char *fragfile);
+/* shaders */
+
+enum {
+	ATT_POSITION,
+	ATT_TEXCOORD,
+	ATT_NORMAL,
+	ATT_TANGENT,
+	ATT_BLEND_INDEX,
+	ATT_BLEND_WEIGHT,
+	ATT_COLOR
+};
+
+struct program {
+	int program;
+	int vert_shader;
+	int frag_shader;
+
+	/* uniform locations */
+	int model_view;
+	int projection;
+
+	int light_dir;
+	int light_ambient, light_diffuse, light_specular;
+
+	int wind, phase;
+	int bone_matrix;
+};
+
+struct program *compile_shader(char *vertfile, char *fragfile);
 
 /* image and texture loading */
 
@@ -49,6 +77,7 @@ void mat_mix(float m[16], const float a[16], const float b[16], float v);
 void mat_mul(float m[16], const float a[16], const float b[16]);
 void mat_mul44(float m[16], const float a[16], const float b[16]);
 void mat_frustum(float m[16], float left, float right, float bottom, float top, float n, float f);
+void mat_perspective(float m[16], float fov, float aspect, float near, float far);
 void mat_ortho(float m[16], float left, float right, float bottom, float top, float n, float f);
 void mat_scale(float m[16], float x, float y, float z);
 void mat_rotate_x(float m[16], float angle);

@@ -8,7 +8,8 @@ struct tile {
 	unsigned char *t;
 	float *vba;
 	int *iba;
-	unsigned int vbo, ibo, tex, program;
+	unsigned int vbo, ibo, tex;
+	int program;
 };
 
 static unsigned int tileset;
@@ -165,11 +166,7 @@ struct tile *load_tile(char *filename)
 	for (t = 0; t < (w+1) * (h+1); t++)
 		vec_normalize(&tile->vba[t*8+5]);
 
-	tile->program = compile_shader("terrain.vs", "terrain.fs");
-	glUseProgram(tile->program);
-	glUniform1i(glGetUniformLocation(tile->program, "control_tex"), 0);
-	glUniform1i(glGetUniformLocation(tile->program, "tile_tex"), 1);
-	glUniform1i(glGetUniformLocation(tile->program, "mask_tex"), 2);
+	tile->program = 0;
 
 	glGenBuffers(1, &tile->vbo);
 	glBindBuffer(GL_ARRAY_BUFFER, tile->vbo);
@@ -201,7 +198,10 @@ float height_at_tile_location(struct tile *tile, int x, int y)
 
 void draw_tile(struct tile *tile)
 {
-	glUseProgram(tile->program);
+	glGetIntegerv(GL_CURRENT_PROGRAM, &tile->program);
+	glUniform1i(glGetUniformLocation(tile->program, "Control"), 0);
+	glUniform1i(glGetUniformLocation(tile->program, "Tile"), 1);
+	glUniform1i(glGetUniformLocation(tile->program, "Mask"), 2);
 
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, tile->tex);
@@ -212,16 +212,22 @@ void draw_tile(struct tile *tile)
 	glActiveTexture(GL_TEXTURE2);
 	glBindTexture(GL_TEXTURE_2D_ARRAY, maskset);
 
-	glEnableClientState(GL_VERTEX_ARRAY);
-	glEnableClientState(GL_TEXTURE_COORD_ARRAY);
-	glEnableClientState(GL_NORMAL_ARRAY);
-
 	glBindBuffer(GL_ARRAY_BUFFER, tile->vbo);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, tile->ibo);
-	glVertexPointer(3, GL_FLOAT, 8*4, (float*)0+0);
-	glTexCoordPointer(2, GL_FLOAT, 8*4, (float*)0+3);
-	glNormalPointer(GL_FLOAT, 8*4, (float*)0+5);
+
+	glVertexAttribPointer(ATT_POSITION, 3, GL_FLOAT, 0, 8*4, (float*)0+0);
+	glVertexAttribPointer(ATT_TEXCOORD, 2, GL_FLOAT, 0, 8*4, (float*)0+3);
+	glVertexAttribPointer(ATT_NORMAL, 3, GL_FLOAT, 0, 8*4, (float*)0+5);
+
+	glEnableVertexAttribArray(ATT_POSITION);
+	glEnableVertexAttribArray(ATT_TEXCOORD);
+	glEnableVertexAttribArray(ATT_NORMAL);
+
 	glDrawElements(GL_TRIANGLES, tile->w * tile->h * 6, GL_UNSIGNED_INT, 0);
+
+	glDisableVertexAttribArray(ATT_POSITION);
+	glDisableVertexAttribArray(ATT_TEXCOORD);
+	glDisableVertexAttribArray(ATT_NORMAL);
 
 	glActiveTexture(GL_TEXTURE0);
 	glBindBuffer(GL_ARRAY_BUFFER, 0);

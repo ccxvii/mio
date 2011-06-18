@@ -19,8 +19,9 @@ static char *load_source(char *filename)
 	return data;
 }
 
-int compile_shader(char *vertfile, char *fragfile)
+struct program *compile_shader(char *vertfile, char *fragfile)
 {
+	struct program *p;
 	char log[800];
 	char *vsrc, *fsrc;
 	int prog, vs, fs, len;
@@ -49,9 +50,21 @@ int compile_shader(char *vertfile, char *fragfile)
 		fprintf(stderr, "%s:\n%s", fragfile, log);
 	}
 
+	free(vsrc);
+	free(fsrc);
+
 	prog = glCreateProgram();
 	glAttachShader(prog, vs);
 	glAttachShader(prog, fs);
+
+	glBindAttribLocation(prog, ATT_POSITION, "in_Position");
+	glBindAttribLocation(prog, ATT_TEXCOORD, "in_TexCoord");
+	glBindAttribLocation(prog, ATT_NORMAL, "in_Normal");
+	glBindAttribLocation(prog, ATT_TANGENT, "in_Tangent");
+	glBindAttribLocation(prog, ATT_BLEND_INDEX, "in_BlendIndex");
+	glBindAttribLocation(prog, ATT_BLEND_WEIGHT, "in_BlendWeight");
+	glBindAttribLocation(prog, ATT_COLOR, "in_Color");
+
 	glLinkProgram(prog);
 
 	glGetProgramiv(prog, GL_INFO_LOG_LENGTH, &len);
@@ -60,7 +73,22 @@ int compile_shader(char *vertfile, char *fragfile)
 		fprintf(stderr, "%s/%s:\n%s", vertfile, fragfile, log);
 	}
 
-	free(vsrc);
-	free(fsrc);
-	return prog;
+	p = malloc(sizeof *p);
+	p->program = prog;
+	p->vert_shader = vs;
+	p->frag_shader = fs;
+
+	p->model_view = glGetUniformLocation(p->program, "ModelView");
+	p->projection = glGetUniformLocation(p->program, "Projection");
+
+	p->light_dir = glGetUniformLocation(p->program, "LightDirection");
+	p->light_ambient = glGetUniformLocation(p->program, "LightAmbient");
+	p->light_diffuse = glGetUniformLocation(p->program, "LightDiffuse");
+	p->light_specular = glGetUniformLocation(p->program, "LightSpecular");
+
+	p->wind = glGetUniformLocation(p->program, "Wind");
+	p->phase = glGetUniformLocation(p->program, "Phase");
+	p->bone_matrix = glGetUniformLocation(p->program, "BoneMatrix");
+
+	return p;
 }
