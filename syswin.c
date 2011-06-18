@@ -88,7 +88,7 @@ static int sys_win_enable_opengl(void)
 	pfd.dwFlags = PFD_DRAW_TO_WINDOW | PFD_SUPPORT_OPENGL | PFD_DOUBLEBUFFER;
 	pfd.iPixelType = PFD_TYPE_RGBA;
 	pfd.cColorBits = 24;
-	pfd.cDepthBits = 16;
+	pfd.cDepthBits = 32;
 	pfd.iLayerType = PFD_MAIN_PLANE;
 
 	fmt = ChoosePixelFormat(g_hdc, &pfd);
@@ -239,6 +239,17 @@ static LRESULT CALLBACK sys_win_proc(HWND hwnd, UINT message, WPARAM wparam, LPA
 
 		case WM_MOUSEMOVE:
 			sys_hook_mouse_move(x, y, mod);
+			return 0;
+
+		case WM_MOUSEWHEEL:
+			if (GET_WHEEL_DELTA_WPARAM(wparam) >= 120) {
+				sys_hook_mouse_down(x, y, SYS_BTN_WHEEL_UP, mod);
+				sys_hook_mouse_up(x, y, SYS_BTN_WHEEL_UP, mod);
+			}
+			if (GET_WHEEL_DELTA_WPARAM(wparam) <= -120) {
+				sys_hook_mouse_down(x, y, SYS_BTN_WHEEL_DOWN, mod);
+				sys_hook_mouse_up(x, y, SYS_BTN_WHEEL_DOWN, mod);
+			}
 			return 0;
 
 		case WM_CHAR:

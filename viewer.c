@@ -9,9 +9,11 @@ static struct font *font;
 static int frame = 0;
 static int anim = 0;
 
-static int showanim = 1;
+static int showprog = 1;
 static int showbone = 0;
 static int showwire = 0;
+
+char *progname = "shader: none";
 
 float dist = 1;
 float yaw = 0, pitch = 0;
@@ -19,7 +21,7 @@ float yaw = 0, pitch = 0;
 float sunpos[] = { -500, -500, 800, 1 };
 float fogcolor[4] = { 73.0/255, 149.0/255, 204.0/255, 1 };
 
-unsigned int prog, treeprog, boneprog;
+unsigned int prog, windprog, boneprog;
 
 void perspective(float fov, float aspect, float near, float far)
 {
@@ -31,11 +33,12 @@ void perspective(float fov, float aspect, float near, float far)
 void sys_hook_init(int argc, char **argv)
 {
 	prog = compile_shader("common.vs", "common.fs");
-	treeprog = compile_shader("tree.vs", "tree.fs");
+	windprog = compile_shader("tree.vs", "tree.fs");
 	boneprog = compile_shader("skel.vs", "common.fs");
 
 	glClearColor(0.3, 0.3, 0.3, 1.0);
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	glEnable(GL_DEPTH_TEST);
 
 	glFogi(GL_FOG_MODE, GL_LINEAR);
 	glFogf(GL_FOG_START, 10.0f);
@@ -72,7 +75,9 @@ void sys_hook_draw(int w, int h)
 			if (evt->key == 'b') showbone = !showbone;
 			if (evt->key == 'a') anim++;
 			if (evt->key == 'A') anim--;
-			if (evt->key == 't') showanim = !showanim;
+			if (evt->key == '1') showprog = 1;
+			if (evt->key == '2') showprog = 2;
+			if (evt->key == '3') showprog = 3;
 			if (evt->key == ' ')
 				sys_stop_idle_loop();
 			if (evt->key == 'r')
@@ -133,7 +138,6 @@ void sys_hook_draw(int w, int h)
 	glPolygonMode(GL_FRONT_AND_BACK, showwire ? GL_LINE : GL_FILL);
 
 	glUseProgram(0);
-	glEnable(GL_DEPTH_TEST);
 	glColor3f(0.5, 0.5, 0.5);
 	glBegin(GL_LINES);
 	for (i = -4; i <= 4; i++) {
@@ -144,27 +148,39 @@ void sys_hook_draw(int w, int h)
 	}
 	glEnd();
 
-	animate_iqm_model(model, anim, frame/4, (frame%4)/4.0);
+	animate_iqm_model(model, anim, frame/2, (frame%2)/2.0);
 
-	glEnable(GL_DEPTH_TEST);
-	if (showanim) {
+	switch (showprog) {
+	case 1:
+		progname = "shader: static";
+		glUseProgram(prog);
+		break;
+	case 2:
+		progname = "shader: bone";
 		glUseProgram(boneprog);
-	} else {
-		glUseProgram(treeprog);
+		break;
+	case 3:
+		progname = "shader: wind";
+		glUseProgram(windprog);
 		glMultiTexCoord2f(GL_TEXTURE6, frame, measure_iqm_radius(model) * 0.1);
+		break;
+	default:
+		glUseProgram(0);
+		break;
 	}
+
 	draw_iqm_model(model);
 
 	if (showbone) {
 		glUseProgram(0);
 		glDisable(GL_DEPTH_TEST);
 		draw_iqm_bones(model);
+		glEnable(GL_DEPTH_TEST);
 	}
 
 	glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
 	glUseProgram(0);
-	glEnable(GL_DEPTH_TEST);
 	glEnable(GL_BLEND);
 
 	glColor4f(0.4, 0.4, 0.4, 0.5);
@@ -175,15 +191,14 @@ void sys_hook_draw(int w, int h)
 	glVertex3f(-4, -4, -0.01f);
 	glEnd();
 
-	glEnable(GL_TEXTURE_2D);
-
 	glMatrixMode(GL_PROJECTION);
 	glLoadIdentity();
 	glOrtho(0, w, h, 0, -1, 1);
 
 	glMatrixMode(GL_MODELVIEW);
 	glLoadIdentity();
-
+	glEnable(GL_TEXTURE_2D);
+	glDisable(GL_DEPTH_TEST);
 	{
 		char buf[80];
 		sprintf(buf, "model: %s", modelname);
@@ -192,12 +207,12 @@ void sys_hook_draw(int w, int h)
 		sprintf(buf, "animation: %s", get_iqm_animation_name(model, anim));
 		glColor3f(1, 0.8, 0.8);
 		draw_string(font, 20, 8, 40+8, buf);
-		if (showanim) draw_string(font, 20, 8, 60+8, "shader: bone");
-		else draw_string(font, 20, 8, 60+8, "shader: wind");
+		draw_string(font, 20, 8, 60+8, progname);
 	}
+	glDisable(GL_TEXTURE_2D);
+	glEnable(GL_DEPTH_TEST);
 
 	glDisable(GL_BLEND);
-	glDisable(GL_TEXTURE_2D);
 
 	frame++;
 }

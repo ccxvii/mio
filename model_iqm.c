@@ -350,7 +350,7 @@ load_iqm_model_from_memory(unsigned char *data, char *filename)
 //	int ofs_adjacency = read32(data + 64);
 	int num_bones = read32(data + 68);
 	int ofs_bones = read32(data + 72);
-	int num_poses = read32(data + 76);
+//	int num_poses = read32(data + 76);
 	int ofs_poses = read32(data + 80);
 	int num_anims = read32(data + 84);
 	int ofs_anims = read32(data + 88);
@@ -460,8 +460,9 @@ char *
 get_iqm_animation_name(struct model *model, int anim)
 {
 	if (!model->num_bones || !model->num_anims)
-		return "<none>";
-	anim = anim % model->num_anims;
+		return "none";
+	if (anim < 0) anim = 0;
+	if (anim >= model->num_anims) anim = model->num_anims - 1;
 	return model->anims[anim].name;
 }
 
@@ -481,7 +482,9 @@ animate_iqm_model(struct model *model, int anim, int frame, float t)
 		model->outskin = malloc(model->num_bones * sizeof(float[16]));
 	}
 
-	anim = anim % model->num_anims;
+	if (anim < 0) anim = 0;
+	if (anim >= model->num_anims) anim = model->num_anims - 1;
+
 	frame0 = frame % model->anims[anim].count;
 	frame1 = (frame + 1) % model->anims[anim].count;
 	pose0 = model->poses[model->anims[anim].first + frame0];
@@ -581,12 +584,6 @@ draw_iqm_instances(struct model *model, float *trafo, int count)
 			n += 4 * model->num_verts;
 			glEnableVertexAttribArray(bi_loc);
 			glEnableVertexAttribArray(bw_loc);
-		} else {
-			float m[16];
-			mat_identity(m);
-			glUniformMatrix4fv(loc, 1, 0, m);
-			glVertexAttrib4f(bi_loc, 0, 0, 0, 0);
-			glVertexAttrib4f(bw_loc, 1, 0, 0, 0);
 		}
 	}
 
@@ -599,21 +596,11 @@ draw_iqm_instances(struct model *model, float *trafo, int count)
 		struct mesh *mesh = model->meshes + i;
 		glBindTexture(GL_TEXTURE_2D, mesh->material);
 		for (k = 0; k < count; k++) {
-#if 0
-			// dog slow!
+			// dog slow! should use our own uniforms, or instanced array
 			glPushMatrix();
 			glMultMatrixf(&trafo[k*16]);
 			glDrawElements(GL_TRIANGLES, 3 * mesh->count, GL_UNSIGNED_INT, (char*)(mesh->first*12));
 			glPopMatrix();
-#else
-			// pseudo-instancing
-			glMultiTexCoord4fv(GL_TEXTURE1, &trafo[k*16+0]);
-			glMultiTexCoord4fv(GL_TEXTURE2, &trafo[k*16+4]);
-			glMultiTexCoord4fv(GL_TEXTURE3, &trafo[k*16+8]);
-			glMultiTexCoord4fv(GL_TEXTURE4, &trafo[k*16+12]);
-			glMultiTexCoord1f(GL_TEXTURE5, k);
-			glDrawElements(GL_TRIANGLES, 3 * mesh->count, GL_UNSIGNED_INT, (char*)(mesh->first*12));
-#endif
 		}
 	}
 

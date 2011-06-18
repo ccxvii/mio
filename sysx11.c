@@ -25,7 +25,7 @@ static int glxatts[] =
 	GLX_RED_SIZE, 8, /* the maximum number of bits per component */
 	GLX_GREEN_SIZE, 8,
 	GLX_BLUE_SIZE, 8,
-	GLX_DEPTH_SIZE, 16,
+	GLX_DEPTH_SIZE, 32,
 	None
 };
 

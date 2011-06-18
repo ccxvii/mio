@@ -9,7 +9,7 @@ static struct model *village;
 static struct model *tree, *birch;
 static struct model *skydome1;
 static struct model *skydome2;
-static struct model *cute, *caravan;
+static struct model *cute, *caravan, *monster;
 static struct tile *land;
 static struct font *font;
 
@@ -122,6 +122,7 @@ void sys_hook_init(int argc, char **argv)
 	tree = load_iqm_model("data/vegetation/ju_s2_big_tree.iqm"); if (!tree) exit(1);
 	cute = load_iqm_model("data/tr_mo_cute/tr_mo_cute.iqm");
 	caravan = load_iqm_model("data/ca_hof/ca_hof.iqm");
+	monster = load_iqm_model("data/tr_mo_c03_idle1.iqm");
 
 	for (i = 0; i < BIRCHES; i++) {
 		float *m = &birch_pos[i*16];
@@ -221,7 +222,7 @@ void sys_hook_draw(int w, int h)
 
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-//	glPolygonMode(GL_BACK, GL_LINE);
+	// glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 
 	static int idx = 0;
 	idx ++;
@@ -270,6 +271,7 @@ void sys_hook_draw(int w, int h)
 
 	if (caravan) animate_iqm_model(caravan, 0, idx/2, (idx%2)/2.0);
 	if (cute) animate_iqm_model(cute, 33, idx/2, (idx%2)/2.0);
+	if (monster) animate_iqm_model(monster, 0, idx/2, (idx%2)/2.0);
 
 	glUseProgram(prog);
 	glDisable(GL_CULL_FACE);
@@ -294,6 +296,13 @@ void sys_hook_draw(int w, int h)
 		draw_iqm_model(cute);
 		glPopMatrix();
 	}
+	if (monster) {
+		glPushMatrix();
+		glTranslatef(473, 552, height_at_tile_location(land, 473, 552));
+		draw_iqm_model(monster);
+		glPopMatrix();
+	}
+
 
 	glUseProgram(prog);
 	glEnable(GL_CULL_FACE);
