@@ -1,0 +1,32 @@
+# System specific configuration
+
+OS := $(shell uname)
+OS := $(OS:MINGW%=MINGW)
+
+CFLAGS := -Wall -I.
+
+ifeq "$(build)" "debug"
+CFLAGS += -g -DDEBUG
+endif
+ifeq "$(build)" "release"
+CFLAGS += -O2 -DNDEBUG -fomit-frame-pointer
+endif
+
+ifeq "$(OS)" "Linux"
+LIBS += -lGL -lX11
+SYS_OBJ := sys_x11.o
+endif
+
+ifeq "$(OS)" "Darwin"
+LIBS += -framework OpenGL -framework Cocoa
+SYS_OBJ := sys_mac.o
+endif
+
+ifeq "$(OS)" "MINGW"
+SYS_OBJ := sys_win.o
+ifeq "$(build)" "debug"
+LIBS += -lopengl32 -lgdi32
+else
+LIBS += -lopengl32 -mwindows
+endif
+endif
