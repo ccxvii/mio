@@ -30,7 +30,7 @@ static const char *draw_frag_src =
 	"}\n"
 ;
 
-#define MAXBUFFER (256*6)	/* size of our triangle buffer */
+#define MAXBUFFER (256*2)	/* size of our triangle buffer */
 
 static unsigned int draw_vbo = 0;
 static int draw_buf_len = 0;
@@ -73,14 +73,14 @@ void draw_begin(float projection[16], float model_view[16])
 	glBindBuffer(GL_ARRAY_BUFFER, draw_vbo);
 	glEnableVertexAttribArray(ATT_POSITION);
 	glEnableVertexAttribArray(ATT_COLOR);
-	glVertexAttribPointer(ATT_POSITION, 2, GL_FLOAT, 0, 7*4, (void*)0);
-	glVertexAttribPointer(ATT_COLOR, 4, GL_FLOAT, 0, 7*4, (void*)12);
+	glVertexAttribPointer(ATT_POSITION, 2, GL_FLOAT, 0, sizeof draw_buf[0], (void*)0);
+	glVertexAttribPointer(ATT_COLOR, 4, GL_FLOAT, 0, sizeof draw_buf[0], (void*)12);
 }
 
 static void draw_flush(void)
 {
 	if (draw_buf_len > 0) {
-		glBufferSubData(GL_ARRAY_BUFFER, 0, 7*4*draw_buf_len, draw_buf);
+		glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof draw_buf[0] * draw_buf_len, draw_buf);
 		glDrawArrays(draw_kind, 0, draw_buf_len);
 		draw_buf_len = 0;
 	}
@@ -98,12 +98,13 @@ void draw_end(void)
 
 static void draw_vertex(float x, float y, float z)
 {
-	int i;
 	draw_buf[draw_buf_len].position[0] = x;
 	draw_buf[draw_buf_len].position[1] = y;
 	draw_buf[draw_buf_len].position[2] = z;
-	for (i = 0; i < 4; i++)
-		draw_buf[draw_buf_len].color[i] = draw_color[i];
+	draw_buf[draw_buf_len].color[0] = draw_color[0];
+	draw_buf[draw_buf_len].color[1] = draw_color[1];
+	draw_buf[draw_buf_len].color[2] = draw_color[2];
+	draw_buf[draw_buf_len].color[3] = draw_color[3];
 	draw_buf_len++;
 }
 

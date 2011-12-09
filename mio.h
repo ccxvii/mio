@@ -59,6 +59,13 @@ int make_texture(unsigned int texid, unsigned char *data, int w, int h, int n, i
 int load_texture_from_memory(unsigned int texid, unsigned char *data, int len, int srgb);
 int load_texture(unsigned int texid, char *filename, int srgb);
 
+void icon_set_color(float r, float g, float b, float a);
+void icon_begin(float projection[16]);
+void icon_end(void);
+void icon_show(int texture,
+		float x0, float y0, float x1, float y1,
+		float s0, float t0, float s1, float t1);
+
 /* fonts based on stb_truetype */
 
 struct font *load_font(char *filename);

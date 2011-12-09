@@ -180,3 +180,121 @@ int load_texture(unsigned int texid, char *filename, int srgb)
 	free(image);
 	return texid;
 }
+
+/*
+ * Icon drawing.
+ */
+
+static int icon_prog = 0;
+static int icon_uni_projection = -1;
+
+static const char *icon_vert_src =
+	"#version 120\n"
+	"uniform mat4 Projection;\n"
+	"attribute vec2 att_Position;\n"
+	"attribute vec2 att_TexCoord;\n"
+	"attribute vec4 att_Color;\n"
+	"varying vec2 var_TexCoord;\n"
+	"varying vec4 var_Color;\n"
+	"void main() {\n"
+	"	gl_Position = Projection * vec4(att_Position, 0.0, 1.0);\n"
+	"	var_TexCoord = att_TexCoord;\n"
+	"	var_Color = att_Color;\n"
+	"}\n"
+;
+
+static const char *icon_frag_src =
+	"#version 120\n"
+	"uniform sampler2D Texture;\n"
+	"varying vec2 var_TexCoord;\n"
+	"varying vec4 var_Color;\n"
+	"void main() {\n"
+	"	gl_FragColor = var_Color * texture2D(Texture, var_TexCoord);\n"
+	"}\n"
+;
+
+static unsigned int icon_vbo = 0;
+static int icon_buf_len = 0;
+static struct {
+	float position[2];
+	float texcoord[2];
+	float color[4];
+} icon_buf[6];
+
+static float icon_color[4] = { 1, 1, 1, 1 };
+
+void icon_set_color(float r, float g, float b, float a)
+{
+	icon_color[0] = r;
+	icon_color[1] = g;
+	icon_color[2] = b;
+	icon_color[3] = a;
+}
+
+void icon_begin(float projection[16])
+{
+	if (!icon_prog) {
+		icon_prog = compile_shader(icon_vert_src, icon_frag_src);
+		icon_uni_projection = glGetUniformLocation(icon_prog, "Projection");
+	}
+
+	if (!icon_vbo) {
+		glGenBuffers(1, &icon_vbo);
+		glBindBuffer(GL_ARRAY_BUFFER, icon_vbo);
+		glBufferData(GL_ARRAY_BUFFER, sizeof icon_buf, NULL, GL_STREAM_DRAW);
+		glBindBuffer(GL_ARRAY_BUFFER, 0);
+	}
+
+	glUseProgram(icon_prog);
+	glUniformMatrix4fv(icon_uni_projection, 1, 0, projection);
+
+	glBindBuffer(GL_ARRAY_BUFFER, icon_vbo);
+	glEnableVertexAttribArray(ATT_POSITION);
+	glEnableVertexAttribArray(ATT_TEXCOORD);
+	glEnableVertexAttribArray(ATT_COLOR);
+	glVertexAttribPointer(ATT_POSITION, 2, GL_FLOAT, 0, sizeof icon_buf[0], (void*)0);
+	glVertexAttribPointer(ATT_TEXCOORD, 2, GL_FLOAT, 0, sizeof icon_buf[0], (void*)8);
+	glVertexAttribPointer(ATT_COLOR, 4, GL_FLOAT, 0, sizeof icon_buf[0], (void*)16);
+}
+
+void icon_end(void)
+{
+	glDisableVertexAttribArray(ATT_POSITION);
+	glDisableVertexAttribArray(ATT_TEXCOORD);
+	glDisableVertexAttribArray(ATT_COLOR);
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
+	glUseProgram(0);
+}
+
+static void add_vertex(float x, float y, float s, float t, float *color)
+{
+	icon_buf[icon_buf_len].position[0] = x;
+	icon_buf[icon_buf_len].position[1] = y;
+	icon_buf[icon_buf_len].texcoord[0] = s;
+	icon_buf[icon_buf_len].texcoord[1] = t;
+	icon_buf[icon_buf_len].color[0] = color[0];
+	icon_buf[icon_buf_len].color[1] = color[1];
+	icon_buf[icon_buf_len].color[2] = color[2];
+	icon_buf[icon_buf_len].color[3] = color[3];
+	icon_buf_len++;
+}
+
+void icon_show(int texture,
+		float x0, float y0, float x1, float y1,
+		float s0, float t0, float s1, float t1)
+{
+	icon_buf_len = 0;
+
+	add_vertex(x0, y0, s0, t0, icon_color);
+	add_vertex(x0, y1, s0, t1, icon_color);
+	add_vertex(x1, y1, s1, t1, icon_color);
+
+	add_vertex(x0, y0, s0, t0, icon_color);
+	add_vertex(x1, y1, s1, t1, icon_color);
+	add_vertex(x1, y0, s1, t0, icon_color);
+
+	glBindTexture(GL_TEXTURE_2D, texture);
+	glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof icon_buf[0] * icon_buf_len, icon_buf);
+	glDrawArrays(GL_TRIANGLES, 0, icon_buf_len);
+	glBindTexture(GL_TEXTURE_2D, 0);
+}

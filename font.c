@@ -310,11 +310,6 @@ void text_set_font(struct font *font, float size)
 
 void text_begin(float projection[16])
 {
-	if (!text_prog) {
-		text_prog = compile_shader(text_vert_src, text_frag_src);
-		text_uni_projection = glGetUniformLocation(text_prog, "Projection");
-	}
-
 	if (!cache_tex) {
 		memset(table, 0, sizeof table);
 		memset(cache_zero, 0, sizeof cache_zero);
@@ -326,6 +321,11 @@ void text_begin(float projection[16])
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 		glTexImage2D(GL_TEXTURE_2D, 0, GL_ALPHA, CACHESIZE, CACHESIZE, 0,
 				GL_ALPHA, GL_UNSIGNED_BYTE, cache_zero);
+	}
+
+	if (!text_prog) {
+		text_prog = compile_shader(text_vert_src, text_frag_src);
+		text_uni_projection = glGetUniformLocation(text_prog, "Projection");
 	}
 
 	if (!text_vbo) {
@@ -344,29 +344,42 @@ void text_begin(float projection[16])
 	glEnableVertexAttribArray(ATT_POSITION);
 	glEnableVertexAttribArray(ATT_TEXCOORD);
 	glEnableVertexAttribArray(ATT_COLOR);
-	glVertexAttribPointer(ATT_POSITION, 2, GL_FLOAT, 0, 8*4, (void*)0);
-	glVertexAttribPointer(ATT_TEXCOORD, 2, GL_FLOAT, 0, 8*4, (void*)8);
-	glVertexAttribPointer(ATT_COLOR, 4, GL_FLOAT, 0, 8*4, (void*)16);
+	glVertexAttribPointer(ATT_POSITION, 2, GL_FLOAT, 0, sizeof text_buf[0], (void*)0);
+	glVertexAttribPointer(ATT_TEXCOORD, 2, GL_FLOAT, 0, sizeof text_buf[0], (void*)8);
+	glVertexAttribPointer(ATT_COLOR, 4, GL_FLOAT, 0, sizeof text_buf[0], (void*)16);
 }
 
 static void text_flush(void)
 {
 	if (text_buf_len > 0) {
-		glBufferSubData(GL_ARRAY_BUFFER, 0, 8*4*text_buf_len, text_buf);
+		glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof text_buf[0] * text_buf_len, text_buf);
 		glDrawArrays(GL_TRIANGLES, 0, text_buf_len);
 		text_buf_len = 0;
 	}
 }
 
+void text_end(void)
+{
+	text_flush();
+
+	glDisableVertexAttribArray(ATT_POSITION);
+	glDisableVertexAttribArray(ATT_TEXCOORD);
+	glDisableVertexAttribArray(ATT_COLOR);
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
+	glBindTexture(GL_TEXTURE_2D, 0);
+	glUseProgram(0);
+}
+
 static void add_vertex(float x, float y, float s, float t, float *color)
 {
-	int i;
 	text_buf[text_buf_len].position[0] = x;
 	text_buf[text_buf_len].position[1] = y;
 	text_buf[text_buf_len].texcoord[0] = s;
 	text_buf[text_buf_len].texcoord[1] = t;
-	for (i = 0; i < 4; i++)
-		text_buf[text_buf_len].color[i] = color[i];
+	text_buf[text_buf_len].color[0] = color[0];
+	text_buf[text_buf_len].color[1] = color[1];
+	text_buf[text_buf_len].color[2] = color[2];
+	text_buf[text_buf_len].color[3] = color[3];
 	text_buf_len++;
 }
 
@@ -383,18 +396,6 @@ static void add_rect(float x0, float y0, float x1, float y1,
 	add_vertex(x0, y0, s0, t0, text_color);
 	add_vertex(x1, y1, s1, t1, text_color);
 	add_vertex(x1, y0, s1, t0, text_color);
-}
-
-void text_end(void)
-{
-	text_flush();
-
-	glDisableVertexAttribArray(ATT_POSITION);
-	glDisableVertexAttribArray(ATT_TEXCOORD);
-	glDisableVertexAttribArray(ATT_COLOR);
-	glBindBuffer(GL_ARRAY_BUFFER, 0);
-	glBindTexture(GL_TEXTURE_2D, 0);
-	glUseProgram(0);
 }
 
 static float add_glyph(int gid, float x, float y)
