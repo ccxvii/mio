@@ -14,12 +14,6 @@
 
 #include "mio.h"
 
-static inline void die(char *msg)
-{
-	fprintf(stderr, "error: %s\n", msg);
-	exit(1);
-}
-
 static void text_flush(void);
 static void clear_font_cache(void);
 
@@ -40,26 +34,16 @@ struct font {
 struct font *load_font(char *filename)
 {
 	struct font *font;
-	int len, ok;
-	FILE *fp;
-
-	fp = fopen(filename, "rb");
-	if (!fp)
-		die("cannot open truetype font");
-
-	fseek(fp, 0, 2);
-	len = ftell(fp);
-	fseek(fp, 0, 0);
+	int ok;
 
 	font = malloc(sizeof(struct font));
-	font->data = malloc(len);
-
-	fread(font->data, 1, len, fp);
-	fclose(fp);
+	font->data = load_file(filename, NULL);
+	if (!font->data)
+		return NULL;
 
 	ok = stbtt_InitFont(&font->info, font->data, 0);
 	if (!ok)
-		die("cannot init truetype font");
+		return NULL;
 
 	return font;
 }
@@ -75,7 +59,7 @@ struct font *load_font_from_memory(unsigned char *data, int len)
 
 	ok = stbtt_InitFont(&font->info, font->data, 0);
 	if (!ok)
-		die("cannot init truetype font");
+		return NULL;
 
 	return font;
 }
@@ -138,7 +122,7 @@ static void clear_font_cache(void)
 
 	glBindTexture(GL_TEXTURE_2D, cache_tex);
 	glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, CACHESIZE, CACHESIZE,
-		GL_ALPHA, GL_UNSIGNED_BYTE, cache_zero);
+		GL_RED, GL_UNSIGNED_BYTE, cache_zero);
 
 	cache_row_y = PADDING;
 	cache_row_x = PADDING;
@@ -204,8 +188,10 @@ static struct glyph *lookup_glyph(struct font *font, float scale, int gid, int s
 		pos = lookup_table(&key);
 	}
 
-	if (h + PADDING > CACHESIZE || w + PADDING > CACHESIZE)
-		die("rendered glyph exceeds cache dimensions");
+	if (h + PADDING > CACHESIZE || w + PADDING > CACHESIZE) {
+		fprintf(stderr, "error: rendered glyph exceeds cache dimensions");
+		exit(1);
+	}
 
 	if (cache_row_x + w + PADDING > CACHESIZE) {
 		cache_row_y += cache_row_h + PADDING;
@@ -234,7 +220,7 @@ static struct glyph *lookup_glyph(struct font *font, float scale, int gid, int s
 		glPixelStorei(GL_UNPACK_ROW_LENGTH, w);
 		glTexSubImage2D(GL_TEXTURE_2D, 0,
 				cache_row_x, cache_row_y, w, h,
-				GL_ALPHA, GL_UNSIGNED_BYTE, data);
+				GL_RED, GL_UNSIGNED_BYTE, data);
 		glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
 	}
 
@@ -275,8 +261,8 @@ static const char *text_frag_src =
 	"varying vec2 var_TexCoord;\n"
 	"varying vec4 var_Color;\n"
 	"void main() {\n"
-	"	float a = texture2D(Texture, var_TexCoord).a;\n"
-	"	gl_FragColor = vec4(var_Color.rgb, var_Color.a * a);\n"
+	"	float coverage = texture2D(Texture, var_TexCoord).r;\n"
+	"	gl_FragColor = vec4(var_Color.rgb, var_Color.a * coverage);\n"
 	"}\n"
 ;
 
@@ -319,8 +305,8 @@ void text_begin(float projection[16])
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_ALPHA, CACHESIZE, CACHESIZE, 0,
-				GL_ALPHA, GL_UNSIGNED_BYTE, cache_zero);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, CACHESIZE, CACHESIZE, 0,
+				GL_RED, GL_UNSIGNED_BYTE, cache_zero);
 	}
 
 	if (!text_prog) {
@@ -334,6 +320,8 @@ void text_begin(float projection[16])
 		glBufferData(GL_ARRAY_BUFFER, sizeof text_buf, NULL, GL_STREAM_DRAW);
 		glBindBuffer(GL_ARRAY_BUFFER, 0);
 	}
+
+	glEnable(GL_BLEND);
 
 	glUseProgram(text_prog);
 	glUniformMatrix4fv(text_uni_projection, 1, 0, projection);
@@ -368,6 +356,8 @@ void text_end(void)
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 	glBindTexture(GL_TEXTURE_2D, 0);
 	glUseProgram(0);
+
+	glDisable(GL_BLEND);
 }
 
 static void add_vertex(float x, float y, float s, float t, float *color)

@@ -9,7 +9,7 @@ static lua_State *L = NULL;
 
 #define PS1 "> "
 #define COLS 80
-#define ROWS 24
+#define ROWS 7
 #define INPUT 80-2
 
 static char screen[ROWS][COLS+1];

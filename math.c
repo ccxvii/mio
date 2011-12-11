@@ -6,7 +6,7 @@
 #define B(row,col) b[(col<<2)+row]
 #define M(row,col) m[(col<<2)+row]
 
-void mat_print(FILE *file, float m[16])
+void mat_print(FILE *file, mat4 m)
 {
 	printf("pm\t%g %g %g %g\n\t%g %g %g %g\n\t%g %g %g %g\n\t%g %g %g %g\n",
 		m[0], m[4], m[8], m[12],
@@ -15,7 +15,7 @@ void mat_print(FILE *file, float m[16])
 		m[3], m[7], m[11], m[15]);
 }
 
-void mat_identity(float m[16])
+void mat_identity(mat4 m)
 {
 	M(0,0) = 1; M(0,1) = 0; M(0,2) = 0; M(0,3) = 0;
 	M(1,0) = 0; M(1,1) = 1; M(1,2) = 0; M(1,3) = 0;
@@ -23,12 +23,12 @@ void mat_identity(float m[16])
 	M(3,0) = 0; M(3,1) = 0; M(3,2) = 0; M(3,3) = 1;
 }
 
-void mat_copy(float p[16], const float m[16])
+void mat_copy(mat4 p, const mat4 m)
 {
-	memcpy(p, m, sizeof(float[16]));
+	memcpy(p, m, sizeof(mat4));
 }
 
-void mat_mul44(float m[16], const float a[16], const float b[16])
+void mat_mul44(mat4 m, const mat4 a, const mat4 b)
 {
 	int i;
 	for (i = 0; i < 4; i++) {
@@ -40,7 +40,7 @@ void mat_mul44(float m[16], const float a[16], const float b[16])
 	}
 }
 
-void mat_mul(float m[16], const float a[16], const float b[16])
+void mat_mul(mat4 m, const mat4 a, const mat4 b)
 {
 	int i;
 	for (i = 0; i < 3; i++) {
@@ -56,7 +56,7 @@ void mat_mul(float m[16], const float a[16], const float b[16])
 	M(3,3) = 1;
 }
 
-void mat_frustum(float m[16],
+void mat_frustum(mat4 m,
 	float left, float right,
 	float bottom, float top,
 	float nearval, float farval)
@@ -76,7 +76,7 @@ void mat_frustum(float m[16],
 	M(3,0) = 0; M(3,1) = 0; M(3,2) = -1; M(3,3) = 0;
 }
 
-void mat_perspective(float m[16],
+void mat_perspective(mat4 m,
 	float fov, float aspect, float znear, float zfar)
 {
 	fov = fov * 3.14159 / 360.0;
@@ -84,7 +84,7 @@ void mat_perspective(float m[16],
 	mat_frustum(m, -fov * aspect, fov * aspect, -fov, fov, znear, zfar);
 }
 
-void mat_ortho(float m[16],
+void mat_ortho(mat4 m,
 	float left, float right,
 	float bottom, float top,
 	float nearval, float farval)
@@ -110,7 +110,7 @@ void mat_ortho(float m[16],
 	M(3,3) = 1;
 }
 
-void mat_scale(float m[16], float x, float y, float z)
+void mat_scale(mat4 m, float x, float y, float z)
 {
 	m[0] *= x; m[4] *= y; m[8] *= z;
 	m[1] *= x; m[5] *= y; m[9] *= z;
@@ -118,7 +118,7 @@ void mat_scale(float m[16], float x, float y, float z)
 	m[3] *= x; m[7] *= y; m[11] *= z;
 }
 
-void mat_translate(float m[16], float x, float y, float z)
+void mat_translate(mat4 m, float x, float y, float z)
 {
 	m[12] = m[0] * x + m[4] * y + m[8] * z + m[12];
 	m[13] = m[1] * x + m[5] * y + m[9] * z + m[13];
@@ -131,10 +131,10 @@ static inline float radians(float degrees)
 	return degrees * 3.14159265f / 180;
 }
 
-void mat_rotate_x(float p[16], float angle)
+void mat_rotate_x(mat4 p, float angle)
 {
 	float s = sin(radians(angle)), c = cos(radians(angle));
-	float m[16];
+	mat4 m;
 	mat_identity(m);
 	M(1,1) = c;
 	M(2,2) = c;
@@ -143,10 +143,10 @@ void mat_rotate_x(float p[16], float angle)
 	mat_mul44(p, p, m);
 }
 
-void mat_rotate_y(float p[16], float angle)
+void mat_rotate_y(mat4 p, float angle)
 {
 	float s = sin(radians(angle)), c = cos(radians(angle));
-	float m[16];
+	mat4 m;
 	mat_identity(m);
 	M(0,0) = c;
 	M(2,2) = c;
@@ -155,10 +155,10 @@ void mat_rotate_y(float p[16], float angle)
 	mat_mul44(p, p, m);
 }
 
-void mat_rotate_z(float p[16], float angle)
+void mat_rotate_z(mat4 p, float angle)
 {
 	float s = sin(radians(angle)), c = cos(radians(angle));
-	float m[16];
+	mat4 m;
 	mat_identity(m);
 	M(0,0) = c;
 	M(1,1) = c;
@@ -167,7 +167,7 @@ void mat_rotate_z(float p[16], float angle)
 	mat_mul44(p, p, m);
 }
 
-void mat_transpose(float to[16], const float from[16])
+void mat_transpose(mat4 to, const mat4 from)
 {
 	assert(to != from);
 	to[0] = from[0];
@@ -188,9 +188,10 @@ void mat_transpose(float to[16], const float from[16])
 	to[15] = from[15];
 }
 
-void mat_invert(float out[16], const float m[16])
+void mat_invert(mat4 out, const mat4 m)
 {
-	float inv[16], det;
+	mat4 inv;
+	float det;
 	int i;
 
 	inv[0] = m[5]*m[10]*m[15] - m[5]*m[11]*m[14] - m[9]*m[6]*m[15] +
@@ -234,7 +235,7 @@ void mat_invert(float out[16], const float m[16])
 }
 
 /* Transform a point (column vector) by a matrix: p = m * v */
-void mat_vec_mul(float p[3], const float m[16], const float v[3])
+void mat_vec_mul(vec3 p, const mat4 m, const vec3 v)
 {
 	assert(p != v);
 	p[0] = m[0] * v[0] + m[4] * v[1] + m[8] * v[2] + m[12];
@@ -242,7 +243,7 @@ void mat_vec_mul(float p[3], const float m[16], const float v[3])
 	p[2] = m[2] * v[0] + m[6] * v[1] + m[10] * v[2] + m[14];
 }
 
-void mat_vec_mul_n(float p[3], const float m[16], const float v[3])
+void mat_vec_mul_n(vec3 p, const mat4 m, const vec3 v)
 {
 	assert(p != v);
 	p[0] = m[0] * v[0] + m[4] * v[1] + m[8] * v[2];
@@ -251,7 +252,7 @@ void mat_vec_mul_n(float p[3], const float m[16], const float v[3])
 }
 
 /* Transform a normal (row vector) by a matrix: [px py pz] = v * m */
-void mat_vec_mul_t(float p[3], const float m[16], const float v[3])
+void mat_vec_mul_t(vec3 p, const mat4 m, const vec3 v)
 {
 	assert(p != v);
 	p[0] = v[0] * m[0] + v[1] * m[1] + v[2] * m[2];
@@ -259,40 +260,40 @@ void mat_vec_mul_t(float p[3], const float m[16], const float v[3])
 	p[2] = v[0] * m[8] + v[1] * m[9] + v[2] * m[10];
 }
 
-void vec_scale(float p[3], const float v[3], float s)
+void vec_scale(vec3 p, const vec3 v, float s)
 {
 	p[0] = v[0] * s;
 	p[1] = v[1] * s;
 	p[2] = v[2] * s;
 }
 
-void vec_add(float p[3], const float a[3], const float b[3])
+void vec_add(vec3 p, const vec3 a, const vec3 b)
 {
 	p[0] = a[0] + b[0];
 	p[1] = a[1] + b[1];
 	p[2] = a[2] + b[2];
 }
 
-void vec_sub(float p[3], const float a[3], const float b[3])
+void vec_sub(vec3 p, const vec3 a, const vec3 b)
 {
 	p[0] = a[0] - b[0];
 	p[1] = a[1] - b[1];
 	p[2] = a[2] - b[2];
 }
 
-void vec_lerp(float p[3], const float a[3], const float b[3], float t)
+void vec_lerp(vec3 p, const vec3 a, const vec3 b, float t)
 {
 	p[0] = a[0] + t * (b[0] - a[0]);
 	p[1] = a[1] + t * (b[1] - a[1]);
 	p[2] = a[2] + t * (b[2] - a[2]);
 }
 
-void vec_average(float p[3], const float a[3], const float b[3])
+void vec_average(vec3 p, const vec3 a, const vec3 b)
 {
 	vec_lerp(p, a, b, 0.5f);
 }
 
-void vec_cross(float p[3], const float a[3], const float b[3])
+void vec_cross(vec3 p, const vec3 a, const vec3 b)
 {
 	assert(p != a && p != b);
 	p[0] = a[1] * b[2] - a[2] * b[1];
@@ -300,12 +301,12 @@ void vec_cross(float p[3], const float a[3], const float b[3])
 	p[2] = a[0] * b[1] - a[1] * b[0];
 }
 
-float vec_dot(const float a[3], const float b[3])
+float vec_dot(const vec3 a, const vec3 b)
 {
 	return a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
 }
 
-float vec_dist2(const float a[3], const float b[3])
+float vec_dist2(const vec3 a, const vec3 b)
 {
 	float d0, d1, d2;
 	d0 = a[0] - b[0];
@@ -314,12 +315,12 @@ float vec_dist2(const float a[3], const float b[3])
 	return d0 * d0 + d1 * d1 + d2 * d2;
 }
 
-float vec_dist(const float a[3], const float b[3])
+float vec_dist(const vec3 a, const vec3 b)
 {
 	return sqrtf(vec_dist2(a, b));
 }
 
-void vec_normalize(float v[3])
+void vec_normalize(vec3 v)
 {
 	float d = sqrtf(v[0]*v[0] + v[1]*v[1] + v[2]*v[2]);
 	if (d >= 0.00001) {
@@ -333,22 +334,22 @@ void vec_normalize(float v[3])
 	}
 }
 
-void vec_face_normal(float n[3], const float *p0, const float *p1, const float *p2)
+void vec_face_normal(vec3 n, const float *p0, const float *p1, const float *p2)
 {
-	float u[3], v[3];
+	vec3 u, v;
 	vec_sub(u, p1, p0);
 	vec_sub(v, p2, p0);
 	vec_cross(n, u, v);
 }
 
-void vec_yup_to_zup(float v[3])
+void vec_yup_to_zup(vec3 v)
 {
 	float z = v[2];
 	v[2] = v[1];
 	v[1] = -z;
 }
 
-void quat_normalize(float q[4])
+void quat_normalize(vec4 q)
 {
 	float d = sqrtf(q[0]*q[0] + q[1]*q[1] + q[2]*q[2] + q[3]*q[3]);
 	if (d >= 0.00001) {
@@ -363,7 +364,7 @@ void quat_normalize(float q[4])
 	}
 }
 
-void quat_lerp(float p[4], const float a[4], const float b[4], float t)
+void quat_lerp(vec4 p, const vec4 a, const vec4 b, float t)
 {
 	p[0] = a[0] + t * (b[0] - a[0]);
 	p[1] = a[1] + t * (b[1] - a[1]);
@@ -371,23 +372,23 @@ void quat_lerp(float p[4], const float a[4], const float b[4], float t)
 	p[3] = a[3] + t * (b[3] - a[3]);
 }
 
-void quat_lerp_normalize(float p[4], const float a[4], const float b[4], float t)
+void quat_lerp_normalize(vec4 p, const vec4 a, const vec4 b, float t)
 {
 	quat_lerp(p, a, b, t);
 	quat_normalize(p);
 }
 
-void quat_lerp_neighbor_normalize(float p[4], float a[4], float b[4], float t)
+void quat_lerp_neighbor_normalize(vec4 p, vec4 a, vec4 b, float t)
 {
 	if (a[0]*b[0] + a[1]*b[1] + a[2]*b[2] + a[3]*b[3] < 0) {
-		float temp[4] = { -a[0], -a[1], -a[2], -a[3] };
+		vec4 temp = { -a[0], -a[1], -a[2], -a[3] };
 		quat_lerp(p, temp, b, t);
 	} else
 		quat_lerp(p, a, b, t);
 	quat_normalize(p);
 }
 
-void mat_from_quat_vec(float m[16], const float q[4], const float v[3])
+void mat_from_quat_vec(mat4 m, const vec4 q, const vec3 v)
 {
 	float x2 = q[0] + q[0];
 	float y2 = q[1] + q[1];

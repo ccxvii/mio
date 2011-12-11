@@ -39,16 +39,59 @@ int xstrlcat(char *dst, const char *src, int siz);
 
 /* shaders */
 
+typedef float vec2[2];
+typedef float vec3[3];
+typedef float vec4[4];
+typedef float mat4[16];
+
 enum {
 	ATT_POSITION,
 	ATT_TEXCOORD,
 	ATT_NORMAL,
-	ATT_COLOR,
+	ATT_TANGENT,
 	ATT_BLEND_INDEX,
 	ATT_BLEND_WEIGHT,
+	ATT_COLOR,
 };
 
+unsigned char *load_file(char *filename, int *lenp);
 int compile_shader(const char *vert_src, const char *frag_src);
+
+/* models */
+
+#define MAXBONE 80
+
+struct mesh {
+	unsigned int texture;
+	int first, count;
+};
+
+struct bone {
+	char name[32];
+	int parent;
+	mat4 inv_bind_matrix;
+};
+
+struct pose {
+	vec3 translate;
+	vec4 rotate;
+	vec3 scale;
+};
+
+struct model {
+	unsigned int vao, vbo, ibo;
+	int mesh_count, bone_count;
+	struct mesh *mesh;
+	struct bone *bone;
+	struct pose *bind_pose;
+};
+
+struct model *load_obj_model(char *filename);
+struct model *load_iqm_model(char *filename);
+struct model *load_iqm_model_from_memory(char *filename, unsigned char *data, int len);
+
+void draw_model(struct model *model, mat4 projection, mat4 model_view);
+
 
 /* texture loader based on stb_image */
 
@@ -60,7 +103,7 @@ int load_texture_from_memory(unsigned int texid, unsigned char *data, int len, i
 int load_texture(unsigned int texid, char *filename, int srgb);
 
 void icon_set_color(float r, float g, float b, float a);
-void icon_begin(float projection[16]);
+void icon_begin(mat4 projection);
 void icon_end(void);
 void icon_show(int texture,
 		float x0, float y0, float x1, float y1,
@@ -73,7 +116,7 @@ struct font *load_font_from_memory(unsigned char *data, int len);
 void free_font(struct font *font);
 float font_width(struct font *font, float size, char *str);
 
-void text_begin(float projection[16]);
+void text_begin(mat4 projection);
 void text_set_color(float r, float g, float b, float a);
 void text_set_font(struct font *font, float size);
 float text_show(float x, float y, char *text);
@@ -83,7 +126,7 @@ void text_end(void);
 /* drawing flat shaded primitives */
 
 void draw_set_color(float r, float g, float b, float a);
-void draw_begin(float projection[16], float model_view[16]);
+void draw_begin(mat4 projection, mat4 model_view);
 void draw_end(void);
 void draw_line(float x0, float y0, float z0, float x1, float y1, float z1);
 void draw_rect(float x0, float y0, float x1, float y1);
@@ -97,69 +140,48 @@ void draw_quad(float x0, float y0, float z0,
 
 /* console */
 
-
 void console_init(void);
 void console_update(int key, int mod);
 void console_print(const char *s);
 void console_printnl(const char *s);
-void console_draw(float projection[16], struct font *font, float size);
+void console_draw(mat4 projection, struct font *font, float size);
 
 /* 4x4 column major matrices, vectors and quaternions */
 
-void mat_identity(float m[16]);
-void mat_copy(float p[16], const float m[16]);
-void mat_mix(float m[16], const float a[16], const float b[16], float v);
-void mat_mul(float m[16], const float a[16], const float b[16]);
-void mat_mul44(float m[16], const float a[16], const float b[16]);
-void mat_frustum(float m[16], float left, float right, float bottom, float top, float n, float f);
-void mat_perspective(float m[16], float fov, float aspect, float near, float far);
-void mat_ortho(float m[16], float left, float right, float bottom, float top, float n, float f);
-void mat_scale(float m[16], float x, float y, float z);
-void mat_rotate_x(float m[16], float angle);
-void mat_rotate_y(float m[16], float angle);
-void mat_rotate_z(float m[16], float angle);
-void mat_translate(float m[16], float x, float y, float z);
-void mat_transpose(float to[16], const float from[16]);
-void mat_invert(float out[16], const float m[16]);
+void mat_identity(mat4 m);
+void mat_copy(mat4 p, const mat4 m);
+void mat_mix(mat4 m, const mat4 a, const mat4 b, float v);
+void mat_mul(mat4 m, const mat4 a, const mat4 b);
+void mat_mul44(mat4 m, const mat4 a, const mat4 b);
+void mat_frustum(mat4 m, float left, float right, float bottom, float top, float n, float f);
+void mat_perspective(mat4 m, float fov, float aspect, float near, float far);
+void mat_ortho(mat4 m, float left, float right, float bottom, float top, float n, float f);
+void mat_scale(mat4 m, float x, float y, float z);
+void mat_rotate_x(mat4 m, float angle);
+void mat_rotate_y(mat4 m, float angle);
+void mat_rotate_z(mat4 m, float angle);
+void mat_translate(mat4 m, float x, float y, float z);
+void mat_transpose(mat4 to, const mat4 from);
+void mat_invert(mat4 out, const mat4 m);
 
-void mat_vec_mul(float p[3], const float m[16], const float v[3]);
-void mat_vec_mul_n(float p[3], const float m[16], const float v[3]);
-void mat_vec_mul_t(float p[3], const float m[16], const float v[3]);
-void vec_scale(float p[3], const float v[3], float s);
-void vec_add(float p[3], const float a[3], const float b[3]);
-void vec_sub(float p[3], const float a[3], const float b[3]);
-void vec_lerp(float p[3], const float a[3], const float b[3], float t);
-void vec_average(float p[3], const float a[3], const float b[3]);
-void vec_cross(float p[3], const float a[3], const float b[3]);
-float vec_dot(const float a[3], const float b[3]);
-float vec_dist2(const float a[3], const float b[3]);
-float vec_dist(const float a[3], const float b[3]);
-void vec_normalize(float v[3]);
-void vec_face_normal(float n[3], const float *p0, const float *p1, const float *p2);
-void vec_yup_to_zup(float v[3]);
+void mat_vec_mul(vec3 p, const mat4 m, const vec3 v);
+void mat_vec_mul_n(vec3 p, const mat4 m, const vec3 v);
+void mat_vec_mul_t(vec3 p, const mat4 m, const vec3 v);
+void vec_scale(vec3 p, const vec3 v, float s);
+void vec_add(vec3 p, const vec3 a, const vec3 b);
+void vec_sub(vec3 p, const vec3 a, const vec3 b);
+void vec_lerp(vec3 p, const vec3 a, const vec3 b, float t);
+void vec_average(vec3 p, const vec3 a, const vec3 b);
+void vec_cross(vec3 p, const vec3 a, const vec3 b);
+float vec_dot(const vec3 a, const vec3 b);
+float vec_dist2(const vec3 a, const vec3 b);
+float vec_dist(const vec3 a, const vec3 b);
+void vec_normalize(vec3 v);
+void vec_face_normal(vec3 n, const float *p0, const float *p1, const float *p2);
+void vec_yup_to_zup(vec3 v);
 
-void quat_normalize(float q[4]);
-void quat_lerp(float p[4], const float a[4], const float b[4], float t);
-void quat_lerp_normalize(float p[4], const float a[4], const float b[4], float t);
-void quat_lerp_neighbor_normalize(float p[4], float a[4], float b[4], float t);
-void mat_from_quat_vec(float m[16], const float q[4], const float v[3]);
-
-/* 3d model loading: Wavefront OBJ and Inter-Quake Model */
-
-struct model *load_obj_model(char *filename);
-void draw_obj_model(struct model *model);
-float measure_obj_radius(struct model *model);
-void draw_obj_bbox(struct model *model);
-
-struct model *load_iqm_model(char *filename);
-void draw_iqm_model(struct model *model);
-void draw_iqm_bones(struct model *model);
-void animate_iqm_model(struct model *model, int anim, int frame, float v);
-float measure_iqm_radius(struct model *model);
-char *get_iqm_animation_name(struct model *model, int anim);
-
-/* Console */
-
-void init_console(char *fontname, float fontsize);
-void update_console(int key, int mod);
-void draw_console(int screenw, int screenh);
+void quat_normalize(vec4 q);
+void quat_lerp(vec4 p, const vec4 a, const vec4 b, float t);
+void quat_lerp_normalize(vec4 p, const vec4 a, const vec4 b, float t);
+void quat_lerp_neighbor_normalize(vec4 p, vec4 a, vec4 b, float t);
+void mat_from_quat_vec(mat4 m, const vec4 q, const vec3 v);

@@ -66,6 +66,8 @@ void draw_begin(float projection[16], float model_view[16])
 		glBindBuffer(GL_ARRAY_BUFFER, 0);
 	}
 
+	glEnable(GL_BLEND);
+
 	glUseProgram(draw_prog);
 	glUniformMatrix4fv(draw_uni_projection, 1, 0, projection);
 	glUniformMatrix4fv(draw_uni_model_view, 1, 0, model_view);
@@ -73,7 +75,7 @@ void draw_begin(float projection[16], float model_view[16])
 	glBindBuffer(GL_ARRAY_BUFFER, draw_vbo);
 	glEnableVertexAttribArray(ATT_POSITION);
 	glEnableVertexAttribArray(ATT_COLOR);
-	glVertexAttribPointer(ATT_POSITION, 2, GL_FLOAT, 0, sizeof draw_buf[0], (void*)0);
+	glVertexAttribPointer(ATT_POSITION, 3, GL_FLOAT, 0, sizeof draw_buf[0], (void*)0);
 	glVertexAttribPointer(ATT_COLOR, 4, GL_FLOAT, 0, sizeof draw_buf[0], (void*)12);
 }
 
@@ -94,6 +96,8 @@ void draw_end(void)
 	glDisableVertexAttribArray(ATT_COLOR);
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 	glUseProgram(0);
+
+	glDisable(GL_BLEND);
 }
 
 static void draw_vertex(float x, float y, float z)

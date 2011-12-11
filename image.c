@@ -6,25 +6,6 @@
 
 #define MAX(a,b) (a>b?a:b)
 
-unsigned char *load_file(char *filename, int *lenp)
-{
-	unsigned char *data;
-	int len;
-	FILE *file = fopen(filename, "rb");
-	if (!file) {
-		fprintf(stderr, "error: cannot open '%s'\n", filename);
-		return NULL;
-	}
-	fseek(file, 0, 2);
-	len = ftell(file);
-	fseek(file, 0, 0);
-	data = malloc(len);
-	fread(data, 1, len, file);
-	fclose(file);
-	if (lenp) *lenp = len;
-	return data;
-}
-
 int make_texture(unsigned int texid, unsigned char *data, int w, int h, int n, int srgb)
 {
 	int intfmt, fmt;
@@ -40,7 +21,7 @@ int make_texture(unsigned int texid, unsigned char *data, int w, int h, int n, i
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
 
-	if (n == 1) { intfmt = fmt = GL_ALPHA; }
+	if (n == 1) { intfmt = fmt = GL_RED; }
 	if (n == 2) { intfmt = fmt = GL_RG; }
 	if (n == 3) { intfmt = GL_SRGB; fmt = GL_RGB; }
 	if (n == 4) { intfmt = GL_SRGB_ALPHA; fmt = GL_RGBA; }
@@ -245,6 +226,8 @@ void icon_begin(float projection[16])
 		glBindBuffer(GL_ARRAY_BUFFER, 0);
 	}
 
+	glEnable(GL_BLEND);
+
 	glUseProgram(icon_prog);
 	glUniformMatrix4fv(icon_uni_projection, 1, 0, projection);
 
@@ -264,6 +247,8 @@ void icon_end(void)
 	glDisableVertexAttribArray(ATT_COLOR);
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 	glUseProgram(0);
+
+	glDisable(GL_BLEND);
 }
 
 static void add_vertex(float x, float y, float s, float t, float *color)
