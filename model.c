@@ -96,6 +96,20 @@ static void die(char *msg)
 	exit(1);
 }
 
+static int use_vertex_array(int format)
+{
+		switch (format) {
+		case IQM_POSITION: return 1;
+		case IQM_TEXCOORD: return 1;
+		case IQM_NORMAL: return 1;
+		case IQM_TANGENT: return 0;
+		case IQM_BLENDINDEXES: return 1;
+		case IQM_BLENDWEIGHTS: return 1;
+		case IQM_COLOR: return 0;
+		}
+		return 0;
+}
+
 static int size_of_format(int format)
 {
 	switch (format) {
@@ -128,6 +142,31 @@ static int enum_of_format(int format)
 	return 0;
 }
 
+static void flip_normals(float *p, int count)
+{
+#ifdef FLIP
+	count = count * 3;
+	while (count--) { *p = -*p; p++; }
+#endif
+}
+
+static void flip_triangles(uint16_t *dst, uint32_t *src, int count)
+{
+	while (count--) {
+#ifdef FLIP
+		dst[0] = src[0];
+		dst[1] = src[2];
+		dst[2] = src[1];
+#else
+		dst[0] = src[0];
+		dst[1] = src[1];
+		dst[2] = src[2];
+#endif
+		dst += 3;
+		src += 3;
+	}
+}
+
 static int load_iqm_material(char *dir, char *name)
 {
 	char buf[256], *p;
@@ -143,13 +182,13 @@ struct model *load_iqm_model_from_memory(char *filename, unsigned char *data, in
 	struct iqm_header *header = (void*) data;
 	char *text = (void*) &data[header->ofs_text];
 	struct iqm_mesh *meshes = (void*) &data[header->ofs_meshes];
-	struct iqm_vertexarray *arrays = (void*) &data[header->ofs_vertexarrays];
+	struct iqm_vertexarray *vertexarrays = (void*) &data[header->ofs_vertexarrays];
 	struct iqm_joint *joints = (void*) &data[header->ofs_joints];
 	// struct iqm_pose *poses = (void*) &data[header->ofs_poses];
 	int i, total;
-	char dir[256];
 	char *p;
 	mat4 local_matrix, world_matrix[MAXBONE];
+	char dir[256];
 
 	strlcpy(dir, filename, sizeof dir);
 	p = strrchr(dir, '/');
@@ -162,6 +201,8 @@ struct model *load_iqm_model_from_memory(char *filename, unsigned char *data, in
 		die("bad iqm version");
 	if (header->filesize > len)
 		die("bad iqm file size");
+	if (header->num_vertexes > 0xffff)
+		die("too many vertices in iqm");
 	if (header->num_joints > MAXBONE)
 		die("too many joints in iqm");
 	if (header->num_joints != header->num_poses)
@@ -190,10 +231,10 @@ struct model *load_iqm_model_from_memory(char *filename, unsigned char *data, in
 		memcpy(pose->rotate, joints[i].rotate, 4*4);
 		memcpy(pose->scale, joints[i].scale, 3*4);
 		if (bone->parent >= 0) {
-			mat_from_quat_vec(local_matrix, pose->rotate, pose->translate);
+			mat_from_pose(local_matrix, pose->translate, pose->rotate, pose->scale);
 			mat_mul(world_matrix[i], world_matrix[bone->parent], local_matrix);
 		} else {
-			mat_from_quat_vec(world_matrix[i], pose->rotate, pose->translate);
+			mat_from_pose(world_matrix[i], pose->translate, pose->rotate, pose->scale);
 		}
 		mat_invert(bone->inv_bind_matrix, world_matrix[i]);
 	}
@@ -208,23 +249,34 @@ struct model *load_iqm_model_from_memory(char *filename, unsigned char *data, in
 
 	total = 0;
 	for (i = 0; i < header->num_vertexarrays; i++) {
-		total += size_of_format(arrays[i].format) * arrays[i].size * header->num_vertexes;
+		struct iqm_vertexarray *va = vertexarrays + i;
+		if (use_vertex_array(va->type)) {
+				total += size_of_format(va->format) * va->size * header->num_vertexes;
+		}
 	}
 
 	glBufferData(GL_ARRAY_BUFFER, total, NULL, GL_STATIC_DRAW);
 
 	total = 0;
 	for (i = 0; i < header->num_vertexarrays; i++) {
-		int size = size_of_format(arrays[i].format) * arrays[i].size * header->num_vertexes;
-		int format = enum_of_format(arrays[i].format);
-		int normalize = arrays[i].type != IQM_BLENDINDEXES;
-		glBufferSubData(GL_ARRAY_BUFFER, total, size, &data[arrays[i].offset]);
-		glEnableVertexAttribArray(arrays[i].type);
-		glVertexAttribPointer(arrays[i].type, arrays[i].size, format, normalize, 0, (void*)total);
-		total += size;
+		struct iqm_vertexarray *va = vertexarrays + i;
+		if (use_vertex_array(va->type)) {
+				int current = size_of_format(va->format) * va->size * header->num_vertexes;
+				int format = enum_of_format(va->format);
+				int normalize = va->type != IQM_BLENDINDEXES;
+				if (va->type == IQM_NORMAL && va->format == IQM_FLOAT && va->size == 3)
+						flip_normals((float*)&data[va->offset], header->num_vertexes);
+				glBufferSubData(GL_ARRAY_BUFFER, total, current, &data[va->offset]);
+				glEnableVertexAttribArray(va->type);
+				glVertexAttribPointer(va->type, va->size, format, normalize, 0, (void*)total);
+				total += current;
+		}
 	}
 
-	glBufferData(GL_ELEMENT_ARRAY_BUFFER, header->num_triangles * 3 * 4, &data[header->ofs_triangles], GL_STATIC_DRAW);
+	uint16_t *triangles = malloc(header->num_triangles * 3*2);
+	flip_triangles(triangles, (void*)&data[header->ofs_triangles], header->num_triangles);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, header->num_triangles * 3*2, triangles, GL_STATIC_DRAW);
+	free(triangles);
 
 	glBindVertexArray(0);
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
@@ -251,10 +303,10 @@ void pose_model(mat4 *out_matrix, struct bone *bone, struct pose *pose, int coun
 	mat4 local_matrix, world_matrix[MAXBONE];
 	for (i = 0; i < count; i++) {
 		if (bone[i].parent >= 0) {
-			mat_from_quat_vec(local_matrix, pose[i].rotate, pose[i].translate);
+			mat_from_pose(local_matrix, pose[i].translate, pose[i].rotate, pose[i].scale);
 			mat_mul(world_matrix[i], world_matrix[bone->parent], local_matrix);
 		} else {
-			mat_from_quat_vec(world_matrix[i], pose[i].rotate, pose[i].translate);
+			mat_from_pose(world_matrix[i], pose[i].translate, pose[i].rotate, pose[i].scale);
 		}
 		mat_mul(out_matrix[i], world_matrix[i], bone[i].inv_bind_matrix);
 	}
@@ -357,7 +409,7 @@ void draw_model(struct model *model, mat4 projection, mat4 model_view)
 
 	for (i = 0; i < model->mesh_count; i++) {
 		glBindTexture(GL_TEXTURE_2D, model->mesh[i].texture);
-		glDrawElements(GL_TRIANGLES, model->mesh[i].count, GL_UNSIGNED_INT, (void*)(model->mesh[i].first * 4));
+		glDrawElements(GL_TRIANGLES, model->mesh[i].count, GL_UNSIGNED_SHORT, (void*)(model->mesh[i].first * 2));
 	}
 
 	glBindTexture(GL_TEXTURE_2D, 0);
@@ -393,7 +445,7 @@ void draw_model_with_pose(struct model *model, mat4 projection, mat4 model_view,
 
 	for (i = 0; i < model->mesh_count; i++) {
 		glBindTexture(GL_TEXTURE_2D, model->mesh[i].texture);
-		glDrawElements(GL_TRIANGLES, model->mesh[i].count, GL_UNSIGNED_INT, (void*)(model->mesh[i].first * 4));
+		glDrawElements(GL_TRIANGLES, model->mesh[i].count, GL_UNSIGNED_SHORT, (void*)(model->mesh[i].first * 2));
 	}
 
 	glBindTexture(GL_TEXTURE_2D, 0);
@@ -487,10 +539,10 @@ animate_iqm_model(struct model *model, int anim, int frame, float t)
 		quat_lerp_neighbor_normalize(q, pose0[i].rotate, pose1[i].rotate, t);
 		vec_lerp(v, pose0[i].translate, pose1[i].translate, t);
 		if (parent >= 0) {
-			mat_from_quat_vec(m, q, v);
+			mat_from_pose(m, q, v);
 			mat_mul(model->outbone[i], model->outbone[parent], m);
 		} else {
-			mat_from_quat_vec(model->outbone[i], q, v);
+			mat_from_pose(model->outbone[i], q, v);
 		}
 		mat_mul(model->outskin[i], model->outbone[i], model->bones[i].inv_bind_matrix);
 	}

@@ -177,11 +177,13 @@ float vec_dot(const vec3 a, const vec3 b);
 float vec_dist2(const vec3 a, const vec3 b);
 float vec_dist(const vec3 a, const vec3 b);
 void vec_normalize(vec3 v);
-void vec_face_normal(vec3 n, const float *p0, const float *p1, const float *p2);
+void vec_face_normal(vec3 n, const vec3 p0, const vec3 p1, const vec3 p2);
+void vec_negate(vec3 p);
 void vec_yup_to_zup(vec3 v);
 
 void quat_normalize(vec4 q);
 void quat_lerp(vec4 p, const vec4 a, const vec4 b, float t);
 void quat_lerp_normalize(vec4 p, const vec4 a, const vec4 b, float t);
-void quat_lerp_neighbor_normalize(vec4 p, vec4 a, vec4 b, float t);
-void mat_from_quat_vec(mat4 m, const vec4 q, const vec3 v);
+void quat_lerp_neighbor_normalize(vec4 p, const vec4 a, const vec4 b, float t);
+void mat_from_quat(mat4 m, const vec4 q);
+void mat_from_pose(mat4 m, const vec3 t, const vec4 q, const vec3 s);

@@ -334,12 +334,19 @@ void vec_normalize(vec3 v)
 	}
 }
 
-void vec_face_normal(vec3 n, const float *p0, const float *p1, const float *p2)
+void vec_face_normal(vec3 n, const vec3 p0, const vec3 p1, const vec3 p2)
 {
 	vec3 u, v;
 	vec_sub(u, p1, p0);
 	vec_sub(v, p2, p0);
 	vec_cross(n, u, v);
+}
+
+void vec_negate(vec3 p)
+{
+	p[0] = -p[0];
+	p[1] = -p[1];
+	p[2] = -p[2];
 }
 
 void vec_yup_to_zup(vec3 v)
@@ -378,7 +385,7 @@ void quat_lerp_normalize(vec4 p, const vec4 a, const vec4 b, float t)
 	quat_normalize(p);
 }
 
-void quat_lerp_neighbor_normalize(vec4 p, vec4 a, vec4 b, float t)
+void quat_lerp_neighbor_normalize(vec4 p, const vec4 a, const vec4 b, float t)
 {
 	if (a[0]*b[0] + a[1]*b[1] + a[2]*b[2] + a[3]*b[3] < 0) {
 		vec4 temp = { -a[0], -a[1], -a[2], -a[3] };
@@ -388,7 +395,7 @@ void quat_lerp_neighbor_normalize(vec4 p, vec4 a, vec4 b, float t)
 	quat_normalize(p);
 }
 
-void mat_from_quat_vec(mat4 m, const vec4 q, const vec3 v)
+void mat_from_quat(mat4 m, const vec4 q)
 {
 	float x2 = q[0] + q[0];
 	float y2 = q[1] + q[1];
@@ -420,9 +427,55 @@ void mat_from_quat_vec(mat4 m, const vec4 q, const vec3 v)
 		M(2,0) = xz2 - wy2;
 	}
 
-	M(0,3) = v[0];
-	M(1,3) = v[1];
-	M(2,3) = v[2];
+	M(0,3) = 0;
+	M(1,3) = 0;
+	M(2,3) = 0;
+
+	M(3,0) = 0;
+	M(3,1) = 0;
+	M(3,2) = 0;
+	M(3,3) = 1;
+}
+
+void mat_from_pose(mat4 m, const vec3 t, const vec4 q, const vec3 s)
+{
+	float x2 = q[0] + q[0];
+	float y2 = q[1] + q[1];
+	float z2 = q[2] + q[2];
+	{
+		float xx2 = q[0] * x2;
+		float yy2 = q[1] * y2;
+		float zz2 = q[2] * z2;
+		M(0,0) = 1 - yy2 - zz2;
+		M(1,1) = 1 - xx2 - zz2;
+		M(2,2) = 1 - xx2 - yy2;
+	}
+	{
+		float yz2 = q[1] * z2;
+		float wx2 = q[3] * x2;
+		M(2,1) = yz2 + wx2;
+		M(1,2) = yz2 - wx2;
+	}
+	{
+		float xy2 = q[0] * y2;
+		float wz2 = q[3] * z2;
+		M(1,0) = xy2 + wz2;
+		M(0,1) = xy2 - wz2;
+	}
+	{
+		float xz2 = q[0] * z2;
+		float wy2 = q[3] * y2;
+		M(0,2) = xz2 + wy2;
+		M(2,0) = xz2 - wy2;
+	}
+
+	m[0] *= s[0]; m[4] *= s[1]; m[8] *= s[2];
+	m[1] *= s[0]; m[5] *= s[1]; m[9] *= s[2];
+	m[2] *= s[0]; m[6] *= s[1]; m[10] *= s[2];
+
+	M(0,3) = t[0];
+	M(1,3) = t[1];
+	M(2,3) = t[2];
 
 	M(3,0) = 0;
 	M(3,1) = 0;
