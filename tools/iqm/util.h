@@ -945,6 +945,21 @@ struct Matrix3x3
     void transpose() { transpose(Matrix3x3(*this)); }
 
     Vec3 transform(const Vec3 &o) const { return Vec3(a.dot(o), b.dot(o), c.dot(o)); }
+
+    float det()
+    {
+	// | a b c |
+	// | d e f | = aei + bfg + cdh - ceg - bdi - afh
+	// | g h i |
+	return
+		a.x * b.y * c.z +
+		a.y * b.z * c.x +
+		a.z * b.x * c.y -
+
+		a.z * b.y * c.x -
+		a.y * b.x * c.z -
+		a.x * b.z * c.y;
+    }
 };
 
 struct Matrix3x4

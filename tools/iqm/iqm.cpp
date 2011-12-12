@@ -1120,6 +1120,9 @@ bool loadiqe(const char *filename)
                     m.b = parseattribs3(c);
                     m.c = parseattribs3(c);
                     Vec3 mscale(Vec3(m.a.x, m.b.x, m.c.x).magnitude(), Vec3(m.a.y, m.b.y, m.c.y).magnitude(), Vec3(m.a.z, m.b.z, m.c.z).magnitude());
+		    // check det for negative scaling factors!
+		    if (m.det() < 0)
+			mscale *= -1;
                     m.a /= mscale;
                     m.b /= mscale;
                     m.c /= mscale;
