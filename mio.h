@@ -5,7 +5,14 @@
 #include <assert.h>
 #include <errno.h>
 
+#ifdef __APPLE__
+#include <OpenGL/gl.h>
+#define glGenVertexArrays glGenVertexArraysAPPLE
+#define glBindVertexArray glBindVertexArrayAPPLE
+#define GL_FRAMEBUFFER_SRGB 0x8DB9
+#else
 #include <GL3/gl3w.h>
+#endif
 
 #define GL_TEXTURE_MAX_ANISOTROPY_EXT 0x84FE
 #define GL_COMPRESSED_RGB_S3TC_DXT1_EXT 0x83F0

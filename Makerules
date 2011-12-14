@@ -18,6 +18,8 @@ SYS_OBJ := sys_x11.o
 endif
 
 ifeq "$(OS)" "Darwin"
+CFLAGS += -m32
+LDFLAGS += -m32
 LIBS += -framework OpenGL -framework Cocoa
 SYS_OBJ := sys_mac.o
 endif

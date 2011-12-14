@@ -1,5 +1,3 @@
-#include <GL3/gl3.h>
-#include <GL3/gl3w.h>
 #include <Cocoa/Cocoa.h>
 
 #include "sys_hook.h"
@@ -52,12 +50,6 @@ static SysView *view;
 	int swap = 1;
 
 	[[self openGLContext] setValues: &swap forParameter: NSOpenGLCPSwapInterval];
-
-	int error = gl3wInit();
-	if (error) {
-		fprintf(stderr, "error: cannot init gl3w\n");
-		exit(1);
-	}
 
 	sys_hook_init(g_argc, g_argv);
 }
