@@ -17,9 +17,11 @@ struct intarray {
 static struct {
 	char name[MAXNAME];
 	int texture;
+	int repeat;
 } material[MAXMESH];
 
 static int material_count = 0;
+static int material_current = 0;
 
 // temp buffers are global so we can reuse them between models
 static struct floatarray position = { 0, 0, NULL };
@@ -89,6 +91,8 @@ static int add_vertex(int pi, int ti, int ni)
 	v[5] = normal.data[ni * 3 + 0];
 	v[6] = normal.data[ni * 3 + 1];
 	v[7] = normal.data[ni * 3 + 2];
+	if (v[3] < 0 || v[3] > 1 || v[4] < 0 || v[4] > 1)
+		material[material_current].repeat = 1;
 	return add_vertex_imp(v);
 }
 
@@ -130,6 +134,7 @@ static void load_material(char *dirname, char *mtllib)
 			if (s) {
 				strlcpy(material[material_count].name, s, MAXNAME);
 				material[material_count].texture = 0;
+				material[material_count].repeat = 0;
 				material_count++;
 			}
 		} else if (!strcmp(s, "map_Kd")) {
@@ -146,12 +151,16 @@ static void load_material(char *dirname, char *mtllib)
 	fclose(fp);
 }
 
-int find_material(char *matname)
+int set_material(char *matname)
 {
 	int i;
-	for (i = 0; i < material_count; i++)
-		if (!strcmp(material[i].name, matname))
+	for (i = 0; i < material_count; i++) {
+		if (!strcmp(material[i].name, matname)) {
+			material_current = i;
 			return material[i].texture;
+		}
+	}
+	material_current = i;
 	return 0;
 }
 
@@ -247,7 +256,7 @@ struct model *load_obj_model(char *filename)
 					mesh_count--;
 			}
 			mesh = &meshbuf[mesh_count++];
-			mesh->texture = find_material(s);
+			mesh->texture = set_material(s);
 			mesh->first = element.len;
 			mesh->count = 0;
 		}
@@ -270,6 +279,18 @@ struct model *load_obj_model(char *filename)
 	fclose(fp);
 
 	printf("\t%d meshes; %d vertices; %d triangles\n", mesh_count, vertex.len/8, element.len/3);
+
+	for (i = 0; i < material_count; i++) {
+		glBindTexture(GL_TEXTURE_2D, material[i].texture);
+		if (material[i].repeat) {
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+		} else {
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+		}
+	}
+	glBindTexture(GL_TEXTURE_2D, 0);
 
 	model = malloc(sizeof *model);
 	memset(model, 0, sizeof *model);
