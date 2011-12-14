@@ -21,7 +21,7 @@ LINK_CMD = $(QUIET_LINK) $(CC) -o $@ $^ $(LDFLAGS) $(LIBS)
 HDRS := $(wildcard *.h)
 OBJS := $(addprefix $(OUT)/, \
 	$(SYS_OBJ) gl3w.o rune.o strlcpy.o math.o \
-	image.o shader.o model.o \
+	image.o shader.o model.o model_obj.o \
 	font.o draw.o console.o )
 
 A_EXE := a.exe
