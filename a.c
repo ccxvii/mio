@@ -8,19 +8,22 @@ static int mousex, mousey, mouseleft = 0, mousemiddle = 0, mouseright = 0;
 static struct font *droid_sans;
 static struct font *droid_sans_mono;
 
-static struct model *model;
-static struct animation *animation;
 static int icon;
 
-static float cam_dist = 4;
-static float cam_yaw = 0;
-static float cam_pitch = 0;
+static struct model *model;
+static struct animation *animation;
+
+mat4 matbuf[MAXBONE];
+struct pose posebuf[MAXBONE];
+
+static float cam_dist = 10;
+static float cam_yaw = -5;
+static float cam_pitch = -20;
 
 void togglefullscreen(void)
 {
 	static int oldw = 100, oldh = 100, oldx = 0, oldy = 0;
 	static int isfullscreen = 0;
-	printf("fullscreen %d\n", isfullscreen);
 	if (!isfullscreen) {
 		oldw = glutGet(GLUT_WINDOW_WIDTH);
 		oldh = glutGet(GLUT_WINDOW_HEIGHT);
@@ -68,11 +71,10 @@ static void motion(int x, int y)
 static void keyboard(unsigned char key, int x, int y)
 {
 	int mod = glutGetModifiers();
-	printf("keyboard mod=%x key=%d\n", mod, key);
 	if ((mod & GLUT_ACTIVE_ALT) && key == '\r')
 		togglefullscreen();
-//	else if ((mod & GLUT_ACTIVE_ALT) && key == GLUT_KEY_F4)
-//		exit(0);
+	else if ((mod & GLUT_ACTIVE_ALT) && key == GLUT_KEY_F4)
+		exit(0);
 	else if (key == 27)
 		exit(0);
 	else
@@ -82,7 +84,7 @@ static void keyboard(unsigned char key, int x, int y)
 
 static void special(int key, int x, int y)
 {
-	//keyboard(key, x, y);
+	keyboard(key, x, y);
 }
 
 static void reshape(int w, int h)
@@ -114,26 +116,23 @@ static void display(void)
 	glEnable(GL_DEPTH_TEST);
 
 	draw_begin(projection, model_view);
-	draw_set_color(1, 1, 1, 0.5f);
+	draw_set_color(0.5, 0.5, 0.5, 1);
 	for (i = -4; i <= 4; i++) {
 		draw_line(i, -4, 0, i, 4, 0);
 		draw_line(-4, i, 0, 4, i, 0);
 	}
 	draw_end();
 
-	mat4 matbuf[MAXBONE];
-	struct pose posebuf[MAXBONE];
-
 	if (animation) {
 		static int f = 0;
+		memcpy(posebuf, model->bind_pose, model->bone_count * sizeof(struct pose));
 		extract_pose(posebuf, animation, f++ % 100);
+//		apply_pose2(matbuf, model->bone, model->bind_pose, model->bone_count);
 		apply_pose2(matbuf, model->bone, posebuf, model->bone_count);
 		draw_model_with_pose(model, projection, model_view, matbuf);
 	} else {
-		//draw_model(model, projection, model_view);
-	}
 		draw_model(model, projection, model_view);
-
+	}
 
 	glDisable(GL_DEPTH_TEST);
 
@@ -141,11 +140,11 @@ static void display(void)
 		draw_begin(projection, model_view);
 
 		apply_pose(matbuf, model->bone, model->bind_pose, model->bone_count);
-		draw_set_color(1, 0, 0, 0.1);
+		draw_set_color(1, 0, 0, 0.4);
 		draw_skeleton(model->bone, matbuf, model->bone_count);
 
 		apply_pose(matbuf, model->bone, posebuf, model->bone_count);
-		draw_set_color(0, 1, 0, 0.1);
+		draw_set_color(0, 1, 0, 0.4);
 		draw_skeleton(model->bone, matbuf, model->bone_count);
 
 		draw_end();
@@ -162,23 +161,13 @@ static void display(void)
 		strcpy(buf, ctime(&now));
 		buf[strlen(buf)-1] = 0; // zap newline.
 		text_set_color(1, 1, 1, 1);
-		text_show(8, screenh-104-8, "Hello, world!");
-		text_set_color(0.75, 0.75, 0.75, 1);
-		text_show(8, screenh-84-8, "Hello, world!");
-		text_set_color(0.5, 0.5, 0.5, 1);
-		text_show(8, screenh-64-8, "Hello, world!");
-		text_set_color(0.25, 0.25, 0.25, 1);
-		text_show(8, screenh-44-8, "Hello, world!");
-		text_set_color(0, 0, 0, 1);
-		text_show(8, screenh-24-8, "Hello, world!");
-		text_set_color(1, 1, 1, 1);
-		text_show(8, screenh-4-8, buf);
+		text_show(8, screenh-12, buf);
 	}
 	text_end();
 
 	icon_begin(projection);
 	icon_set_color(1, 1, 1, 1);
-	icon_show(icon, screenw - 256, screenh - 256,  screenw, screenh, 0, 0, 1, 1);
+	icon_show(icon, screenw - 128, screenh - 128,  screenw, screenh, 0, 0, 1, 1);
 	icon_end();
 
 	console_draw(projection, droid_sans_mono, 15);
@@ -188,15 +177,22 @@ static void display(void)
 
 int main(int argc, char **argv)
 {
+	int i;
+
 	glutInit(&argc, argv);
-	// glutInitWindowPosition(50, 50+24);
-	// glutInitWindowSize(screenw, screenh);
+	glutInitWindowPosition(50, 50+24);
+	glutInitWindowSize(screenw, screenh);
 	glutInitDisplayMode(GLUT_RGB | GLUT_DOUBLE | GLUT_DEPTH);
-	glutCreateWindow("MIO");
+	glutCreateWindow("Mio");
 
 	gl3wInit();
 	fprintf(stderr, "OpenGL %s; ", glGetString(GL_VERSION));
 	fprintf(stderr, "GLSL %s\n", glGetString(GL_SHADING_LANGUAGE_VERSION));
+
+	glGetIntegerv(GL_MAX_VERTEX_UNIFORM_COMPONENTS, &i);
+	fprintf(stderr, "GL_MAX_VERTEX_UNIFORM_COMPONENTS = %d\n", i);
+	glGetIntegerv(GL_MAX_FRAGMENT_UNIFORM_COMPONENTS, &i);
+	fprintf(stderr, "GL_MAX_FRAGMENT_UNIFORM_COMPONENTS = %d\n", i);
 
 	glutReshapeFunc(reshape);
 	glutDisplayFunc(display);
@@ -235,4 +231,3 @@ int main(int argc, char **argv)
 	glutMainLoop();
 	return 0;
 }
-

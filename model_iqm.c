@@ -3,7 +3,7 @@
 
 // Simple loader assumes little-endian and 4-byte ints!
 
-#define noFLIP
+#define FLIP
 
 static void die(char *msg)
 {
