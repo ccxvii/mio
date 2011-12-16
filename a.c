@@ -5,7 +5,8 @@
 static struct font *droid_sans;
 static struct font *droid_sans_mono;
 
-static struct model *exhibit;
+static struct model *model;
+static struct animation *animation;
 static int icon;
 
 static float cam_dist = 4;
@@ -23,7 +24,7 @@ void sys_hook_init(int argc, char **argv)
 
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 	glDepthFunc(GL_LEQUAL);
-	glEnable(GL_CULL_FACE);
+	//glEnable(GL_CULL_FACE);
 	glEnable(GL_FRAMEBUFFER_SRGB);
 
 	droid_sans = load_font("data/fonts/DroidSans.ttf");
@@ -35,7 +36,14 @@ void sys_hook_init(int argc, char **argv)
 		exit(1);
 
 	icon = load_texture(0, "data/microveget_jungle.png", 1);
-	exhibit = load_iqm_model("data/tr_mo_c03_idle1.iqm");
+
+	if (argc > 1) {
+		model = load_iqm_model(argv[1]);
+		animation = load_iqm_animation(argv[1]);
+	} else {
+		model = load_obj_model("data/fo_s2_spiketree.obj");
+		animation = NULL;
+	}
 
 	console_init();
 
@@ -128,8 +136,6 @@ void sys_hook_draw(int width, int height)
 
 	glEnable(GL_DEPTH_TEST);
 
-	draw_model(exhibit, projection, model_view);
-
 	draw_begin(projection, model_view);
 	draw_set_color(1, 1, 1, 0.5f);
 	for (i = -4; i <= 4; i++) {
@@ -138,7 +144,34 @@ void sys_hook_draw(int width, int height)
 	}
 	draw_end();
 
+	mat4 matbuf[MAXBONE];
+	struct pose posebuf[MAXBONE];
+
+	if (animation) {
+		static int f = 0;
+		extract_pose(posebuf, animation, f++ % 100);
+		apply_pose2(matbuf, model->bone, posebuf, model->bone_count);
+		draw_model_with_pose(model, projection, model_view, matbuf);
+	} else {
+		draw_model(model, projection, model_view);
+	}
+
+
 	glDisable(GL_DEPTH_TEST);
+
+	if (animation) {
+		draw_begin(projection, model_view);
+
+		apply_pose(matbuf, model->bone, model->bind_pose, model->bone_count);
+		draw_set_color(1, 0, 0, 0.1);
+		draw_skeleton(model->bone, matbuf, model->bone_count);
+
+		apply_pose(matbuf, model->bone, posebuf, model->bone_count);
+		draw_set_color(0, 1, 0, 0.1);
+		draw_skeleton(model->bone, matbuf, model->bone_count);
+
+		draw_end();
+	}
 
 	mat_ortho(projection, 0, width, height, 0, -1, 1);
 	mat_identity(model_view);

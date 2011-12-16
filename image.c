@@ -149,6 +149,8 @@ int load_texture(unsigned int texid, char *filename, int srgb)
 	unsigned char *image;
 	int w, h, n;
 
+	printf("loading texture '%s'\n", filename);
+
 	if (strstr(filename, ".dds"))
 		return load_dds_from_file(texid, filename, srgb);
 

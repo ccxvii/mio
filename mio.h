@@ -64,7 +64,7 @@ enum {
 unsigned char *load_file(char *filename, int *lenp);
 int compile_shader(const char *vert_src, const char *frag_src);
 
-/* models */
+/* models and animations */
 
 #define MAXBONE 80
 
@@ -93,12 +93,30 @@ struct model {
 	struct pose *bind_pose;
 };
 
+struct chan {
+	char name[32];
+	int parent;
+	int mask; // which pose entries are present in frame data
+	struct pose pose;
+};
+
+struct animation {
+	char name[80];
+	int bone_count, frame_size, frame_count;
+	int flags;
+	struct chan *chan;
+	float *frame;
+};
+
 struct model *load_obj_model(char *filename);
+
 struct model *load_iqm_model(char *filename);
 struct model *load_iqm_model_from_memory(char *filename, unsigned char *data, int len);
 
-void draw_model(struct model *model, mat4 projection, mat4 model_view);
+struct animation *load_iqm_animation(char *filename);
+struct animation *load_iqm_animation_from_memory(unsigned char *data, int len);
 
+void draw_model(struct model *model, mat4 projection, mat4 model_view);
 
 /* texture loader based on stb_image */
 
@@ -144,6 +162,8 @@ void draw_quad(float x0, float y0, float z0,
 	float x1, float y1, float z1,
 	float x2, float y2, float z2,
 	float x3, float y3, float z3);
+
+void draw_skeleton(struct bone *bonelist, mat4 *bonematrix, int count);
 
 /* console */
 

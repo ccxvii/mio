@@ -36,6 +36,8 @@ struct font *load_font(char *filename)
 	struct font *font;
 	int ok;
 
+	printf("loading font '%s'\n", filename);
+
 	font = malloc(sizeof(struct font));
 	font->data = load_file(filename, NULL);
 	if (!font->data)
