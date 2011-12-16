@@ -13,22 +13,19 @@ CFLAGS += -O2 -DNDEBUG -fomit-frame-pointer
 endif
 
 ifeq "$(OS)" "Linux"
-LIBS += -lGL -lX11
-SYS_OBJ := sys_x11.o
+LIBS += -lglut -lGL
 endif
 
 ifeq "$(OS)" "Darwin"
 CFLAGS += -m32
 LDFLAGS += -m32
-LIBS += -framework OpenGL -framework Cocoa
-SYS_OBJ := sys_mac.o
+LIBS += -framework GLUT -framework OpenGL -framework Cocoa
 endif
 
 ifeq "$(OS)" "MINGW"
-SYS_OBJ := sys_win.o
-ifeq "$(build)" "debug"
-LIBS += -lopengl32 -lgdi32
-else
-LIBS += -lopengl32 -mwindows
+CFLAGS += -DFREEGLUT_STATIC -I../freeglut/include
+LIBS += -L../freeglut/lib -lfreeglut_static -lopengl32 -lwinmm -lgdi32
+ifeq "$(build)" "release"
+LIBS += -mwindows
 endif
 endif

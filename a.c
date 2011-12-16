@@ -2,6 +2,9 @@
 
 #include <time.h>
 
+static int screenw = 800, screenh = 600;
+static int mousex, mousey, mouseleft = 0, mousemiddle = 0, mouseright = 0;
+
 static struct font *droid_sans;
 static struct font *droid_sans_mono;
 
@@ -13,48 +16,40 @@ static float cam_dist = 4;
 static float cam_yaw = 0;
 static float cam_pitch = 0;
 
-static int is_left = 0;
-static int is_middle = 0;
-static int old_x, old_y;
-
-void sys_hook_init(int argc, char **argv)
+void togglefullscreen(void)
 {
-	fprintf(stderr, "OpenGL %s; ", glGetString(GL_VERSION));
-	fprintf(stderr, "GLSL %s\n", glGetString(GL_SHADING_LANGUAGE_VERSION));
-
-	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-	glDepthFunc(GL_LEQUAL);
-	//glEnable(GL_CULL_FACE);
-	glEnable(GL_FRAMEBUFFER_SRGB);
-
-	droid_sans = load_font("data/fonts/DroidSans.ttf");
-	if (!droid_sans)
-		exit(1);
-
-	droid_sans_mono = load_font("data/fonts/DroidSansMono.ttf");
-	if (!droid_sans_mono)
-		exit(1);
-
-	icon = load_texture(0, "data/microveget_jungle.png", 1);
-
-	if (argc > 1) {
-		model = load_iqm_model(argv[1]);
-		animation = load_iqm_animation(argv[1]);
+	static int oldw = 100, oldh = 100, oldx = 0, oldy = 0;
+	static int isfullscreen = 0;
+	printf("fullscreen %d\n", isfullscreen);
+	if (!isfullscreen) {
+		oldw = glutGet(GLUT_WINDOW_WIDTH);
+		oldh = glutGet(GLUT_WINDOW_HEIGHT);
+		oldx = glutGet(GLUT_WINDOW_X);
+		oldy = glutGet(GLUT_WINDOW_Y);
+		glutFullScreen();
 	} else {
-		model = load_obj_model("data/fo_s2_spiketree.obj");
-		animation = NULL;
+		glutPositionWindow(oldx, oldy);
+		glutReshapeWindow(oldw, oldh);
 	}
-
-	console_init();
-
-	sys_start_idle_loop();
+	isfullscreen = !isfullscreen;
 }
 
-void sys_hook_mouse_move(int x, int y, int mod)
+static void mouse(int button, int state, int x, int y)
 {
-	int dx = x - old_x;
-	int dy = y - old_y;
-	if (is_left) {
+	state = state == GLUT_DOWN;
+	if (button == GLUT_LEFT_BUTTON) mouseleft = state;
+	if (button == GLUT_MIDDLE_BUTTON) mousemiddle = state;
+	if (button == GLUT_RIGHT_BUTTON) mouseright = state;
+	mousex = x;
+	mousey = y;
+	glutPostRedisplay();
+}
+
+static void motion(int x, int y)
+{
+	int dx = x - mousex;
+	int dy = y - mousey;
+	if (mouseleft) {
 		cam_yaw -= dx * 0.3;
 		cam_pitch -= dy * 0.2;
 		if (cam_pitch < -85) cam_pitch = -85;
@@ -62,71 +57,53 @@ void sys_hook_mouse_move(int x, int y, int mod)
 		if (cam_yaw < 0) cam_yaw += 360;
 		if (cam_yaw > 360) cam_yaw -= 360;
 	}
-	if (is_middle) {
+	if (mousemiddle) {
 		cam_dist += dy * 0.01 * cam_dist;
 	}
-	old_x = x;
-	old_y = y;
+	mousex = x;
+	mousey = y;
+	glutPostRedisplay();
 }
 
-void sys_hook_mouse_down(int x, int y, int btn, int mod)
+static void keyboard(unsigned char key, int x, int y)
 {
-	if (btn == 1)
-		is_left = 1;
-	if (btn == 2)
-		is_middle = 1;
-	old_x = x;
-	old_y = y;
-}
-
-void sys_hook_mouse_up(int x, int y, int btn, int mod)
-{
-	if (btn == 1)
-		is_left = 0;
-	if (btn == 2)
-		is_middle = 0;
-}
-
-void sys_hook_key_char(int key, int mod)
-{
-	if (mod == SYS_MOD_ALT && key == SYS_KEY_F4) {
+	int mod = glutGetModifiers();
+	printf("keyboard mod=%x key=%d\n", mod, key);
+	if ((mod & GLUT_ACTIVE_ALT) && key == '\r')
+		togglefullscreen();
+//	else if ((mod & GLUT_ACTIVE_ALT) && key == GLUT_KEY_F4)
+//		exit(0);
+	else if (key == 27)
 		exit(0);
-	} else if (mod == SYS_MOD_ALT && key == '\r') {
-		if (sys_is_fullscreen())
-			sys_leave_fullscreen();
-		else
-			sys_enter_fullscreen();
-	} else if (key == 27) {
-		exit(0);
-	} else if (key == '=' || key == '+' || key == ']') {
-		cam_dist -= 0.125 * cam_dist;
-	} else if (key == '-' || key == '[') {
-		cam_dist += 0.125 * cam_dist;
-	} else {
+	else
 		console_update(key, mod);
-	}
+	glutPostRedisplay();
 }
 
-void sys_hook_key_down(int key, int mod)
+static void special(int key, int x, int y)
 {
+	//keyboard(key, x, y);
 }
 
-void sys_hook_key_up(int key, int mod)
+static void reshape(int w, int h)
 {
+	screenw = w;
+	screenh = h;
+	glViewport(0, 0, w, h);
 }
 
-void sys_hook_draw(int width, int height)
+static void display(void)
 {
 	float projection[16];
 	float model_view[16];
 	int i;
 
-	glViewport(0, 0, width, height);
+	glViewport(0, 0, screenw, screenh);
 
 	glClearColor(0.1, 0.1, 0.1, 1.0);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-	mat_perspective(projection, 75, (float)width / height, 0.05, 5000);
+	mat_perspective(projection, 75, (float)screenw / screenh, 0.05, 5000);
 	mat_identity(model_view);
 	mat_rotate_x(model_view, -90);
 
@@ -153,8 +130,9 @@ void sys_hook_draw(int width, int height)
 		apply_pose2(matbuf, model->bone, posebuf, model->bone_count);
 		draw_model_with_pose(model, projection, model_view, matbuf);
 	} else {
-		draw_model(model, projection, model_view);
+		//draw_model(model, projection, model_view);
 	}
+		draw_model(model, projection, model_view);
 
 
 	glDisable(GL_DEPTH_TEST);
@@ -173,7 +151,7 @@ void sys_hook_draw(int width, int height)
 		draw_end();
 	}
 
-	mat_ortho(projection, 0, width, height, 0, -1, 1);
+	mat_ortho(projection, 0, screenw, screenh, 0, -1, 1);
 	mat_identity(model_view);
 
 	text_begin(projection);
@@ -184,24 +162,77 @@ void sys_hook_draw(int width, int height)
 		strcpy(buf, ctime(&now));
 		buf[strlen(buf)-1] = 0; // zap newline.
 		text_set_color(1, 1, 1, 1);
-		text_show(8, height-104-8, "Hello, world!");
+		text_show(8, screenh-104-8, "Hello, world!");
 		text_set_color(0.75, 0.75, 0.75, 1);
-		text_show(8, height-84-8, "Hello, world!");
+		text_show(8, screenh-84-8, "Hello, world!");
 		text_set_color(0.5, 0.5, 0.5, 1);
-		text_show(8, height-64-8, "Hello, world!");
+		text_show(8, screenh-64-8, "Hello, world!");
 		text_set_color(0.25, 0.25, 0.25, 1);
-		text_show(8, height-44-8, "Hello, world!");
+		text_show(8, screenh-44-8, "Hello, world!");
 		text_set_color(0, 0, 0, 1);
-		text_show(8, height-24-8, "Hello, world!");
+		text_show(8, screenh-24-8, "Hello, world!");
 		text_set_color(1, 1, 1, 1);
-		text_show(8, height-4-8, buf);
+		text_show(8, screenh-4-8, buf);
 	}
 	text_end();
 
 	icon_begin(projection);
 	icon_set_color(1, 1, 1, 1);
-	icon_show(icon, width - 256, height - 256,  width, height, 0, 0, 1, 1);
+	icon_show(icon, screenw - 256, screenh - 256,  screenw, screenh, 0, 0, 1, 1);
 	icon_end();
 
 	console_draw(projection, droid_sans_mono, 15);
+
+	glutSwapBuffers();
 }
+
+int main(int argc, char **argv)
+{
+	glutInit(&argc, argv);
+	// glutInitWindowPosition(50, 50+24);
+	// glutInitWindowSize(screenw, screenh);
+	glutInitDisplayMode(GLUT_RGB | GLUT_DOUBLE | GLUT_DEPTH);
+	glutCreateWindow("MIO");
+
+	gl3wInit();
+	fprintf(stderr, "OpenGL %s; ", glGetString(GL_VERSION));
+	fprintf(stderr, "GLSL %s\n", glGetString(GL_SHADING_LANGUAGE_VERSION));
+
+	glutReshapeFunc(reshape);
+	glutDisplayFunc(display);
+	glutMouseFunc(mouse);
+	glutMotionFunc(motion);
+	glutKeyboardFunc(keyboard);
+	glutSpecialFunc(special);
+
+	glutIdleFunc(glutPostRedisplay);
+
+	glEnable(GL_FRAMEBUFFER_SRGB);
+	glEnable(GL_MULTISAMPLE);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	glDepthFunc(GL_LEQUAL);
+
+	droid_sans = load_font("data/fonts/DroidSans.ttf");
+	if (!droid_sans)
+		exit(1);
+
+	droid_sans_mono = load_font("data/fonts/DroidSansMono.ttf");
+	if (!droid_sans_mono)
+		exit(1);
+
+	icon = load_texture(0, "data/microveget_jungle.png", 1);
+
+	if (argc > 1) {
+		model = load_iqm_model(argv[1]);
+		animation = load_iqm_animation(argv[1]);
+	} else {
+		model = load_obj_model("data/fo_s2_spiketree.obj");
+		animation = NULL;
+	}
+
+	console_init();
+
+	glutMainLoop();
+	return 0;
+}
+

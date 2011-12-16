@@ -1,4 +1,5 @@
 #include "mio.h"
+#include <ctype.h>
 
 #ifdef USELUA
 #include <lua.h>
@@ -77,8 +78,8 @@ void console_update(int key, int mod)
 {
 	char cmd[INPUT];
 
-	if (mod & SYS_MOD_ALT) return;
-	if (mod & SYS_MOD_CTL) return;
+	if (mod & GLUT_ACTIVE_ALT) return;
+	if (mod & GLUT_ACTIVE_CTRL) return;
 	if (key >= 0xE000 && key < 0xF900) return; // in PUA
 	if (key >= 0x10000) return; // outside BMP
 
@@ -102,7 +103,7 @@ void console_update(int key, int mod)
 	} else if (key == '\b') {
 		if (cursor > 0)
 			input[--cursor] = 0;
-	} else if (cursor + 1 < INPUT) {
+	} else if (isprint(key) && cursor + 1 < INPUT) {
 		input[cursor++] = key;
 		input[cursor] = 0;
 	}

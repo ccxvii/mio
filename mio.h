@@ -6,12 +6,14 @@
 #include <errno.h>
 
 #ifdef __APPLE__
-#include <OpenGL/gl.h>
+#include <OpenGL/OpenGL.h>
+#include <GLUT/glut.h>
 #define glGenVertexArrays glGenVertexArraysAPPLE
 #define glBindVertexArray glBindVertexArrayAPPLE
 #define GL_FRAMEBUFFER_SRGB 0x8DB9
 #else
 #include <GL3/gl3w.h>
+#include <GL/freeglut.h>
 #endif
 
 #define GL_TEXTURE_MAX_ANISOTROPY_EXT 0x84FE
@@ -37,8 +39,6 @@ int runetochar(char *str, int *rune);
 char *xstrsep(char **stringp, const char *delim);
 int xstrlcpy(char *dst, const char *src, int siz);
 int xstrlcat(char *dst, const char *src, int siz);
-
-#include "sys_hook.h"
 
 #define SLUM(x) ((x)*(x)) /* approximate sRGB to Linear conversion */
 #define SRGB(r,g,b) SLUM(r),SLUM(g),SLUM(b)
