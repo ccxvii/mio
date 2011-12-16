@@ -1,6 +1,6 @@
 #include "mio.h"
 
-#define noFLIP
+#define FLIP
 #define NAMELEN 80
 
 struct material {
