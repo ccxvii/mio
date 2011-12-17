@@ -73,8 +73,6 @@ static void keyboard(unsigned char key, int x, int y)
 	int mod = glutGetModifiers();
 	if ((mod & GLUT_ACTIVE_ALT) && key == '\r')
 		togglefullscreen();
-	else if ((mod & GLUT_ACTIVE_ALT) && key == GLUT_KEY_F4)
-		exit(0);
 	else if (key == 27)
 		exit(0);
 	else
@@ -84,7 +82,10 @@ static void keyboard(unsigned char key, int x, int y)
 
 static void special(int key, int x, int y)
 {
-	keyboard(key, x, y);
+	int mod = glutGetModifiers();
+	if ((mod & GLUT_ACTIVE_ALT) && key == GLUT_KEY_F4)
+		exit(0);
+	glutPostRedisplay();
 }
 
 static void reshape(int w, int h)
@@ -126,7 +127,7 @@ static void display(void)
 	if (animation) {
 		static int f = 0;
 		memcpy(posebuf, model->bind_pose, model->bone_count * sizeof(struct pose));
-		extract_pose(posebuf, animation, f++ % 100);
+		extract_pose(posebuf, animation, f++ % animation->frame_count);
 //		apply_pose2(matbuf, model->bone, model->bind_pose, model->bone_count);
 		apply_pose2(matbuf, model->bone, posebuf, model->bone_count);
 		draw_model_with_pose(model, projection, model_view, matbuf);
@@ -139,9 +140,9 @@ static void display(void)
 	if (animation) {
 		draw_begin(projection, model_view);
 
-		apply_pose(matbuf, model->bone, model->bind_pose, model->bone_count);
-		draw_set_color(1, 0, 0, 0.4);
-		draw_skeleton(model->bone, matbuf, model->bone_count);
+//		apply_pose(matbuf, model->bone, model->bind_pose, model->bone_count);
+//		draw_set_color(1, 0, 0, 0.4);
+//		draw_skeleton(model->bone, matbuf, model->bone_count);
 
 		apply_pose(matbuf, model->bone, posebuf, model->bone_count);
 		draw_set_color(0, 1, 0, 0.4);
@@ -177,7 +178,7 @@ static void display(void)
 
 	i = glGetError();
 	if (i)
-		fprintf(stderr, "opengl error %d\n");
+		fprintf(stderr, "opengl error %d\n", i);
 }
 
 int main(int argc, char **argv)

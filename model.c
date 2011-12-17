@@ -54,15 +54,15 @@ static const char *model_frag_src =
 	"#version 120\n"
 	"uniform sampler2D Texture;\n"
 	"varying vec2 var_TexCoord;\n"
-	"varying vec2 var_Normal;\n"
-	"const vec3 LightDirection = vec3(0.0, 0.0, 1.0);\n"
-	"const vec3 LightAmbient = vec3(0.2, 0.2, 0.2);\n"
-	"const vec3 LightDiffuse = vec3(0.8, 0.8, 0.8);\n"
+	"varying vec3 var_Normal;\n"
+	"const vec3 LightDirection = vec3(-0.5773, 0.5773, 0.5773);\n"
+	"const vec3 LightAmbient = vec3(0.2);\n"
+	"const vec3 LightDiffuse = vec3(1.0);\n"
 	"void main() {\n"
 	"	vec4 color = texture2D(Texture, var_TexCoord);\n"
 	"	if (color.a < 0.2) discard;\n"
-//	"	vec3 N = normalize(gl_FrontFacing ? var_Normal : -var_Normal);\n"
-	"	vec3 N = normalize(var_Normal);\n"
+	"	vec3 N = normalize(gl_FrontFacing ? var_Normal : -var_Normal);\n"
+//	"	vec3 N = normalize(var_Normal);\n"
 	"	float diffuse = max(dot(N, LightDirection), 0.0);\n"
 	"	vec3 Ka = color.rgb * LightAmbient;\n"
 	"	vec3 Kd = color.rgb * LightDiffuse * diffuse;\n"
@@ -161,6 +161,7 @@ void draw_model(struct model *model, mat4 projection, mat4 model_view)
 	glUniformMatrix4fv(static_uni_model_view, 1, 0, model_view);
 
 	glBindVertexArray(model->vao);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, model->ibo);
 
 	for (i = 0; i < model->mesh_count; i++) {
 		glBindTexture(GL_TEXTURE_2D, model->mesh[i].texture);
@@ -197,6 +198,7 @@ void draw_model_with_pose(struct model *model, mat4 projection, mat4 model_view,
 	glUniformMatrix4fv(bone_uni_skin_matrix, model->bone_count, 0, skin_matrix[0]);
 
 	glBindVertexArray(model->vao);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, model->ibo);
 
 	for (i = 0; i < model->mesh_count; i++) {
 		glBindTexture(GL_TEXTURE_2D, model->mesh[i].texture);
