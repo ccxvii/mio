@@ -172,27 +172,25 @@ static void display(void)
 
 	console_draw(projection, droid_sans_mono, 15);
 
+	glutPostRedisplay();
 	glutSwapBuffers();
+
+	i = glGetError();
+	if (i)
+		fprintf(stderr, "opengl error %d\n");
 }
 
 int main(int argc, char **argv)
 {
-	int i;
-
 	glutInit(&argc, argv);
 	glutInitWindowPosition(50, 50+24);
 	glutInitWindowSize(screenw, screenh);
-	glutInitDisplayMode(GLUT_RGB | GLUT_DOUBLE | GLUT_DEPTH);
+	glutInitDisplayMode(GLUT_SRGB | GLUT_DOUBLE | GLUT_DEPTH);
 	glutCreateWindow("Mio");
 
 	gl3wInit();
 	fprintf(stderr, "OpenGL %s; ", glGetString(GL_VERSION));
 	fprintf(stderr, "GLSL %s\n", glGetString(GL_SHADING_LANGUAGE_VERSION));
-
-	glGetIntegerv(GL_MAX_VERTEX_UNIFORM_COMPONENTS, &i);
-	fprintf(stderr, "GL_MAX_VERTEX_UNIFORM_COMPONENTS = %d\n", i);
-	glGetIntegerv(GL_MAX_FRAGMENT_UNIFORM_COMPONENTS, &i);
-	fprintf(stderr, "GL_MAX_FRAGMENT_UNIFORM_COMPONENTS = %d\n", i);
 
 	glutReshapeFunc(reshape);
 	glutDisplayFunc(display);
@@ -200,8 +198,6 @@ int main(int argc, char **argv)
 	glutMotionFunc(motion);
 	glutKeyboardFunc(keyboard);
 	glutSpecialFunc(special);
-
-	glutIdleFunc(glutPostRedisplay);
 
 	glEnable(GL_FRAMEBUFFER_SRGB);
 	glEnable(GL_MULTISAMPLE);

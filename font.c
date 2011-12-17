@@ -164,6 +164,7 @@ static struct glyph *lookup_glyph(struct font *font, float scale, int gid, int s
 
 	/* Look it up in the table */
 
+	memset(&key, 0, sizeof key);
 	key.font = font;
 	key.size = scale * 10000;
 	key.gid = gid;

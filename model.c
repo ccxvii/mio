@@ -22,7 +22,7 @@ static const char *bone_vert_src =
 	"#version 120\n"
 	"uniform mat4 Projection;\n"
 	"uniform mat4 ModelView;\n"
-	"uniform mat4 SkinMatrix[80];\n"
+	"uniform mat4 BoneMatrix[80];\n"
 	"attribute vec3 att_Position;\n"
 	"attribute vec2 att_TexCoord;\n"
 	"attribute vec3 att_Normal;\n"
@@ -36,7 +36,7 @@ static const char *bone_vert_src =
 	"	vec4 index = att_BlendIndex;\n"
 	"	vec4 weight = att_BlendWeight;\n"
 	"	for (int i = 0; i < 4; i++) {\n"
-	"		mat4 m = SkinMatrix[int(index.x)];\n"
+	"		mat4 m = BoneMatrix[int(index.x)];\n"
 	"		position += m * vec4(att_Position, 1) * weight.x;\n"
 	"		normal += m * vec4(att_Normal, 0) * weight.x;\n"
 	"		index = index.yzwx;\n"
@@ -54,10 +54,19 @@ static const char *model_frag_src =
 	"#version 120\n"
 	"uniform sampler2D Texture;\n"
 	"varying vec2 var_TexCoord;\n"
+	"varying vec2 var_Normal;\n"
+	"const vec3 LightDirection = vec3(0.0, 0.0, 1.0);\n"
+	"const vec3 LightAmbient = vec3(0.2, 0.2, 0.2);\n"
+	"const vec3 LightDiffuse = vec3(0.8, 0.8, 0.8);\n"
 	"void main() {\n"
 	"	vec4 color = texture2D(Texture, var_TexCoord);\n"
 	"	if (color.a < 0.2) discard;\n"
-	"	gl_FragColor = color;\n"
+//	"	vec3 N = normalize(gl_FrontFacing ? var_Normal : -var_Normal);\n"
+	"	vec3 N = normalize(var_Normal);\n"
+	"	float diffuse = max(dot(N, LightDirection), 0.0);\n"
+	"	vec3 Ka = color.rgb * LightAmbient;\n"
+	"	vec3 Kd = color.rgb * LightDiffuse * diffuse;\n"
+	"	gl_FragColor = vec4(Ka + Kd, color.a);\n"
 	"}\n"
 ;
 
@@ -179,7 +188,7 @@ void draw_model_with_pose(struct model *model, mat4 projection, mat4 model_view,
 		bone_prog = compile_shader(bone_vert_src, model_frag_src);
 		bone_uni_projection = glGetUniformLocation(bone_prog, "Projection");
 		bone_uni_model_view = glGetUniformLocation(bone_prog, "ModelView");
-		bone_uni_skin_matrix = glGetUniformLocation(bone_prog, "SkinMatrix");
+		bone_uni_skin_matrix = glGetUniformLocation(bone_prog, "BoneMatrix");
 	}
 
 	glUseProgram(bone_prog);
