@@ -60,7 +60,7 @@ static void motion(int x, int y)
 		if (cam_yaw < 0) cam_yaw += 360;
 		if (cam_yaw > 360) cam_yaw -= 360;
 	}
-	if (mousemiddle) {
+	if (mousemiddle || mouseright) {
 		cam_dist += dy * 0.01 * cam_dist;
 	}
 	mousex = x;
@@ -190,6 +190,7 @@ int main(int argc, char **argv)
 	glutCreateWindow("Mio");
 
 	gl3wInit();
+
 	fprintf(stderr, "OpenGL %s; ", glGetString(GL_VERSION));
 	fprintf(stderr, "GLSL %s\n", glGetString(GL_SHADING_LANGUAGE_VERSION));
 
