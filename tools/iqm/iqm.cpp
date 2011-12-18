@@ -977,7 +977,8 @@ void makeanims()
 {
     if(escale != 1) loopv(eposes) eposes[i].pos *= escale;
     int numbasejoints = eframes.length() ? eframes[0] : eposes.length();
-    if(meshes.length() && joints.empty()) 
+    // FOO if(meshes.length() && joints.empty()) 
+    if(joints.empty()) 
     {
         mjoints.setsize(0);
         loopv(ejoints)

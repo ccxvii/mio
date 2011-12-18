@@ -64,7 +64,7 @@ $(IQM) : tools/iqm/iqm.cpp | $(OUT)
 	$(ASSOBJ) $<
 .PRECIOUS : %.iqe
 
-all: $(UNTITLED) $(VIEWER)
+all: $(UNTITLED) $(VIEWER) $(ASSIQE) $(ASSOBJ)
 
 clean:
 	rm -rf $(OUT)
