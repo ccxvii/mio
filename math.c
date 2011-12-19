@@ -306,6 +306,11 @@ float vec_dot(const vec3 a, const vec3 b)
 	return a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
 }
 
+float vec_length(const vec3 a)
+{
+	return sqrtf(a[0] * a[0] + a[1] * a[1] + a[2] * a[2]);
+}
+
 float vec_dist2(const vec3 a, const vec3 b)
 {
 	float d0, d1, d2;

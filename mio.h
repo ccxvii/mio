@@ -203,6 +203,7 @@ void vec_lerp(vec3 p, const vec3 a, const vec3 b, float t);
 void vec_average(vec3 p, const vec3 a, const vec3 b);
 void vec_cross(vec3 p, const vec3 a, const vec3 b);
 float vec_dot(const vec3 a, const vec3 b);
+float vec_length(const vec3 a);
 float vec_dist2(const vec3 a, const vec3 b);
 float vec_dist(const vec3 a, const vec3 b);
 void vec_normalize(vec3 v);

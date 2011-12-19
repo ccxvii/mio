@@ -127,7 +127,8 @@ static void display(void)
 	if (animation) {
 		static int f = 0;
 		memcpy(posebuf, model->bind_pose, model->bone_count * sizeof(struct pose));
-		extract_pose(posebuf, animation, f++ % animation->frame_count);
+		retarget_pose(posebuf, model, animation, f++ % animation->frame_count);
+//		extract_pose(posebuf, animation, f++ % animation->frame_count);
 //		apply_pose2(matbuf, model->bone, model->bind_pose, model->bone_count);
 		apply_pose2(matbuf, model->bone, posebuf, model->bone_count);
 		draw_model_with_pose(model, projection, model_view, matbuf);
@@ -218,7 +219,8 @@ int main(int argc, char **argv)
 
 	if (argc > 1) {
 		model = load_iqm_model(argv[1]);
-		animation = load_iqm_animation(argv[1]);
+		if (argc > 2)
+			animation = load_iqm_animation(argv[2]);
 	} else {
 		model = load_obj_model("data/fo_s2_spiketree.obj");
 		animation = NULL;

@@ -60,7 +60,7 @@ static const char *model_frag_src =
 	"const vec3 LightDiffuse = vec3(1.0);\n"
 	"void main() {\n"
 	"	vec4 color = texture2D(Texture, var_TexCoord);\n"
-	"	if (color.a < 0.2) discard;\n"
+//	"	if (color.a < 0.2) discard;\n"
 	"	vec3 N = normalize(gl_FrontFacing ? var_Normal : -var_Normal);\n"
 //	"	vec3 N = normalize(var_Normal);\n"
 	"	float diffuse = max(dot(N, LightDirection), 0.0);\n"
@@ -121,6 +121,58 @@ void extract_pose(struct pose *pose, struct animation *anim, int frame)
 		if (mask & 0x80) pose[i].scale[0] = *p++;
 		if (mask & 0x100) pose[i].scale[1] = *p++;
 		if (mask & 0x200) pose[i].scale[2] = *p++;
+	}
+}
+
+static int findbone(struct model *model, char *name)
+{
+	int i;
+	for (i = 0; i < model->bone_count; i++)
+		if (!strcmp(model->bone[i].name, name))
+			return i;
+	return -1;
+}
+
+void retarget_pose(struct pose *pose, struct model *model, struct animation *anim, int frame)
+{
+	float *p;
+	int i;
+
+	if (frame < 0) frame = 0;
+	if (frame >= anim->frame_count) frame = anim->frame_count - 1;
+
+	memcpy(pose, model->bind_pose, model->bone_count * sizeof(struct pose));
+
+	p = anim->frame + frame * anim->frame_size;
+	for (i = 0; i < anim->bone_count; i++) {
+		int mask = anim->chan[i].mask;
+		int k = findbone(model, anim->chan[i].name);
+		if (k >= 0) {
+			memcpy(pose[k].translate, anim->chan[i].pose.translate, 3*4);
+			memcpy(pose[k].rotate, anim->chan[i].pose.rotate, 4*4);
+			memcpy(pose[k].scale, anim->chan[i].pose.scale, 3*4);
+			if (mask & 0x01) pose[k].translate[0] = *p++;
+			if (mask & 0x02) pose[k].translate[1] = *p++;
+			if (mask & 0x04) pose[k].translate[2] = *p++;
+			if (mask & 0x08) pose[k].rotate[0] = *p++;
+			if (mask & 0x10) pose[k].rotate[1] = *p++;
+			if (mask & 0x20) pose[k].rotate[2] = *p++;
+			if (mask & 0x40) pose[k].rotate[3] = *p++;
+			if (mask & 0x80) pose[k].scale[0] = *p++;
+			if (mask & 0x100) pose[k].scale[1] = *p++;
+			if (mask & 0x200) pose[k].scale[2] = *p++;
+		} else {
+			if (mask & 0x01) p++;
+			if (mask & 0x02) p++;
+			if (mask & 0x04) p++;
+			if (mask & 0x08) p++;
+			if (mask & 0x10) p++;
+			if (mask & 0x20) p++;
+			if (mask & 0x40) p++;
+			if (mask & 0x80) p++;
+			if (mask & 0x100) p++;
+			if (mask & 0x200) p++;
+		}
 	}
 }
 

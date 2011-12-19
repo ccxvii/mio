@@ -116,7 +116,6 @@ struct model *load_iqm_model_from_memory(char *filename, unsigned char *data, in
 	if (iqm->filesize > len) die("bad iqm file size");
 	if (iqm->num_vertexes > 0xffff) die("too many vertices in iqm");
 	if (iqm->num_joints > MAXBONE) die("too many bones in iqm");
-	if (iqm->num_joints != iqm->num_poses) die("bad joint/pose data");
 
 	printf("\t%d meshes; %d bones; %d vertices; %d triangles\n",
 		iqm->num_meshes, iqm->num_joints, iqm->num_vertexes, iqm->num_triangles);
@@ -218,8 +217,8 @@ struct animation *load_iqm_animation_from_memory(unsigned char *data, int len)
 	if (iqm->num_anims == 0)
 		return NULL;
 
-	printf("\t%d bones; %d channels; %d animations\n",
-		iqm->num_joints, iqm->num_framechannels, iqm->num_anims);
+	printf("\t%d bones; %d channels; %d animations; %d frames\n",
+		iqm->num_joints, iqm->num_framechannels, iqm->num_anims, iqm->num_frames);
 
 	struct animation *anim = malloc(sizeof *anim);
 	anim->bone_count = iqm->num_joints;
