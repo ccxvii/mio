@@ -1,14 +1,22 @@
 #include "mio.h"
 
-#include <time.h>
-
 static int screenw = 800, screenh = 600;
 static int mousex, mousey, mouseleft = 0, mousemiddle = 0, mouseright = 0;
 
+static int showconsole = 0;
+static int showskeleton = 0;
+static int showplane = 1;
+static int showwire = 0;
+static int showalpha = 0;
+static int showicon = 0;
+
+static int lasttime = 0;
+static int showanim = 1;
+static int animspeed = 30;
+static float animtick = 0;
+
 static struct font *droid_sans;
 static struct font *droid_sans_mono;
-
-static int icon;
 
 static struct model *model;
 static struct animation *animation;
@@ -16,8 +24,8 @@ static struct animation *animation;
 mat4 matbuf[MAXBONE];
 struct pose posebuf[MAXBONE];
 
-static float cam_dist = 10;
-static float cam_yaw = -5;
+static float cam_dist = 5;
+static float cam_yaw = 0;
 static float cam_pitch = -20;
 
 void togglefullscreen(void)
@@ -62,6 +70,8 @@ static void motion(int x, int y)
 	}
 	if (mousemiddle || mouseright) {
 		cam_dist += dy * 0.01 * cam_dist;
+		if (cam_dist < 0.1) cam_dist = 0.1;
+		if (cam_dist > 100) cam_dist = 100;
 	}
 	mousex = x;
 	mousey = y;
@@ -73,17 +83,36 @@ static void keyboard(unsigned char key, int x, int y)
 	int mod = glutGetModifiers();
 	if ((mod & GLUT_ACTIVE_ALT) && key == '\r')
 		togglefullscreen();
-	else if (key == 27)
-		exit(0);
-	else
+	else if (key ==	'`')
+		showconsole = !showconsole;
+	else if (showconsole)
 		console_update(key, mod);
+	else switch (key) {
+		case 27: case 'q': exit(0); break;
+		case 'i': showicon = MAX(0, showicon+1); break;
+		case 'I': showicon = MAX(0, showicon-1); break;
+		case 'f': togglefullscreen(); break;
+		case ' ': showanim = !showanim; break;
+		case '0': animtick = 0; animspeed = 30; break;
+		case '.': animtick = floor(animtick) + 1; break;
+		case ',': animtick = floor(animtick) - 1; break;
+		case '[': animspeed = MAX(5, animspeed - 5); break;
+		case ']': animspeed = MAX(60, animspeed + 5); break;
+		case 'k': showskeleton = !showskeleton; break;
+		case 'p': showplane = !showplane; break;
+		case 'w': showwire = !showwire; break;
+		case 'a': showalpha = !showalpha; break;
+	}
+
+	if (showanim)
+		lasttime = glutGet(GLUT_ELAPSED_TIME);
+
 	glutPostRedisplay();
 }
 
 static void special(int key, int x, int y)
 {
-	int mod = glutGetModifiers();
-	if ((mod & GLUT_ACTIVE_ALT) && key == GLUT_KEY_F4)
+	if (key == GLUT_KEY_F4 && glutGetModifiers() == GLUT_ACTIVE_ALT)
 		exit(0);
 	glutPostRedisplay();
 }
@@ -101,6 +130,24 @@ static void display(void)
 	float model_view[16];
 	int i;
 
+	int thistime, timediff;
+
+	thistime = glutGet(GLUT_ELAPSED_TIME);
+	timediff = thistime - lasttime;
+	lasttime = thistime;
+
+	if (animation) {
+		if (showanim) {
+			animtick = animtick + (timediff / 1000.0f) * animspeed;
+			glutPostRedisplay();
+		}
+		while (animtick < 0) animtick += animation->frame_count;
+		while (animtick >= animation->frame_count) animtick -= animation->frame_count;
+
+		memcpy(posebuf, model->bind_pose, model->bone_count * sizeof(struct pose));
+		retarget_pose(posebuf, model, animation, (int)animtick);
+	}
+
 	glViewport(0, 0, screenw, screenh);
 
 	glClearColor(0.1, 0.1, 0.1, 1.0);
@@ -110,45 +157,51 @@ static void display(void)
 	mat_identity(model_view);
 	mat_rotate_x(model_view, -90);
 
-	mat_translate(model_view, 0, cam_dist, -cam_dist / 3);
+	mat_translate(model_view, 0, cam_dist, -cam_dist / 5);
 	mat_rotate_x(model_view, -cam_pitch);
 	mat_rotate_z(model_view, -cam_yaw);
 
 	glEnable(GL_DEPTH_TEST);
 
-	draw_begin(projection, model_view);
-	draw_set_color(0.5, 0.5, 0.5, 1);
-	for (i = -4; i <= 4; i++) {
-		draw_line(i, -4, 0, i, 4, 0);
-		draw_line(-4, i, 0, 4, i, 0);
+	if (showplane) {
+		draw_begin(projection, model_view);
+		draw_set_color(0.5, 0.5, 0.5, 1);
+		for (i = -4; i <= 4; i++) {
+			draw_line(i, -4, 0, i, 4, 0);
+			draw_line(-4, i, 0, 4, i, 0);
+		}
+		draw_end();
 	}
-	draw_end();
+
+	if (showalpha)
+		glEnable(GL_SAMPLE_ALPHA_TO_COVERAGE);
+
+	if (showwire)
+		glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 
 	if (animation) {
-		static int f = 0;
-		memcpy(posebuf, model->bind_pose, model->bone_count * sizeof(struct pose));
-		retarget_pose(posebuf, model, animation, f++ % animation->frame_count);
-//		extract_pose(posebuf, animation, f++ % animation->frame_count);
-//		apply_pose2(matbuf, model->bone, model->bind_pose, model->bone_count);
 		apply_pose2(matbuf, model->bone, posebuf, model->bone_count);
 		draw_model_with_pose(model, projection, model_view, matbuf);
 	} else {
 		draw_model(model, projection, model_view);
 	}
 
+	if (showwire)
+		glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+
+	if (showalpha)
+		glDisable(GL_SAMPLE_ALPHA_TO_COVERAGE);
+
 	glDisable(GL_DEPTH_TEST);
 
-	if (animation) {
+	if (showskeleton && model->bone) {
+		if (animation)
+			apply_pose(matbuf, model->bone, posebuf, model->bone_count);
+		else
+			apply_pose(matbuf, model->bone, model->bind_pose, model->bone_count);
 		draw_begin(projection, model_view);
-
-//		apply_pose(matbuf, model->bone, model->bind_pose, model->bone_count);
-//		draw_set_color(1, 0, 0, 0.4);
-//		draw_skeleton(model->bone, matbuf, model->bone_count);
-
-		apply_pose(matbuf, model->bone, posebuf, model->bone_count);
-		draw_set_color(0, 1, 0, 0.4);
+		draw_set_color(0, 0, 0.4, 1);
 		draw_skeleton(model->bone, matbuf, model->bone_count);
-
 		draw_end();
 	}
 
@@ -157,22 +210,34 @@ static void display(void)
 
 	text_begin(projection);
 	text_set_font(droid_sans, 20);
+	text_set_color(1, 1, 1, 1);
 	{
-		char buf[80];
-		time_t now = time(NULL);
-		strcpy(buf, ctime(&now));
-		buf[strlen(buf)-1] = 0; // zap newline.
-		text_set_color(1, 1, 1, 1);
+		char buf[256];
+		int nelem = 0;
+		for (i = 0; i < model->mesh_count; i++)
+			nelem += model->mesh[i].count;
+		sprintf(buf, "%d meshes, %d bones, %d triangles.", model->mesh_count, model->bone_count, nelem/3);
 		text_show(8, screenh-12, buf);
+		if (animation) {
+			sprintf(buf, "frame %03d / %03d (%d fps)", (int)animtick+1, animation->frame_count, animspeed);
+			text_show(8, screenh-12-20, buf);
+		}
 	}
 	text_end();
 
-	icon_begin(projection);
-	icon_set_color(1, 1, 1, 1);
-	icon_show(icon, screenw - 128, screenh - 128,  screenw, screenh, 0, 0, 1, 1);
-	icon_end();
+	if (showicon) {
+		int texw, texh;
+		glBindTexture(GL_TEXTURE_2D, showicon);
+		glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_WIDTH, &texw);
+		glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_HEIGHT, &texh);
+		icon_begin(projection);
+		icon_set_color(1, 1, 1, 1);
+		icon_show(showicon, screenw - texw, screenh - texh, screenw, screenh, 0, 0, 1, 1);
+		icon_end();
+	}
 
-	console_draw(projection, droid_sans_mono, 15);
+	if (showconsole)
+		console_draw(projection, droid_sans_mono, 15);
 
 	glutPostRedisplay();
 	glutSwapBuffers();
@@ -187,7 +252,7 @@ int main(int argc, char **argv)
 	glutInit(&argc, argv);
 	glutInitWindowPosition(50, 50+24);
 	glutInitWindowSize(screenw, screenh);
-	glutInitDisplayMode(GLUT_SRGB | GLUT_DOUBLE | GLUT_DEPTH);
+	glutInitDisplayMode(GLUT_SRGB | GLUT_DOUBLE | GLUT_DEPTH | GLUT_MULTISAMPLE);
 	glutCreateWindow("Mio");
 
 	gl3wInit();
@@ -214,8 +279,6 @@ int main(int argc, char **argv)
 	droid_sans_mono = load_font("data/fonts/DroidSansMono.ttf");
 	if (!droid_sans_mono)
 		exit(1);
-
-	icon = load_texture(0, "data/microveget_jungle.png", 1);
 
 	if (argc > 1) {
 		model = load_iqm_model(argv[1]);

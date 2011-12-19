@@ -5,10 +5,9 @@
 
 #define FLIP
 
-static void die(char *msg)
+static void error(char *filename, char *msg)
 {
-	fprintf(stderr, "error: %s\n", msg);
-	exit(1);
+	fprintf(stderr, "cannot load %s: %s\n", filename, msg);
 }
 
 static int use_vertex_array(int format)
@@ -111,11 +110,11 @@ struct model *load_iqm_model_from_memory(char *filename, unsigned char *data, in
 	if (!p) p = strrchr(dir, '\\');
 	if (p) p[1] = 0; else strlcpy(dir, "./", sizeof dir);
 
-	if (memcmp(iqm->magic, IQM_MAGIC, 16)) die("bad iqm magic");
-	if (iqm->version != IQM_VERSION) die("bad iqm version");
-	if (iqm->filesize > len) die("bad iqm file size");
-	if (iqm->num_vertexes > 0xffff) die("too many vertices in iqm");
-	if (iqm->num_joints > MAXBONE) die("too many bones in iqm");
+	if (memcmp(iqm->magic, IQM_MAGIC, 16)) { error(filename, "bad iqm magic"); return NULL; }
+	if (iqm->version != IQM_VERSION) { error(filename, "bad iqm version"); return NULL; }
+	if (iqm->filesize > len) { error(filename, "bad iqm file size"); return NULL; }
+	if (iqm->num_vertexes > 0xffff) { error(filename, "too many vertices in iqm"); return NULL; }
+	if (iqm->num_joints > MAXBONE) { error(filename, "too many bones in iqm"); return NULL; }
 
 	printf("\t%d meshes; %d bones; %d vertices; %d triangles\n",
 		iqm->num_meshes, iqm->num_joints, iqm->num_vertexes, iqm->num_triangles);
@@ -197,7 +196,7 @@ struct model *load_iqm_model_from_memory(char *filename, unsigned char *data, in
 	return model;
 }
 
-struct animation *load_iqm_animation_from_memory(unsigned char *data, int len)
+struct animation *load_iqm_animation_from_memory(char *filename, unsigned char *data, int len)
 {
 	struct iqmheader *iqm = (void*) data;
 	char *text = (void*) &data[iqm->ofs_text];
@@ -208,11 +207,13 @@ struct animation *load_iqm_animation_from_memory(unsigned char *data, int len)
 	unsigned short *s;
 	float *p;
 
-	if (memcmp(iqm->magic, IQM_MAGIC, 16)) die("bad iqm magic");
-	if (iqm->version != IQM_VERSION) die("bad iqm version");
-	if (iqm->filesize > len) die("bad iqm file size");
-	if (iqm->num_joints > MAXBONE) die("too many bones in iqm");
-	if (iqm->num_joints != iqm->num_poses) die("bad joint/pose data");
+	printf("loading iqm animation '%s'\n", filename);
+
+	if (memcmp(iqm->magic, IQM_MAGIC, 16)) { error(filename, "bad iqm magic"); return NULL; }
+	if (iqm->version != IQM_VERSION) { error(filename, "bad iqm version"); return NULL; }
+	if (iqm->filesize > len) { error(filename, "bad iqm file size"); return NULL; }
+	if (iqm->num_joints > MAXBONE) { error(filename, "too many bones in iqm"); return NULL; }
+	if (iqm->num_joints != iqm->num_poses) { error(filename, "bad joint/pose data"); return NULL; }
 
 	if (iqm->num_anims == 0)
 		return NULL;
@@ -277,10 +278,9 @@ struct animation *load_iqm_animation(char *filename)
 	struct animation *anim;
 	unsigned char *data;
 	int len;
-	printf("loading iqm animation '%s'\n", filename);
 	data = load_file(filename, &len);
 	if (!data) return NULL;
-	anim = load_iqm_animation_from_memory(data, len);
+	anim = load_iqm_animation_from_memory(filename, data, len);
 	free(data);
 	return anim;
 }

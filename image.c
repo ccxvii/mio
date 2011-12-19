@@ -4,8 +4,6 @@
 #define STBI_NO_WRITE
 #include "stb_image.c"
 
-#define MAX(a,b) (a>b?a:b)
-
 int make_texture(unsigned int texid, unsigned char *data, int w, int h, int n, int srgb)
 {
 	int intfmt, fmt;

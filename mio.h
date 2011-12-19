@@ -31,6 +31,12 @@ static inline int gl3wInit(void) { return 0; }
 #undef nelem
 #define nelem(x) (sizeof(x)/sizeof(x)[0])
 
+#ifndef MAX
+#define MAX(a,b) ((a)>(b)?(a):(b))
+#define MIN(a,b) ((a)<(b)?(a):(b))
+#endif
+#define CLAMP(x,a,b) MIN(MAX(x,a),b)
+
 #define strsep xstrsep
 #define strlcpy xstrlcpy
 #define strlcat xstrlcat
@@ -116,7 +122,7 @@ struct model *load_iqm_model(char *filename);
 struct model *load_iqm_model_from_memory(char *filename, unsigned char *data, int len);
 
 struct animation *load_iqm_animation(char *filename);
-struct animation *load_iqm_animation_from_memory(unsigned char *data, int len);
+struct animation *load_iqm_animation_from_memory(char *filename, unsigned char *data, int len);
 
 void draw_model(struct model *model, mat4 projection, mat4 model_view);
 
