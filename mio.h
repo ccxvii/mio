@@ -217,6 +217,10 @@ void vec_face_normal(vec3 n, const vec3 p0, const vec3 p1, const vec3 p2);
 void vec_negate(vec3 p);
 void vec_yup_to_zup(vec3 v);
 
+float quat_dot(const vec4 a, const vec4 b);
+void quat_invert(vec4 q);
+void quat_conjugate(vec4 q);
+void quat_mul(vec4 q, const vec4 a, const vec4 b);
 void quat_normalize(vec4 q);
 void quat_lerp(vec4 p, const vec4 a, const vec4 b, float t);
 void quat_lerp_normalize(vec4 p, const vec4 a, const vec4 b, float t);

@@ -361,6 +361,46 @@ void vec_yup_to_zup(vec3 v)
 	v[1] = -z;
 }
 
+float quat_dot(const vec4 a, const vec4 b)
+{
+	return a[0]*b[0] + a[1]*b[1] + a[2]*b[2] + a[3]*b[3];
+}
+
+void quat_invert(vec4 q)
+{
+	q[0] = -q[0];
+	q[1] = -q[1];
+	q[2] = -q[2];
+	q[3] = -q[3];
+}
+
+void quat_conjugate(vec4 q)
+{
+	q[0] = -q[0];
+	q[1] = -q[1];
+	q[2] = -q[2];
+}
+
+void quat_mul(vec4 q, const vec4 a, const vec4 b)
+{
+	q[0] = a[3]*b[0] + a[0]*b[3] + a[1]*b[2] - a[2]*b[1];
+	q[1] = a[3]*b[1] - a[0]*b[2] + a[1]*b[3] + a[2]*b[0];
+	q[2] = a[3]*b[2] + a[0]*b[1] - a[1]*b[0] + a[2]*b[3];
+	q[3] = a[3]*b[3] - a[0]*b[0] - a[1]*b[1] - a[2]*b[2];
+}
+
+void quat_vec_mul(vec3 dest, const vec4 q, const vec3 v)
+{
+	vec4 qvec = { v[0], v[1], v[2], 0 };
+	vec4 qinv = { -q[0], -q[1], -q[2], -q[3] };
+	vec4 t1, t2;
+	quat_mul(t1, q, qvec);
+	quat_mul(t2, qinv, t1);
+	dest[0] = t2[0];
+	dest[1] = t2[1];
+	dest[2] = t2[2];
+}
+
 void quat_normalize(vec4 q)
 {
 	float d = sqrtf(q[0]*q[0] + q[1]*q[1] + q[2]*q[2] + q[3]*q[3]);
