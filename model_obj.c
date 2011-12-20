@@ -86,11 +86,11 @@ static int add_vertex(int pi, int ti, int ni)
 	v[0] = position.data[pi * 3 + 0];
 	v[1] = position.data[pi * 3 + 1];
 	v[2] = position.data[pi * 3 + 2];
-	v[3] = texcoord.data[ti * 2 + 0];
-	v[4] = texcoord.data[ti * 2 + 1];
-	v[5] = normal.data[ni * 3 + 0];
-	v[6] = normal.data[ni * 3 + 1];
-	v[7] = normal.data[ni * 3 + 2];
+	v[3] = ti >= 0 && ti < texcoord.len ? texcoord.data[ti * 2 + 0] : 0;
+	v[4] = ti >= 0 && ti < texcoord.len ? texcoord.data[ti * 2 + 1] : 0;
+	v[5] = ni >= 0 && ni < normal.len ? normal.data[ni * 3 + 0] : 0;
+	v[6] = ni >= 0 && ni < normal.len ? normal.data[ni * 3 + 1] : 0;
+	v[7] = ni >= 0 && ni < normal.len ? normal.data[ni * 3 + 2] : 1;
 	if (v[3] < 0 || v[3] > 1 || v[4] < 0 || v[4] > 1)
 		material[material_current].repeat = 1;
 	return add_vertex_imp(v);
@@ -172,9 +172,9 @@ static void splitfv(char *buf, int *vpp, int *vtp, int *vnp)
 	vp = strsep(&p, "/");
 	vt = strsep(&p, "/");
 	vn = strsep(&p, "/");
-	*vpp = vp ? atoi(vp) - 1 : 0;
-	*vtp = vt ? atoi(vt) - 1 : 0;
-	*vnp = vn ? atoi(vn) - 1 : 0;
+	*vpp = vp && vp[0] ? atoi(vp) - 1 : 0;
+	*vtp = vt && vt[0] ? atoi(vt) - 1 : 0;
+	*vnp = vn && vn[0] ? atoi(vn) - 1 : 0;
 }
 
 struct model *load_obj_model(char *filename)
@@ -256,7 +256,7 @@ struct model *load_obj_model(char *filename)
 					mesh_count--;
 			}
 			mesh = &meshbuf[mesh_count++];
-			mesh->texture = set_material(s);
+			mesh->texture = s ? set_material(s) : 0;
 			mesh->first = element.len;
 			mesh->count = 0;
 		}

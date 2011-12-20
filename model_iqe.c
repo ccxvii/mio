@@ -70,10 +70,9 @@ static void add_texcoord(float u, float v)
 
 static void add_normal(float x, float y, float z)
 {
-	// flip normals and triangle winding
-	push_float(&normal, -x);
-	push_float(&normal, -y);
-	push_float(&normal, -z);
+	push_float(&normal, x);
+	push_float(&normal, y);
+	push_float(&normal, z);
 }
 
 static void add_color(float r, float g, float b, float a)
@@ -95,7 +94,7 @@ static void add_blend(int idx[4], float wgt[4])
 
 static void add_triangle(int a, int b, int c)
 {
-	// flip normals and triangle winding
+	// flip triangle winding
 	push_int(&element, c);
 	push_int(&element, b);
 	push_int(&element, a);

@@ -3,8 +3,6 @@
 
 // Simple loader assumes little-endian and 4-byte ints!
 
-#define FLIP
-
 static void error(char *filename, char *msg)
 {
 	fprintf(stderr, "cannot load %s: %s\n", filename, msg);
@@ -56,26 +54,12 @@ static int enum_of_format(int format)
 	return 0;
 }
 
-static void flip_normals(float *p, int count)
-{
-#ifdef FLIP
-	count = count * 3;
-	while (count--) { *p = -*p; p++; }
-#endif
-}
-
 static void flip_triangles(unsigned short *dst, unsigned int *src, int count)
 {
 	while (count--) {
-#ifdef FLIP
-		dst[0] = src[0];
-		dst[1] = src[2];
-		dst[2] = src[1];
-#else
-		dst[0] = src[0];
+		dst[0] = src[2];
 		dst[1] = src[1];
-		dst[2] = src[2];
-#endif
+		dst[2] = src[0];
 		dst += 3;
 		src += 3;
 	}
@@ -175,8 +159,6 @@ struct model *load_iqm_model_from_memory(char *filename, unsigned char *data, in
 			int current = size_of_format(va->format) * va->size * iqm->num_vertexes;
 			int format = enum_of_format(va->format);
 			int normalize = va->type != IQM_BLENDINDEXES;
-			if (va->type == IQM_NORMAL && va->format == IQM_FLOAT && va->size == 3)
-				flip_normals((float*)&data[va->offset], iqm->num_vertexes);
 			glBufferSubData(GL_ARRAY_BUFFER, total, current, &data[va->offset]);
 			glEnableVertexAttribArray(va->type);
 			glVertexAttribPointer(va->type, va->size, format, normalize, 0, (void*)total);

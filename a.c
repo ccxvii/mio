@@ -227,10 +227,13 @@ static void display(void)
 	{
 		char buf[256];
 		int nelem = 0;
-		for (i = 0; i < model->mesh_count; i++)
-			nelem += model->mesh[i].count;
-		sprintf(buf, "%d meshes, %d bones, %d triangles.", model->mesh_count, model->bone_count, nelem/3);
-		text_show(8, screenh-12, buf);
+		if (model) {
+			for (i = 0; i < model->mesh_count; i++)
+				nelem += model->mesh[i].count;
+			sprintf(buf, "%d meshes, %d bones, %d triangles.", model->mesh_count, model->bone_count, nelem/3);
+			text_show(8, screenh-12, buf);
+		}
+
 		if (animation) {
 			sprintf(buf, "frame %03d / %03d (%d fps)", (int)animtick+1, animation->frame_count, animspeed);
 			text_show(8, screenh-12-20, buf);
