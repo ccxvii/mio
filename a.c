@@ -9,9 +9,10 @@ static int showplane = 1;
 static int showwire = 0;
 static int showalpha = 0;
 static int showicon = 0;
+static int showbackface = 1;
 
 static int lasttime = 0;
-static int showanim = 1;
+static int showanim = 0;
 static int animspeed = 30;
 static float animtick = 0;
 
@@ -27,6 +28,18 @@ struct pose posebuf[MAXBONE];
 static float cam_dist = 5;
 static float cam_yaw = 0;
 static float cam_pitch = -20;
+
+struct model *load_model(char *filename)
+{
+	if (strstr(filename, ".iqm"))
+		return load_iqm_model(filename);
+	if (strstr(filename, ".iqe"))
+		return load_iqe_model(filename);
+	if (strstr(filename, ".obj"))
+		return load_obj_model(filename);
+	fprintf(stderr, "unknown model format: '%s'\n", filename);
+	return NULL;
+}
 
 void togglefullscreen(void)
 {
@@ -97,10 +110,11 @@ static void keyboard(unsigned char key, int x, int y)
 		case '.': animtick = floor(animtick) + 1; break;
 		case ',': animtick = floor(animtick) - 1; break;
 		case '[': animspeed = MAX(5, animspeed - 5); break;
-		case ']': animspeed = MAX(60, animspeed + 5); break;
+		case ']': animspeed = MIN(60, animspeed + 5); break;
 		case 'k': showskeleton = !showskeleton; break;
 		case 'p': showplane = !showplane; break;
 		case 'w': showwire = !showwire; break;
+		case 'b': showbackface = !showbackface; break;
 		case 'a': showalpha = !showalpha; break;
 	}
 
@@ -150,7 +164,7 @@ static void display(void)
 
 	glViewport(0, 0, screenw, screenh);
 
-	glClearColor(0.1, 0.1, 0.1, 1.0);
+	glClearColor(0.05, 0.05, 0.05, 1.0);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 	mat_perspective(projection, 75, (float)screenw / screenh, 0.05, 5000);
@@ -165,7 +179,7 @@ static void display(void)
 
 	if (showplane) {
 		draw_begin(projection, model_view);
-		draw_set_color(0.5, 0.5, 0.5, 1);
+		draw_set_color(0.1, 0.1, 0.1, 1);
 		for (i = -4; i <= 4; i++) {
 			draw_line(i, -4, 0, i, 4, 0);
 			draw_line(-4, i, 0, 4, i, 0);
@@ -175,7 +189,8 @@ static void display(void)
 
 	if (showalpha)
 		glEnable(GL_SAMPLE_ALPHA_TO_COVERAGE);
-
+	if (showbackface)
+		glDisable(GL_CULL_FACE);
 	if (showwire)
 		glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 
@@ -186,11 +201,9 @@ static void display(void)
 		draw_model(model, projection, model_view);
 	}
 
-	if (showwire)
-		glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-
-	if (showalpha)
-		glDisable(GL_SAMPLE_ALPHA_TO_COVERAGE);
+	glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+	glEnable(GL_CULL_FACE);
+	glDisable(GL_SAMPLE_ALPHA_TO_COVERAGE);
 
 	glDisable(GL_DEPTH_TEST);
 
@@ -239,7 +252,6 @@ static void display(void)
 	if (showconsole)
 		console_draw(projection, droid_sans_mono, 15);
 
-	glutPostRedisplay();
 	glutSwapBuffers();
 
 	i = glGetError();
@@ -281,11 +293,11 @@ int main(int argc, char **argv)
 		exit(1);
 
 	if (argc > 1) {
-		model = load_iqm_model(argv[1]);
+		model = load_model(argv[1]);
 		if (argc > 2)
 			animation = load_iqm_animation(argv[2]);
 	} else {
-		model = load_obj_model("data/fo_s2_spiketree.obj");
+		model = load_model("data/fo_s2_spiketree.obj");
 		animation = NULL;
 	}
 

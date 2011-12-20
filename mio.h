@@ -117,6 +117,7 @@ struct animation {
 };
 
 struct model *load_obj_model(char *filename);
+struct model *load_iqe_model(char *filename);
 
 struct model *load_iqm_model(char *filename);
 struct model *load_iqm_model_from_memory(char *filename, unsigned char *data, int len);

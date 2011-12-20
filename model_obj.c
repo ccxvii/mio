@@ -167,7 +167,7 @@ int set_material(char *matname)
 static void splitfv(char *buf, int *vpp, int *vtp, int *vnp)
 {
 	char tmp[200], *p, *vp, *vt, *vn;
-	strcpy(tmp, buf);
+	strlcpy(tmp, buf, sizeof tmp);
 	p = tmp;
 	vp = strsep(&p, "/");
 	vt = strsep(&p, "/");

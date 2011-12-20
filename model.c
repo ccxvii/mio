@@ -56,7 +56,7 @@ static const char *model_frag_src =
 	"varying vec2 var_TexCoord;\n"
 	"varying vec3 var_Normal;\n"
 	"const vec3 LightDirection = vec3(-0.5773, 0.5773, 0.5773);\n"
-	"const vec3 LightAmbient = vec3(0.2);\n"
+	"const vec3 LightAmbient = vec3(0.1);\n"
 	"const vec3 LightDiffuse = vec3(1.0);\n"
 	"void main() {\n"
 	"	vec4 color = texture2D(Texture, var_TexCoord);\n"
@@ -133,20 +133,38 @@ static int findbone(struct model *model, char *name)
 	return -1;
 }
 
+static const char *sizebones[] = {
+	"bip01_spine", "bip01_neck", "bip01_l_upperarm", "bip01_r_thigh", NULL
+};
+
 void retarget_pose(struct pose *pose, struct model *model, struct animation *anim, int frame)
 {
 	float *p;
-	int i;
+	int i, k;
 
 	if (frame < 0) frame = 0;
 	if (frame >= anim->frame_count) frame = anim->frame_count - 1;
 
 	memcpy(pose, model->bind_pose, model->bone_count * sizeof(struct pose));
 
+#if 0
+	float msize = 0, asize = 0, adj = 1;
+	for (i = 0; i < anim->bone_count; i++)
+		for (k = 0; sizebones[k]; k++)
+			if (!strcmp(anim->chan[i].name, sizebones[k]))
+				asize += vec_length(anim->chan[i].pose.translate);
+	for (i = 0; i < model->bone_count; i++)
+		for (k = 0; sizebones[k]; k++)
+			if (!strcmp(model->bone[i].name, sizebones[k]))
+				msize += vec_length(model->bind_pose[i].translate);
+	if (asize > 0 && msize > 0)
+		adj = msize / asize;
+#endif
+
 	p = anim->frame + frame * anim->frame_size;
 	for (i = 0; i < anim->bone_count; i++) {
 		int mask = anim->chan[i].mask;
-		int k = findbone(model, anim->chan[i].name);
+		k = findbone(model, anim->chan[i].name);
 		if (k >= 0) {
 			memcpy(pose[k].translate, anim->chan[i].pose.translate, 3*4);
 			memcpy(pose[k].rotate, anim->chan[i].pose.rotate, 4*4);
@@ -161,6 +179,9 @@ void retarget_pose(struct pose *pose, struct model *model, struct animation *ani
 			if (mask & 0x80) pose[k].scale[0] = *p++;
 			if (mask & 0x100) pose[k].scale[1] = *p++;
 			if (mask & 0x200) pose[k].scale[2] = *p++;
+			//pose[k].translate[0] *= adj;
+			//pose[k].translate[1] *= adj;
+			//pose[k].translate[2] *= adj;
 		} else {
 			if (mask & 0x01) p++;
 			if (mask & 0x02) p++;
@@ -176,17 +197,35 @@ void retarget_pose(struct pose *pose, struct model *model, struct animation *ani
 	}
 }
 
+static int haschildren(struct bone *bonelist, int count, int x)
+{
+	int i;
+	for (i = x; i < count; i++)
+		if (bonelist[i].parent == x)
+			return 1;
+	return 0;
+}
+
 void
 draw_skeleton(struct bone *bonelist, mat4 *bonematrix, int count)
 {
+	vec3 x = { 0.1, 0, 0 };
 	int i;
 	for (i = 0; i < count; i++) {
 		float *a = bonematrix[i];
 		if (bonelist[i].parent >= 0) {
 			float *b = bonematrix[bonelist[i].parent];
+			draw_set_color(1, 1, 1, 1);
 			draw_line(a[12], a[13], a[14], b[12], b[13], b[14]);
 		} else {
+			draw_set_color(1, 1, 0, 1);
 			draw_line(a[12], a[13], a[14], 0, 0, 0);
+		}
+		if (!haschildren(bonelist, count, i)) {
+			vec3 b;
+			mat_vec_mul(b, bonematrix[i], x);
+			draw_set_color(1, 1, 1, 1);
+			draw_line(a[12], a[13], a[14], b[0], b[1], b[2]);
 		}
 	}
 }
