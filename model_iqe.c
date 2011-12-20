@@ -105,7 +105,7 @@ static int load_material(char *dirname, char *material)
 	char filename[1024];
 	char *s, *p;
 
-	s = strchr(material, '+');
+	s = strrchr(material, '+');
 	if (s) s++; else s = material;
 	p = strrchr(material, ',');
 	if (p) *p = 0;

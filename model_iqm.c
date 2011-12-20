@@ -69,7 +69,9 @@ static int load_iqm_material(char *dir, char *name)
 {
 	char buf[256], *p;
 	strlcpy(buf, dir, sizeof buf);
-	strlcat(buf, name, sizeof buf);
+	p = strrchr(name, '+');
+	if (p) p++; else p = name;
+	strlcat(buf, p, sizeof buf);
 	p = strrchr(buf, ',');
 	if (p) strlcpy(p, ".png", sizeof buf - (p-buf));
 	return load_texture(0, buf, 1);

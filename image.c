@@ -134,7 +134,7 @@ int load_texture_from_memory(unsigned int texid, unsigned char *data, int len, i
 
 	image = stbi_load_from_memory(data, len, &w, &h, &n, 0);
 	if (!image) {
-		fprintf(stderr, "error: cannot decode image\n");
+		fprintf(stderr, "error: cannot decode image (%s)\n", stbi_failure_reason());
 		return 0;
 	}
 	texid = make_texture(texid, image, w, h, n, srgb);
@@ -154,7 +154,7 @@ int load_texture(unsigned int texid, char *filename, int srgb)
 
 	image = stbi_load(filename, &w, &h, &n, 0);
 	if (!image) {
-		fprintf(stderr, "error: cannot load image '%s'\n", filename);
+		fprintf(stderr, "error: cannot load image '%s' (%s)\n", filename, stbi_failure_reason());
 		return 0;
 	}
 	texid = make_texture(0, image, w, h, n, srgb);
