@@ -527,3 +527,40 @@ void mat_from_pose(mat4 m, const vec3 t, const vec4 q, const vec3 s)
 	M(3,2) = 0;
 	M(3,3) = 1;
 }
+
+// only 3x3 rotation part from matrix with no scaling
+void quat_from_mat(vec4 q, const mat4 m)
+{
+	float trace = M(0,0) + M(1,1) + M(2,2);
+	if(trace > 0) {
+		float r = sqrtf(1 + trace), inv = 0.5f/r;
+		q[3] = 0.5f*r;
+		q[0] = (M(2,1) - M(1,2))*inv;
+		q[1] = (M(0,2) - M(2,0))*inv;
+		q[2] = (M(1,0) - M(0,1))*inv;
+	}
+	else if(M(0,0) > M(1,1) && M(0,0) > M(2,2))
+	{
+		float r = sqrtf(1 + M(0,0) - M(1,1) - M(2,2)), inv = 0.5f/r;
+		q[0] = 0.5f*r;
+		q[1] = (M(1,0) + M(0,1))*inv;
+		q[2] = (M(0,2) + M(2,0))*inv;
+		q[3] = (M(2,1) - M(1,2))*inv;
+	}
+	else if(M(1,1) > M(2,2))
+	{
+		float r = sqrtf(1 + M(1,1) - M(0,0) - M(2,2)), inv = 0.5f/r;
+		q[0] = (M(1,0) + M(0,1))*inv;
+		q[1] = 0.5f*r;
+		q[2] = (M(2,1) + M(1,2))*inv;
+		q[3] = (M(0,2) - M(2,0))*inv;
+	}
+	else
+	{
+		double r = sqrtf(1 + M(2,2) - M(0,0) - M(1,1)), inv = 0.5f/r;
+		q[0] = (M(0,2) + M(2,0))*inv;
+		q[1] = (M(2,1) + M(1,2))*inv;
+		q[2] = 0.5f*r;
+		q[3] = (M(1,0) - M(0,1))*inv;
+	}
+}
