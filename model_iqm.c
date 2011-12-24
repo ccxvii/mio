@@ -86,7 +86,6 @@ struct model *load_iqm_model_from_memory(char *filename, unsigned char *data, in
 	struct iqmjoint *joints = (void*) &data[iqm->ofs_joints];
 	int i, total;
 	char *p;
-	mat4 local_matrix, world_matrix[MAXBONE];
 	char dir[256];
 
 	printf("loading iqm model '%s'\n", filename);
@@ -263,45 +262,3 @@ struct animation *load_iqm_animation(char *filename)
 	free(data);
 	return anim;
 }
-
-#if 0
-
-void
-animate_iqm_model(struct model *model, int anim, int frame, float t)
-{
-	struct pose *pose0, *pose1;
-	float m[16], q[4], v[3];
-	int frame0, frame1;
-	int i;
-
-	if (!model->num_bones || !model->num_anims)
-		return;
-
-	if (!model->outbone) {
-		model->outbone = malloc(model->num_bones * sizeof(float[16]));
-		model->outskin = malloc(model->num_bones * sizeof(float[16]));
-	}
-
-	if (anim < 0) anim = 0;
-	if (anim >= model->num_anims) anim = model->num_anims - 1;
-
-	frame0 = frame % model->anims[anim].count;
-	frame1 = (frame + 1) % model->anims[anim].count;
-	pose0 = model->poses[model->anims[anim].first + frame0];
-	pose1 = model->poses[model->anims[anim].first + frame1];
-
-	for (i = 0; i < model->num_bones; i++) {
-		int parent = model->bones[i].parent;
-		quat_lerp_neighbor_normalize(q, pose0[i].rotate, pose1[i].rotate, t);
-		vec_lerp(v, pose0[i].translate, pose1[i].translate, t);
-		if (parent >= 0) {
-			mat_from_pose(m, q, v);
-			mat_mul(model->outbone[i], model->outbone[parent], m);
-		} else {
-			mat_from_pose(model->outbone[i], q, v);
-		}
-		mat_mul(model->outskin[i], model->outbone[i], model->bones[i].inv_bind_matrix);
-	}
-}
-
-#endif
