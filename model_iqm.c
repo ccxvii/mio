@@ -110,8 +110,6 @@ struct model *load_iqm_model_from_memory(char *filename, unsigned char *data, in
 	model->bone_count = iqm->num_joints;
 
 	model->mesh = malloc(model->mesh_count * sizeof *model->mesh);
-	model->bone = malloc(model->bone_count * sizeof *model->bone);
-	model->bind_pose = malloc(model->bone_count * sizeof *model->bind_pose);
 
 	for (i = 0; i < model->mesh_count; i++) {
 		model->mesh[i].texture = load_iqm_material(dir, text + iqmmesh[i].material);
@@ -120,21 +118,16 @@ struct model *load_iqm_model_from_memory(char *filename, unsigned char *data, in
 	}
 
 	for (i = 0; i < model->bone_count; i++) {
-		struct bone *bone = model->bone + i;
-		struct pose *pose = model->bind_pose + i;
-		strlcpy(bone->name, text + joints[i].name, sizeof bone->name);
-		bone->parent = joints[i].parent;
-		memcpy(pose->translate, joints[i].translate, 3*sizeof(float));
-		memcpy(pose->rotate, joints[i].rotate, 4*sizeof(float));
-		memcpy(pose->scale, joints[i].scale, 3*sizeof(float));
-		if (bone->parent >= 0) {
-			mat_from_pose(local_matrix, pose->translate, pose->rotate, pose->scale);
-			mat_mul(world_matrix[i], world_matrix[bone->parent], local_matrix);
-		} else {
-			mat_from_pose(world_matrix[i], pose->translate, pose->rotate, pose->scale);
-		}
-		mat_invert(bone->inv_bind_matrix, world_matrix[i]);
+		strlcpy(model->bone_name[i], text + joints[i].name, sizeof model->bone_name[0]);
+		model->parent[i] = joints[i].parent;
+		memcpy(model->bind_pose[i].translate, joints[i].translate, 3*sizeof(float));
+		memcpy(model->bind_pose[i].rotate, joints[i].rotate, 4*sizeof(float));
+		memcpy(model->bind_pose[i].scale, joints[i].scale, 3*sizeof(float));
 	}
+
+	calc_pose_matrix(model->bind_matrix, model->bind_pose, model->bone_count);
+	calc_abs_pose_matrix(model->abs_bind_matrix, model->bind_matrix, model->parent, model->bone_count);
+	calc_inv_bind_matrix(model->inv_bind_matrix, model->abs_bind_matrix, model->bone_count);
 
 	glGenVertexArrays(1, &model->vao);
 	glGenBuffers(1, &model->vbo);
@@ -211,16 +204,18 @@ struct animation *load_iqm_animation_from_memory(char *filename, unsigned char *
 	anim->frame_count = iqmanim->num_frames;
 	anim->flags = iqmanim->flags;
 
-	anim->chan = malloc(anim->bone_count * sizeof *anim->chan);
 	anim->frame = malloc(anim->frame_count * anim->frame_size * sizeof(float));
 
 	for (i = 0; i < anim->bone_count; i++) {
-		struct chan *chan = anim->chan + i;
-		strlcpy(chan->name, text + iqmjoint[i].name, sizeof chan->name);
-		chan->parent = iqmpose[i].parent;
-		chan->mask = iqmpose[i].mask;
-		memcpy(&chan->pose, iqmpose[i].channeloffset, 10*sizeof(float));
+		strlcpy(anim->bone_name[i], text + iqmjoint[i].name, sizeof anim->bone_name[0]);
+		anim->parent[i] = iqmpose[i].parent;
+		anim->mask[i] = iqmpose[i].mask;
+		memcpy(&anim->offset[i], iqmpose[i].channeloffset, 10*sizeof(float));
+		memcpy(&anim->bind_pose[i], iqmjoint[i].translate, 10*sizeof(float));
 	}
+
+	calc_pose_matrix(anim->bind_matrix, anim->bind_pose, anim->bone_count);
+	calc_abs_pose_matrix(anim->abs_bind_matrix, anim->bind_matrix, anim->parent, anim->bone_count);
 
 	p = anim->frame;
 	s = (void*) &data[iqm->ofs_frames];

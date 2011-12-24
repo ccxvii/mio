@@ -59,8 +59,9 @@ static const char *model_frag_src =
 	"const vec3 LightAmbient = vec3(0.1);\n"
 	"const vec3 LightDiffuse = vec3(1.0);\n"
 	"void main() {\n"
-	"	vec4 color = texture2D(Texture, var_TexCoord);\n"
-//	"	vec4 color = vec4(1);\n"
+//	"	vec4 color = texture2D(Texture, var_TexCoord);\n"
+//	"	vec4 color = vec4(0.9, 0.8, 0.5, 1);\n"
+	"	vec4 color = vec4(var_TexCoord.x, var_TexCoord.y, 1, 1);\n"
 //	"	if (color.a < 0.2) discard;\n"
 	"	vec3 N = normalize(var_Normal);\n"
 	"	float diffuse = max(dot(N, LightDirection), 0.0);\n"
@@ -70,31 +71,61 @@ static const char *model_frag_src =
 	"}\n"
 ;
 
-void apply_pose2(mat4 *skin_matrix, struct bone *bonelist, struct pose *pose, int count)
+void calc_skin_matrix(mat4 *skin_matrix, mat4 *abs_pose_matrix, mat4 *inv_bind_matrix, int count)
 {
 	int i;
-	mat4 local_matrix, world_matrix[MAXBONE];
-	for (i = 0; i < count; i++) {
-		if (bonelist[i].parent >= 0) {
-			mat_from_pose(local_matrix, pose[i].translate, pose[i].rotate, pose[i].scale);
-			mat_mul(world_matrix[i], world_matrix[bonelist[i].parent], local_matrix);
-		} else {
-			mat_from_pose(world_matrix[i], pose[i].translate, pose[i].rotate, pose[i].scale);
-		}
-		mat_mul(skin_matrix[i], world_matrix[i], bonelist[i].inv_bind_matrix);
-	}
+	for (i = 0; i < count; i++)
+		mat_mul(skin_matrix[i], abs_pose_matrix[i], inv_bind_matrix[i]);
 }
 
-void apply_pose(mat4 *world_matrix, struct bone *bonelist, struct pose *pose, int count)
+void calc_inv_bind_matrix(mat4 *inv_bind_matrix, mat4 *abs_bind_matrix, int count)
 {
 	int i;
-	mat4 local_matrix;
-	for (i = 0; i < count; i++) {
-		if (bonelist[i].parent >= 0) {
-			mat_from_pose(local_matrix, pose[i].translate, pose[i].rotate, pose[i].scale);
-			mat_mul(world_matrix[i], world_matrix[bonelist[i].parent], local_matrix);
+	for (i = 0; i < count; i++)
+		mat_invert(inv_bind_matrix[i], abs_bind_matrix[i]);
+}
+
+void calc_abs_pose_matrix(mat4 *abs_pose_matrix, mat4 *pose_matrix, int *parent, int count)
+{
+	int i;
+	for (i = 0; i < count; i++)
+		if (parent[i] >= 0)
+			mat_mul(abs_pose_matrix[i], abs_pose_matrix[parent[i]], pose_matrix[i]);
+		else
+			mat_copy(abs_pose_matrix[i], pose_matrix[i]);
+}
+
+void calc_pose_matrix(mat4 *pose_matrix, struct pose *pose, int count)
+{
+	int i;
+	for (i = 0; i < count; i++)
+		mat_from_pose(pose_matrix[i], pose[i].translate, pose[i].rotate, pose[i].scale);
+}
+
+static int findbone(char (*bone_name)[32], int count, char *name)
+{
+	int i;
+	for (i = 0; i < count; i++)
+		if (!strcmp(bone_name[i], name))
+			return i;
+	return -1;
+}
+
+void retarget_skeleton(mat4 *out_matrix,
+		mat4 *dst_matrix, char (*dst_names)[32], int dst_count,
+		mat4 *src_matrix, char (*src_names)[32], int src_count,
+		mat4 *src_anim_matrix)
+{
+	mat4 diff_matrix, inv_src_matrix;
+	int src, dst;
+	for (dst = 0; dst < dst_count; dst++) {
+		src = findbone(src_names, src_count, dst_names[dst]);
+		if (src < 0) {
+			mat_copy(out_matrix[dst], dst_matrix[dst]);
 		} else {
-			mat_from_pose(world_matrix[i], pose[i].translate, pose[i].rotate, pose[i].scale);
+			mat_invert(inv_src_matrix, src_matrix[src]);
+			mat_mul(diff_matrix, inv_src_matrix, dst_matrix[dst]);
+			mat_mul(out_matrix[dst], src_anim_matrix[src], diff_matrix);
 		}
 	}
 }
@@ -109,8 +140,8 @@ void extract_pose(struct pose *pose, struct animation *anim, int frame)
 
 	p = anim->frame + frame * anim->frame_size;
 	for (i = 0; i < anim->bone_count; i++) {
-		int mask = anim->chan[i].mask;
-		memcpy(pose + i, &anim->chan[i].pose, sizeof *pose);
+		int mask = anim->mask[i];
+		memcpy(pose + i, &anim->offset[i], sizeof *pose);
 		if (mask & 0x01) pose[i].translate[0] = *p++;
 		if (mask & 0x02) pose[i].translate[1] = *p++;
 		if (mask & 0x04) pose[i].translate[2] = *p++;
@@ -124,107 +155,82 @@ void extract_pose(struct pose *pose, struct animation *anim, int frame)
 	}
 }
 
-static int findbone(struct model *model, char *name)
-{
-	int i;
-	for (i = 0; i < model->bone_count; i++)
-		if (!strcmp(model->bone[i].name, name))
-			return i;
-	return -1;
-}
-
-static const char *sizebones[] = {
-	"bip01_spine", "bip01_neck", "bip01_l_upperarm", "bip01_r_thigh", NULL
-};
-
-void retarget_pose(struct pose *pose, struct model *model, struct animation *anim, int frame)
-{
-	float *p;
-	int i, k;
-
-	if (frame < 0) frame = 0;
-	if (frame >= anim->frame_count) frame = anim->frame_count - 1;
-
-	memcpy(pose, model->bind_pose, model->bone_count * sizeof(struct pose));
-
-#if 0
-	float msize = 0, asize = 0, adj = 1;
-	for (i = 0; i < anim->bone_count; i++)
-		for (k = 0; sizebones[k]; k++)
-			if (!strcmp(anim->chan[i].name, sizebones[k]))
-				asize += vec_length(anim->chan[i].pose.translate);
-	for (i = 0; i < model->bone_count; i++)
-		for (k = 0; sizebones[k]; k++)
-			if (!strcmp(model->bone[i].name, sizebones[k]))
-				msize += vec_length(model->bind_pose[i].translate);
-	if (asize > 0 && msize > 0)
-		adj = msize / asize;
-#endif
-
-	p = anim->frame + frame * anim->frame_size;
-	for (i = 0; i < anim->bone_count; i++) {
-		int mask = anim->chan[i].mask;
-		k = findbone(model, anim->chan[i].name);
-		if (k >= 0) {
-			memcpy(pose[k].translate, anim->chan[i].pose.translate, 3*4);
-			memcpy(pose[k].rotate, anim->chan[i].pose.rotate, 4*4);
-			memcpy(pose[k].scale, anim->chan[i].pose.scale, 3*4);
-			if (mask & 0x01) pose[k].translate[0] = *p++;
-			if (mask & 0x02) pose[k].translate[1] = *p++;
-			if (mask & 0x04) pose[k].translate[2] = *p++;
-			if (mask & 0x08) pose[k].rotate[0] = *p++;
-			if (mask & 0x10) pose[k].rotate[1] = *p++;
-			if (mask & 0x20) pose[k].rotate[2] = *p++;
-			if (mask & 0x40) pose[k].rotate[3] = *p++;
-			if (mask & 0x80) pose[k].scale[0] = *p++;
-			if (mask & 0x100) pose[k].scale[1] = *p++;
-			if (mask & 0x200) pose[k].scale[2] = *p++;
-			//pose[k].translate[0] *= adj;
-			//pose[k].translate[1] *= adj;
-			//pose[k].translate[2] *= adj;
-		} else {
-			if (mask & 0x01) p++;
-			if (mask & 0x02) p++;
-			if (mask & 0x04) p++;
-			if (mask & 0x08) p++;
-			if (mask & 0x10) p++;
-			if (mask & 0x20) p++;
-			if (mask & 0x40) p++;
-			if (mask & 0x80) p++;
-			if (mask & 0x100) p++;
-			if (mask & 0x200) p++;
-		}
-	}
-}
-
-static int haschildren(struct bone *bonelist, int count, int x)
+static int haschildren(int *parent, int count, int x)
 {
 	int i;
 	for (i = x; i < count; i++)
-		if (bonelist[i].parent == x)
+		if (parent[i] == x)
 			return 1;
 	return 0;
 }
 
 void
-draw_skeleton(struct bone *bonelist, mat4 *bonematrix, int count)
+draw_skeleton(mat4 *abs_pose_matrix, int *parent, int count)
 {
 	vec3 x = { 0.1, 0, 0 };
 	int i;
 	for (i = 0; i < count; i++) {
-		float *a = bonematrix[i];
-		if (bonelist[i].parent >= 0) {
-			float *b = bonematrix[bonelist[i].parent];
+		float *a = abs_pose_matrix[i];
+		if (parent[i] >= 0) {
+			float *b = abs_pose_matrix[parent[i]];
 			draw_set_color(1, 1, 1, 1);
 			draw_line(a[12], a[13], a[14], b[12], b[13], b[14]);
 		} else {
 			draw_set_color(1, 1, 0, 1);
 			draw_line(a[12], a[13], a[14], 0, 0, 0);
 		}
-		if (!haschildren(bonelist, count, i)) {
+		if (!haschildren(parent, count, i)) {
 			vec3 b;
-			mat_vec_mul(b, bonematrix[i], x);
-			draw_set_color(1, 1, 1, 1);
+			mat_vec_mul(b, abs_pose_matrix[i], x);
+			draw_set_color(1, 1, 0, 1);
+			draw_line(a[12], a[13], a[14], b[0], b[1], b[2]);
+		}
+	}
+}
+
+void
+draw_skeleton_2(mat4 *abs_pose_matrix, int *parent, int count)
+{
+	vec3 x = { 0.1, 0, 0 };
+	int i;
+	for (i = 0; i < count; i++) {
+		float *a = abs_pose_matrix[i];
+		if (parent[i] >= 0) {
+			float *b = abs_pose_matrix[parent[i]];
+			draw_set_color(0, 1, 1, 1);
+			draw_line(a[12], a[13], a[14], b[12], b[13], b[14]);
+		} else {
+			draw_set_color(0, 1, 0, 1);
+			draw_line(a[12], a[13], a[14], 0, 0, 0);
+		}
+		if (!haschildren(parent, count, i)) {
+			vec3 b;
+			mat_vec_mul(b, abs_pose_matrix[i], x);
+			draw_set_color(0, 1, 0, 1);
+			draw_line(a[12], a[13], a[14], b[0], b[1], b[2]);
+		}
+	}
+}
+
+void
+draw_skeleton_3(mat4 *abs_pose_matrix, int *parent, int count)
+{
+	vec3 x = { 0.1, 0, 0 };
+	int i;
+	for (i = 0; i < count; i++) {
+		float *a = abs_pose_matrix[i];
+		if (parent[i] >= 0) {
+			float *b = abs_pose_matrix[parent[i]];
+			draw_set_color(1, 0, 1, 1);
+			draw_line(a[12], a[13], a[14], b[12], b[13], b[14]);
+		} else {
+			draw_set_color(0, 0, 1, 1);
+			draw_line(a[12], a[13], a[14], 0, 0, 0);
+		}
+		if (!haschildren(parent, count, i)) {
+			vec3 b;
+			mat_vec_mul(b, abs_pose_matrix[i], x);
+			draw_set_color(0, 0, 1, 1);
 			draw_line(a[12], a[13], a[14], b[0], b[1], b[2]);
 		}
 	}

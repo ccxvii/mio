@@ -124,7 +124,8 @@ struct model *load_iqe_model(char *filename)
 	char line[200];
 	struct model *model;
 	struct mesh meshbuf[MAXMESH], *mesh = NULL;
-	struct bone bonebuf[MAXBONE];
+	char bonename[MAXBONE][32];
+	int boneparent[MAXBONE];
 	struct pose posebuf[MAXBONE];
 	int mesh_count = 0;
 	int bone_count = 0;
@@ -226,8 +227,8 @@ struct model *load_iqe_model(char *filename)
 			if (bone_count < MAXBONE) {
 				char *name = strtok(NULL, SEP);
 				char *parent = strtok(NULL, SEP);
-				strlcpy(bonebuf[bone_count].name, name, sizeof bonebuf[0].name);
-				bonebuf[bone_count].parent = atoi(parent);
+				strlcpy(bonename[bone_count], name, sizeof bonename[0]);
+				boneparent[bone_count] = atoi(parent);
 				bone_count++;
 			}
 		} else if (!strcmp(s, "pq")) {
@@ -343,23 +344,13 @@ struct model *load_iqe_model(char *filename)
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 
 	if (bone_count > 0 && pose_count >= bone_count) {
-		mat4 local_matrix, world_matrix[MAXBONE];
 		model->bone_count = bone_count;
-		model->bone = malloc(model->bone_count * sizeof(struct bone));
-		model->bind_pose = malloc(model->bone_count * sizeof(struct pose));
-		memcpy(model->bone, bonebuf, bone_count * sizeof(struct bone));
-		memcpy(model->bind_pose, posebuf, bone_count * sizeof(struct pose));
-		for (i = 0; i < model->bone_count; i++) {
-			struct bone *bone = model->bone + i;
-			struct pose *pose = model->bind_pose + i;
-			if (bone->parent >= 0) {
-				mat_from_pose(local_matrix, pose->translate, pose->rotate, pose->scale);
-				mat_mul(world_matrix[i], world_matrix[bone->parent], local_matrix);
-			} else {
-				mat_from_pose(world_matrix[i], pose->translate, pose->rotate, pose->scale);
-			}
-			mat_invert(bone->inv_bind_matrix, world_matrix[i]);
-		}
+		memcpy(model->bone_name, bonename, sizeof bonename); // XXX careful of size
+		memcpy(model->parent, boneparent, sizeof boneparent);
+		memcpy(model->bind_pose, posebuf, sizeof posebuf);
+		calc_pose_matrix(model->bind_matrix, model->bind_pose, model->bone_count);
+		calc_abs_pose_matrix(model->abs_bind_matrix, model->bind_matrix, model->parent, model->bone_count);
+		calc_inv_bind_matrix(model->inv_bind_matrix, model->abs_bind_matrix, model->bone_count);
 	}
 
 	return model;

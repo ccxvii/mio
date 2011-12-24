@@ -74,17 +74,11 @@ int compile_shader(const char *vert_src, const char *frag_src);
 
 /* models and animations */
 
-#define MAXBONE 80
+#define MAXBONE 256
 
 struct mesh {
 	unsigned int texture;
 	int first, count;
-};
-
-struct bone {
-	char name[32];
-	int parent;
-	mat4 inv_bind_matrix;
 };
 
 struct pose {
@@ -97,23 +91,28 @@ struct model {
 	unsigned int vao, vbo, ibo;
 	int mesh_count, bone_count;
 	struct mesh *mesh;
-	struct bone *bone;
-	struct pose *bind_pose;
-};
 
-struct chan {
-	char name[32];
-	int parent;
-	int mask; // which pose entries are present in frame data
-	struct pose pose;
+	char bone_name[MAXBONE][32];
+	int parent[MAXBONE];
+	struct pose bind_pose[MAXBONE];
+	mat4 bind_matrix[MAXBONE];
+	mat4 abs_bind_matrix[MAXBONE];
+	mat4 inv_bind_matrix[MAXBONE];
 };
 
 struct animation {
 	char name[80];
 	int bone_count, frame_size, frame_count;
 	int flags;
-	struct chan *chan;
 	float *frame;
+
+	char bone_name[MAXBONE][32];
+	int parent[MAXBONE];
+	int mask[MAXBONE];
+	struct pose offset[MAXBONE];
+	struct pose bind_pose[MAXBONE];
+	mat4 bind_matrix[MAXBONE];
+	mat4 abs_bind_matrix[MAXBONE];
 };
 
 struct model *load_obj_model(char *filename);
@@ -126,6 +125,21 @@ struct animation *load_iqm_animation(char *filename);
 struct animation *load_iqm_animation_from_memory(char *filename, unsigned char *data, int len);
 
 void draw_model(struct model *model, mat4 projection, mat4 model_view);
+void draw_model_with_pose(struct model *model, mat4 projection, mat4 model_view, mat4 *skin_matrix);
+
+void calc_skin_matrix(mat4 *skin_matrix, mat4 *abs_pose_matrix, mat4 *inv_bind_matrix, int count);
+void calc_inv_bind_matrix(mat4 *inv_bind_matrix, mat4 *abs_bind_matrix, int count);
+void calc_abs_pose_matrix(mat4 *abs_pose_matrix, mat4 *pose_matrix, int *parent, int count);
+void calc_pose_matrix(mat4 *pose_matrix, struct pose *pose, int count);
+
+void draw_skeleton(mat4 *abs_pose_matrix, int *parent, int count);
+void draw_skeleton_2(mat4 *abs_pose_matrix, int *parent, int count);
+void draw_skeleton_3(mat4 *abs_pose_matrix, int *parent, int count);
+
+void retarget_skeleton(mat4 *out_matrix,
+		mat4 *dst_matrix, char (*dst_names)[32], int dst_count,
+		mat4 *src_matrix, char (*src_names)[32], int src_count,
+		mat4 *src_anim_matrix);
 
 /* texture loader based on stb_image */
 
@@ -172,7 +186,7 @@ void draw_quad(float x0, float y0, float z0,
 	float x2, float y2, float z2,
 	float x3, float y3, float z3);
 
-void draw_skeleton(struct bone *bonelist, mat4 *bonematrix, int count);
+void draw_skeleton(mat4 *abs_pose_matrix, int *parent, int count);
 
 /* console */
 

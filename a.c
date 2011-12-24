@@ -22,7 +22,11 @@ static struct font *droid_sans_mono;
 static struct model *model;
 static struct animation *animation;
 
-mat4 matbuf[MAXBONE];
+mat4 skin_matrix[MAXBONE];
+mat4 pose_matrix[MAXBONE];
+mat4 anim_matrix[MAXBONE];
+mat4 abs_anim_matrix[MAXBONE];
+mat4 abs_pose_matrix[MAXBONE];
 struct pose posebuf[MAXBONE];
 
 static float cam_dist = 5;
@@ -158,8 +162,16 @@ static void display(void)
 		while (animtick < 0) animtick += animation->frame_count;
 		while (animtick >= animation->frame_count) animtick -= animation->frame_count;
 
-		memcpy(posebuf, model->bind_pose, model->bone_count * sizeof(struct pose));
-		retarget_pose(posebuf, model, animation, (int)animtick);
+		extract_pose(posebuf, animation, (int)animtick);
+
+		calc_pose_matrix(anim_matrix, posebuf, animation->bone_count);
+		calc_abs_pose_matrix(abs_anim_matrix, anim_matrix, animation->parent, animation->bone_count);
+
+		retarget_skeleton(pose_matrix,
+			model->bind_matrix, model->bone_name, model->bone_count,
+			animation->bind_matrix, animation->bone_name, animation->bone_count,
+			anim_matrix);
+		calc_abs_pose_matrix(abs_pose_matrix, pose_matrix, model->parent, model->bone_count);
 	}
 
 	glViewport(0, 0, screenw, screenh);
@@ -195,8 +207,8 @@ static void display(void)
 		glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 
 	if (animation) {
-		apply_pose2(matbuf, model->bone, posebuf, model->bone_count);
-		draw_model_with_pose(model, projection, model_view, matbuf);
+		calc_skin_matrix(skin_matrix, abs_pose_matrix, model->inv_bind_matrix, model->bone_count);
+		draw_model_with_pose(model, projection, model_view, skin_matrix);
 	} else {
 		draw_model(model, projection, model_view);
 	}
@@ -207,15 +219,21 @@ static void display(void)
 
 	glDisable(GL_DEPTH_TEST);
 
-	if (showskeleton && model->bone) {
-		if (animation)
-			apply_pose(matbuf, model->bone, posebuf, model->bone_count);
-		else
-			apply_pose(matbuf, model->bone, model->bind_pose, model->bone_count);
+	if (showskeleton && model->bone_count > 0) {
 		draw_begin(projection, model_view);
-		draw_set_color(0, 0, 0.4, 1);
-		draw_skeleton(model->bone, matbuf, model->bone_count);
+		draw_skeleton_2(model->abs_bind_matrix, model->parent, model->bone_count);
 		draw_end();
+		if (animation) {
+			draw_begin(projection, model_view);
+			draw_skeleton_3(abs_pose_matrix, model->parent, model->bone_count);
+			draw_end();
+
+			mat_translate(model_view, 2, 0, 0);
+			draw_begin(projection, model_view);
+			draw_skeleton_2(animation->abs_bind_matrix, animation->parent, animation->bone_count);
+			draw_skeleton_3(abs_anim_matrix, animation->parent, animation->bone_count);
+			draw_end();
+		}
 	}
 
 	mat_ortho(projection, 0, screenw, screenh, 0, -1, 1);
