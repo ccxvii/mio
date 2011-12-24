@@ -28,6 +28,7 @@ mat4 anim_matrix[MAXBONE];
 mat4 abs_anim_matrix[MAXBONE];
 mat4 abs_pose_matrix[MAXBONE];
 struct pose posebuf[MAXBONE];
+struct pose animbuf[MAXBONE];
 
 static float cam_dist = 5;
 static float cam_yaw = 0;
@@ -162,16 +163,24 @@ static void display(void)
 		while (animtick < 0) animtick += animation->frame_count;
 		while (animtick >= animation->frame_count) animtick -= animation->frame_count;
 
-		extract_pose(posebuf, animation, (int)animtick);
 
-		calc_pose_matrix(anim_matrix, posebuf, animation->bone_count);
+		extract_pose(animbuf, animation, (int)animtick);
+		calc_pose_matrix(anim_matrix, animbuf, animation->bone_count);
 		calc_abs_pose_matrix(abs_anim_matrix, anim_matrix, animation->parent, animation->bone_count);
 
+#if 1
+		memcpy(posebuf, model->bind_pose, sizeof posebuf);
+		apply_animation(posebuf, model->bone_name, model->bone_count,
+				animbuf, animation->bone_name, animation->bone_count);
+		calc_pose_matrix(pose_matrix, posebuf, model->bone_count);
+		calc_abs_pose_matrix(abs_pose_matrix, pose_matrix, model->parent, model->bone_count);
+#else
 		retarget_skeleton(pose_matrix,
 			model->bind_matrix, model->bone_name, model->bone_count,
 			animation->bind_matrix, animation->bone_name, animation->bone_count,
 			anim_matrix);
 		calc_abs_pose_matrix(abs_pose_matrix, pose_matrix, model->parent, model->bone_count);
+#endif
 	}
 
 	glViewport(0, 0, screenw, screenh);

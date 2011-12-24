@@ -141,6 +141,13 @@ void retarget_skeleton(mat4 *out_matrix,
 		mat4 *src_matrix, char (*src_names)[32], int src_count,
 		mat4 *src_anim_matrix);
 
+void apply_animation(
+		struct pose *dst_pose, char (*dst_names)[32], int dst_count,
+		struct pose *src_pose, char (*src_names)[32], int src_count);
+
+void extract_pose(struct pose *pose, struct animation *anim, int frame);
+
+
 /* texture loader based on stb_image */
 
 unsigned char *stbi_load(char const *filename, int *x, int *y, int *comp, int req_comp);

@@ -130,6 +130,19 @@ void retarget_skeleton(mat4 *out_matrix,
 	}
 }
 
+void apply_animation(
+	struct pose *dst_pose, char (*dst_names)[32], int dst_count,
+	struct pose *src_pose, char (*src_names)[32], int src_count)
+{
+	int src, dst;
+	for (dst = 0; dst < dst_count; dst++) {
+		src = findbone(src_names, src_count, dst_names[dst]);
+		if (src >= 0) {
+			dst_pose[dst] = src_pose[src];
+		}
+	}
+}
+
 void extract_pose(struct pose *pose, struct animation *anim, int frame)
 {
 	float *p;
