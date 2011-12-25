@@ -136,14 +136,30 @@ void draw_skeleton(mat4 *abs_pose_matrix, int *parent, int count);
 void draw_skeleton_2(mat4 *abs_pose_matrix, int *parent, int count);
 void draw_skeleton_3(mat4 *abs_pose_matrix, int *parent, int count);
 
+void retarget_skeleton_world(mat4 *out_matrix, mat4 *dst_local, int *dst_parent,
+		mat4 *dst_matrix, char (*dst_names)[32], int dst_count,
+		mat4 *src_matrix, char (*src_names)[32], int src_count,
+		mat4 *src_anim_matrix);
 void retarget_skeleton(mat4 *out_matrix,
 		mat4 *dst_matrix, char (*dst_names)[32], int dst_count,
 		mat4 *src_matrix, char (*src_names)[32], int src_count,
 		mat4 *src_anim_matrix);
+void retarget_skeleton_pose(struct pose *posebuf,
+		struct pose *dst_pose, char (*dst_names)[32], int dst_count,
+		struct pose *src_pose, char (*src_names)[32], int src_count,
+		struct pose *src_anim_pose);
+void retarget_skeleton_pose_rotate(struct pose *posebuf,
+		struct pose *dst_pose, char (*dst_names)[32], int dst_count,
+		struct pose *src_pose, char (*src_names)[32], int src_count,
+		struct pose *src_anim_pose);
 
 void apply_animation(
 		struct pose *dst_pose, char (*dst_names)[32], int dst_count,
 		struct pose *src_pose, char (*src_names)[32], int src_count);
+void apply_animation2(
+		struct pose *dst_pose, char (*dst_names)[32], int dst_count,
+		struct pose *src_pose, char (*src_names)[32], int src_count,
+		int *mask);
 
 void extract_pose(struct pose *pose, struct animation *anim, int frame);
 
@@ -240,8 +256,8 @@ void vec_negate(vec3 p);
 void vec_yup_to_zup(vec3 v);
 
 float quat_dot(const vec4 a, const vec4 b);
-void quat_invert(vec4 q);
-void quat_conjugate(vec4 q);
+void quat_invert(vec4 out, const vec4 q);
+void quat_conjugate(vec4 out, const vec4 q);
 void quat_mul(vec4 q, const vec4 a, const vec4 b);
 void quat_normalize(vec4 q);
 void quat_lerp(vec4 p, const vec4 a, const vec4 b, float t);

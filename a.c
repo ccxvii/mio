@@ -9,7 +9,8 @@ static int showplane = 1;
 static int showwire = 0;
 static int showalpha = 0;
 static int showicon = 0;
-static int showbackface = 1;
+static int showbackface = 0;
+static int retarget = 0;
 
 static int lasttime = 0;
 static int showanim = 0;
@@ -121,6 +122,8 @@ static void keyboard(unsigned char key, int x, int y)
 		case 'w': showwire = !showwire; break;
 		case 'b': showbackface = !showbackface; break;
 		case 'a': showalpha = !showalpha; break;
+		case 'r': retarget++; break;
+		case 'R': retarget--; break;
 	}
 
 	if (showanim)
@@ -168,19 +171,54 @@ static void display(void)
 		calc_pose_matrix(anim_matrix, animbuf, animation->bone_count);
 		calc_abs_pose_matrix(abs_anim_matrix, anim_matrix, animation->parent, animation->bone_count);
 
-#if 1
-		memcpy(posebuf, model->bind_pose, sizeof posebuf);
-		apply_animation(posebuf, model->bone_name, model->bone_count,
-				animbuf, animation->bone_name, animation->bone_count);
-		calc_pose_matrix(pose_matrix, posebuf, model->bone_count);
-		calc_abs_pose_matrix(abs_pose_matrix, pose_matrix, model->parent, model->bone_count);
-#else
-		retarget_skeleton(pose_matrix,
-			model->bind_matrix, model->bone_name, model->bone_count,
-			animation->bind_matrix, animation->bone_name, animation->bone_count,
-			anim_matrix);
-		calc_abs_pose_matrix(abs_pose_matrix, pose_matrix, model->parent, model->bone_count);
-#endif
+		retarget = CLAMP(retarget, 0, 4);
+		switch (retarget) {
+		case 0:
+			// copy the animation poses directly
+			memcpy(posebuf, model->bind_pose, sizeof posebuf);
+			apply_animation(posebuf, model->bone_name, model->bone_count,
+					animbuf, animation->bone_name, animation->bone_count);
+			calc_pose_matrix(pose_matrix, posebuf, model->bone_count);
+			calc_abs_pose_matrix(abs_pose_matrix, pose_matrix, model->parent, model->bone_count);
+			break;
+
+		case 1:
+			// copy the animation rotation keys directly
+			retarget_skeleton_pose_rotate(posebuf,
+					model->bind_pose, model->bone_name, model->bone_count,
+					animation->bind_pose, animation->bone_name, animation->bone_count,
+					animbuf);
+			calc_pose_matrix(pose_matrix, posebuf, model->bone_count);
+			calc_abs_pose_matrix(abs_pose_matrix, pose_matrix, model->parent, model->bone_count);
+			break;
+
+		case 2:
+			// retarget using poses (quaternion bind pose diff based)
+			retarget_skeleton_pose(posebuf,
+					model->bind_pose, model->bone_name, model->bone_count,
+					animation->bind_pose, animation->bone_name, animation->bone_count,
+					animbuf);
+			calc_pose_matrix(pose_matrix, posebuf, model->bone_count);
+			calc_abs_pose_matrix(abs_pose_matrix, pose_matrix, model->parent, model->bone_count);
+			break;
+
+		case 3:
+			// retarget using matrix, in local space (bind pose diff based)
+			retarget_skeleton(pose_matrix,
+					model->bind_matrix, model->bone_name, model->bone_count,
+					animation->bind_matrix, animation->bone_name, animation->bone_count,
+					anim_matrix);
+			calc_abs_pose_matrix(abs_pose_matrix, pose_matrix, model->parent, model->bone_count);
+			break;
+
+		case 4:
+			// retarget using matrix, in world space (bind pose diff based)
+			retarget_skeleton_world(abs_pose_matrix, model->bind_matrix, model->parent,
+					model->abs_bind_matrix, model->bone_name, model->bone_count,
+					animation->abs_bind_matrix, animation->bone_name, animation->bone_count,
+					abs_anim_matrix);
+			break;
+		}
 	}
 
 	glViewport(0, 0, screenw, screenh);
@@ -262,7 +300,7 @@ static void display(void)
 		}
 
 		if (animation) {
-			sprintf(buf, "frame %03d / %03d (%d fps)", (int)animtick+1, animation->frame_count, animspeed);
+			sprintf(buf, "frame %03d / %03d (%d fps) r:%d", (int)animtick+1, animation->frame_count, animspeed, retarget);
 			text_show(8, screenh-12-20, buf);
 		}
 	}

@@ -366,19 +366,20 @@ float quat_dot(const vec4 a, const vec4 b)
 	return a[0]*b[0] + a[1]*b[1] + a[2]*b[2] + a[3]*b[3];
 }
 
-void quat_invert(vec4 q)
+void quat_invert(vec4 out, const vec4 q)
 {
-	q[0] = -q[0];
-	q[1] = -q[1];
-	q[2] = -q[2];
-	q[3] = -q[3];
+	out[0] = -q[0];
+	out[1] = -q[1];
+	out[2] = -q[2];
+	out[3] = -q[3];
 }
 
-void quat_conjugate(vec4 q)
+void quat_conjugate(vec4 out, const vec4 q)
 {
-	q[0] = -q[0];
-	q[1] = -q[1];
-	q[2] = -q[2];
+	out[0] = -q[0];
+	out[1] = -q[1];
+	out[2] = -q[2];
+	out[3] = q[3];
 }
 
 void quat_mul(vec4 q, const vec4 a, const vec4 b)

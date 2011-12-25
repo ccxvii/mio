@@ -67,14 +67,14 @@ static void flip_triangles(unsigned short *dst, unsigned int *src, int count)
 
 static int load_iqm_material(char *dir, char *name)
 {
-	char buf[256], *p;
-	strlcpy(buf, dir, sizeof buf);
-	p = strrchr(name, '+');
-	if (p) p++; else p = name;
-	strlcat(buf, p, sizeof buf);
-	p = strrchr(buf, ',');
-	if (p) strlcpy(p, ".png", sizeof buf - (p-buf));
-	return load_texture(0, buf, 1);
+	char filename[1024], *s;
+	s = strrchr(name, '+');
+	if (s) s++; else s = name;
+	strlcpy(filename, dir, sizeof filename);
+	strlcat(filename, "/", sizeof filename);
+	strlcat(filename, s, sizeof filename);
+	strlcat(filename, ".png", sizeof filename);
+	return load_texture(0, filename, 1);
 }
 
 struct model *load_iqm_model_from_memory(char *filename, unsigned char *data, int len)
@@ -211,6 +211,18 @@ struct animation *load_iqm_animation_from_memory(char *filename, unsigned char *
 		anim->mask[i] = iqmpose[i].mask;
 		memcpy(&anim->offset[i], iqmpose[i].channeloffset, 10*sizeof(float));
 		memcpy(&anim->bind_pose[i], iqmjoint[i].translate, 10*sizeof(float));
+
+		int mask = anim->mask[i];
+		if (mask) {
+			printf("anim chan %s:", anim->bone_name[i]);
+			if ((mask & 0x01) || (mask & 0x02) || (mask & 0x04))
+				printf(" translate %g", vec_length(iqmpose[i].channelscale+0)*65535);
+			if ((mask & 0x08) || (mask & 0x10) || (mask & 0x20) || (mask & 0x40))
+				printf(" rotate %g", vec_length(iqmpose[i].channelscale+3)*65535);
+			if ((mask & 0x80) || (mask & 0x100) || (mask & 0x200))
+				printf(" scale %g", vec_length(iqmpose[i].channelscale+7)*65535);
+			printf("\n");
+		}
 	}
 
 	calc_pose_matrix(anim->bind_matrix, anim->bind_pose, anim->bone_count);

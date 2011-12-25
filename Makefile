@@ -38,6 +38,18 @@ $(OUT)/%.o : %.m $(HDRS)
 $(A_EXE) : $(OBJS) $(OUT)/a.o
 	$(LINK_CMD)
 
+%.iqe: %.dae
+	assiqe -l -o $@ $<
+
+%.mesh.iqe: %.dae
+	assiqe -l -m -o $@ $<
+
+%.anim.iqe: %.dae
+	assiqe -l -a -o $@ $<
+
+%.iqm: %.iqe
+	iqm $@ $<
+
 all: $(OUT) $(A_EXE)
 
 clean:

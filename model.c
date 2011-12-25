@@ -130,6 +130,72 @@ void retarget_skeleton(mat4 *out_matrix,
 	}
 }
 
+void retarget_skeleton_world(mat4 *out_matrix, mat4 *dst_local, int *dst_parent,
+		mat4 *dst_matrix, char (*dst_names)[32], int dst_count,
+		mat4 *src_matrix, char (*src_names)[32], int src_count,
+		mat4 *src_anim_matrix)
+{
+	mat4 diff_matrix, inv_src_matrix;
+	int src, dst;
+	for (dst = 0; dst < dst_count; dst++) {
+		src = findbone(src_names, src_count, dst_names[dst]);
+		if (src < 0) {
+			if (dst_parent[dst] >= 0)
+				mat_mul(out_matrix[dst], out_matrix[dst_parent[dst]], dst_local[dst]);
+			else
+				mat_copy(out_matrix[dst], dst_matrix[dst]);
+			mat_identity(out_matrix[dst]);
+		} else {
+			mat_invert(inv_src_matrix, src_matrix[src]);
+			mat_mul(diff_matrix, inv_src_matrix, dst_matrix[dst]);
+			mat_mul(out_matrix[dst], src_anim_matrix[src], diff_matrix);
+		}
+	}
+}
+
+
+void retarget_skeleton_pose(struct pose *out_pose,
+		struct pose *dst_pose, char (*dst_names)[32], int dst_count,
+		struct pose *src_pose, char (*src_names)[32], int src_count,
+		struct pose *src_anim_pose)
+{
+	int src, dst;
+	for (dst = 0; dst < dst_count; dst++) {
+		src = findbone(src_names, src_count, dst_names[dst]);
+		if (src < 0) {
+			out_pose[dst] = dst_pose[dst];
+		} else {
+			out_pose[dst] = dst_pose[dst];
+			if (dst < 2)
+				out_pose[dst] = src_anim_pose[src];
+
+			vec4 inv_src_quat, diff_quat;
+			quat_conjugate(inv_src_quat, src_pose[src].rotate);
+			quat_mul(diff_quat, inv_src_quat, dst_pose[dst].rotate);
+			quat_mul(out_pose[dst].rotate, src_anim_pose[src].rotate, diff_quat);
+		}
+	}
+}
+
+void retarget_skeleton_pose_rotate(struct pose *out_pose,
+		struct pose *dst_pose, char (*dst_names)[32], int dst_count,
+		struct pose *src_pose, char (*src_names)[32], int src_count,
+		struct pose *src_anim_pose)
+{
+	int src, dst;
+	for (dst = 0; dst < dst_count; dst++) {
+		src = findbone(src_names, src_count, dst_names[dst]);
+		if (src < 0) {
+			out_pose[dst] = dst_pose[dst];
+		} else {
+			out_pose[dst] = dst_pose[dst];
+		//	if (dst < 2)
+		//		out_pose[dst] = src_anim_pose[src];
+			memcpy(out_pose[dst].rotate, src_anim_pose[src].rotate, 4*4);
+		}
+	}
+}
+
 void apply_animation(
 	struct pose *dst_pose, char (*dst_names)[32], int dst_count,
 	struct pose *src_pose, char (*src_names)[32], int src_count)
@@ -142,6 +208,30 @@ void apply_animation(
 		}
 	}
 }
+
+void apply_animation2(
+	struct pose *dst_pose, char (*dst_names)[32], int dst_count,
+	struct pose *src_pose, char (*src_names)[32], int src_count,
+	int *mask)
+{
+	int src, dst;
+	for (dst = 0; dst < dst_count; dst++) {
+		src = findbone(src_names, src_count, dst_names[dst]);
+		if (src >= 0) {
+			if (mask[src] & 0x01) dst_pose[dst].translate[0] = src_pose[src].translate[0];
+			if (mask[src] & 0x02) dst_pose[dst].translate[1] = src_pose[src].translate[1];
+			if (mask[src] & 0x04) dst_pose[dst].translate[2] = src_pose[src].translate[2];
+			if (mask[src] & 0x08) dst_pose[dst].rotate[0] = src_pose[src].rotate[0];
+			if (mask[src] & 0x10) dst_pose[dst].rotate[1] = src_pose[src].rotate[1];
+			if (mask[src] & 0x20) dst_pose[dst].rotate[2] = src_pose[src].rotate[2];
+			if (mask[src] & 0x40) dst_pose[dst].rotate[3] = src_pose[src].rotate[3];
+			if (mask[src] & 0x80) dst_pose[dst].scale[0] = src_pose[src].scale[0];
+			if (mask[src] & 0x100) dst_pose[dst].scale[1] = src_pose[src].scale[1];
+			if (mask[src] & 0x200) dst_pose[dst].scale[2] = src_pose[src].scale[2];
+		}
+	}
+}
+
 
 void extract_pose(struct pose *pose, struct animation *anim, int frame)
 {

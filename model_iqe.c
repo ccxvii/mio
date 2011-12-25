@@ -102,19 +102,13 @@ static void add_triangle(int a, int b, int c)
 
 static int load_material(char *dirname, char *material)
 {
-	char filename[1024];
-	char *s, *p;
-
+	char filename[1024], *s;
 	s = strrchr(material, '+');
 	if (s) s++; else s = material;
-	p = strrchr(material, ',');
-	if (p) *p = 0;
-
 	strlcpy(filename, dirname, sizeof filename);
 	strlcat(filename, "/", sizeof filename);
 	strlcat(filename, s, sizeof filename);
 	strlcat(filename, ".png", sizeof filename);
-
 	return load_texture(0, filename, 1);
 }
 
