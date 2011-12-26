@@ -7,12 +7,14 @@ static const char *static_vert_src =
 	"attribute vec3 att_Position;\n"
 	"attribute vec2 att_TexCoord;\n"
 	"attribute vec3 att_Normal;\n"
-	"varying vec2 var_TexCoord;\n"
+	"varying vec3 var_Position;\n"
 	"varying vec3 var_Normal;\n"
+	"varying vec2 var_TexCoord;\n"
 	"void main() {\n"
 	"	vec4 position = ModelView * vec4(att_Position, 1.0);\n"
 	"	vec4 normal = ModelView * vec4(att_Normal, 0.0);\n"
 	"	gl_Position = Projection * position;\n"
+	"	var_Position = position.xyz;\n"
 	"	var_Normal = normal.xyz;\n"
 	"	var_TexCoord = att_TexCoord;\n"
 	"}\n"
@@ -28,8 +30,9 @@ static const char *bone_vert_src =
 	"attribute vec3 att_Normal;\n"
 	"attribute vec4 att_BlendIndex;\n"
 	"attribute vec4 att_BlendWeight;\n"
-	"varying vec2 var_TexCoord;\n"
+	"varying vec3 var_Position;\n"
 	"varying vec3 var_Normal;\n"
+	"varying vec2 var_TexCoord;\n"
 	"void main() {\n"
 	"	vec4 position = vec4(0);\n"
 	"	vec4 normal = vec4(0);\n"
@@ -45,6 +48,7 @@ static const char *bone_vert_src =
 	"	position = ModelView * position;\n"
 	"	normal = ModelView * normal;\n"
 	"	gl_Position = Projection * position;\n"
+	"	var_Position = position.xyz;\n"
 	"	var_Normal = normal.xyz;\n"
 	"	var_TexCoord = att_TexCoord;\n"
 	"}\n"
@@ -53,21 +57,37 @@ static const char *bone_vert_src =
 static const char *model_frag_src =
 	"#version 120\n"
 	"uniform sampler2D Texture;\n"
-	"varying vec2 var_TexCoord;\n"
+	"uniform bool AlphaTest;\n"
+	"uniform bool AlphaSpecular;\n"
+	"uniform bool Unlit;\n"
+	"varying vec3 var_Position;\n"
 	"varying vec3 var_Normal;\n"
+	"varying vec2 var_TexCoord;\n"
 	"const vec3 LightDirection = vec3(-0.5773, 0.5773, 0.5773);\n"
 	"const vec3 LightAmbient = vec3(0.1);\n"
-	"const vec3 LightDiffuse = vec3(1.0);\n"
+	"const vec3 LightDiffuse = vec3(0.9);\n"
+	"const vec3 LightSpecular = vec3(2, 2, 2);\n"
+	"const float Shininess = 32.0;\n"
 	"void main() {\n"
-//	"	vec4 color = texture2D(Texture, var_TexCoord);\n"
-//	"	vec4 color = vec4(0.9, 0.8, 0.5, 1);\n"
-	"	vec4 color = vec4(var_TexCoord.x, var_TexCoord.y, 1, 1);\n"
-//	"	if (color.a < 0.2) discard;\n"
+	"	vec4 color = texture2D(Texture, var_TexCoord);\n"
 	"	vec3 N = normalize(var_Normal);\n"
 	"	float diffuse = max(dot(N, LightDirection), 0.0);\n"
 	"	vec3 Ka = color.rgb * LightAmbient;\n"
 	"	vec3 Kd = color.rgb * LightDiffuse * diffuse;\n"
-	"	gl_FragColor = vec4(Ka + Kd, color.a);\n"
+	"	if (AlphaSpecular) {\n"
+	"		vec3 V = normalize(-var_Position);\n"
+	"		vec3 H = normalize(LightDirection + V);\n"
+	"		float specular = pow(max(dot(N, H), 0), Shininess);\n"
+	"		vec3 Ks = LightSpecular * specular * color.a;\n"
+	"		gl_FragColor = vec4(Ka + Kd + Ks, 1);\n"
+	"	} else if (Unlit) {\n"
+	"		gl_FragColor = color;\n"
+	"	} else if (AlphaTest) {\n"
+	"		if (color.a < 0.2) discard;\n"
+	"		gl_FragColor = vec4(Ka + Kd, color.a);\n"
+	"	} else {\n"
+	"		gl_FragColor = vec4(Ka + Kd, 1);\n"
+	"	}\n"
 	"}\n"
 ;
 
@@ -343,6 +363,10 @@ static int static_prog = 0;
 static int static_uni_projection;
 static int static_uni_model_view;
 
+static int static_uni_alpha_test;
+static int static_uni_alpha_spec;
+static int static_uni_unlit;
+
 void draw_model(struct model *model, mat4 projection, mat4 model_view)
 {
 	int i;
@@ -354,6 +378,9 @@ void draw_model(struct model *model, mat4 projection, mat4 model_view)
 		static_prog = compile_shader(static_vert_src, model_frag_src);
 		static_uni_projection = glGetUniformLocation(static_prog, "Projection");
 		static_uni_model_view = glGetUniformLocation(static_prog, "ModelView");
+		static_uni_alpha_test = glGetUniformLocation(static_prog, "AlphaTest");
+		static_uni_alpha_spec = glGetUniformLocation(static_prog, "AlphaSpecular");
+		static_uni_unlit = glGetUniformLocation(static_prog, "Unlit");
 	}
 
 	glUseProgram(static_prog);
@@ -364,6 +391,9 @@ void draw_model(struct model *model, mat4 projection, mat4 model_view)
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, model->ibo);
 
 	for (i = 0; i < model->mesh_count; i++) {
+		glUniform1i(static_uni_alpha_test, model->mesh[i].alphatest);
+		glUniform1i(static_uni_alpha_spec, model->mesh[i].alphaspec);
+		glUniform1i(static_uni_unlit, model->mesh[i].unlit);
 		glBindTexture(GL_TEXTURE_2D, model->mesh[i].texture);
 		glDrawElements(GL_TRIANGLES, model->mesh[i].count, GL_UNSIGNED_SHORT, (void*)(model->mesh[i].first * 2));
 	}
@@ -378,6 +408,10 @@ static int bone_uni_projection;
 static int bone_uni_model_view;
 static int bone_uni_skin_matrix;
 
+static int bone_uni_alpha_test;
+static int bone_uni_alpha_spec;
+static int bone_uni_unlit;
+
 void draw_model_with_pose(struct model *model, mat4 projection, mat4 model_view, mat4 *skin_matrix)
 {
 	int i;
@@ -390,6 +424,9 @@ void draw_model_with_pose(struct model *model, mat4 projection, mat4 model_view,
 		bone_uni_projection = glGetUniformLocation(bone_prog, "Projection");
 		bone_uni_model_view = glGetUniformLocation(bone_prog, "ModelView");
 		bone_uni_skin_matrix = glGetUniformLocation(bone_prog, "BoneMatrix");
+		bone_uni_alpha_test = glGetUniformLocation(bone_prog, "AlphaTest");
+		bone_uni_alpha_spec = glGetUniformLocation(bone_prog, "AlphaSpecular");
+		bone_uni_unlit = glGetUniformLocation(bone_prog, "Unlit");
 	}
 
 	glUseProgram(bone_prog);
@@ -401,6 +438,9 @@ void draw_model_with_pose(struct model *model, mat4 projection, mat4 model_view,
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, model->ibo);
 
 	for (i = 0; i < model->mesh_count; i++) {
+		glUniform1i(bone_uni_alpha_test, model->mesh[i].alphatest);
+		glUniform1i(bone_uni_alpha_spec, model->mesh[i].alphaspec);
+		glUniform1i(bone_uni_unlit, model->mesh[i].unlit);
 		glBindTexture(GL_TEXTURE_2D, model->mesh[i].texture);
 		glDrawElements(GL_TRIANGLES, model->mesh[i].count, GL_UNSIGNED_SHORT, (void*)(model->mesh[i].first * 2));
 	}

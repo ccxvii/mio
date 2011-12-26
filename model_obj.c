@@ -17,7 +17,7 @@ struct intarray {
 static struct {
 	char name[MAXNAME];
 	int texture;
-	int repeat;
+	int tile_s, tile_t;
 } material[MAXMESH];
 
 static int material_count = 0;
@@ -91,8 +91,8 @@ static int add_vertex(int pi, int ti, int ni)
 	v[5] = ni >= 0 && ni < normal.len ? normal.data[ni * 3 + 0] : 0;
 	v[6] = ni >= 0 && ni < normal.len ? normal.data[ni * 3 + 1] : 0;
 	v[7] = ni >= 0 && ni < normal.len ? normal.data[ni * 3 + 2] : 1;
-	if (v[3] < 0 || v[3] > 1 || v[4] < 0 || v[4] > 1)
-		material[material_current].repeat = 1;
+	if (v[3] < 0 || v[3] > 1) material[material_current].tile_s = 1;
+	if (v[4] < 0 || v[4] > 1) material[material_current].tile_t = 1;
 	return add_vertex_imp(v);
 }
 
@@ -134,7 +134,8 @@ static void load_material(char *dirname, char *mtllib)
 			if (s) {
 				strlcpy(material[material_count].name, s, MAXNAME);
 				material[material_count].texture = 0;
-				material[material_count].repeat = 0;
+				material[material_count].tile_s = 0;
+				material[material_count].tile_t = 0;
 				material_count++;
 			}
 		} else if (!strcmp(s, "map_Kd")) {
@@ -257,6 +258,9 @@ struct model *load_obj_model(char *filename)
 			}
 			mesh = &meshbuf[mesh_count++];
 			mesh->texture = s ? set_material(s) : 0;
+			mesh->alphatest = 1;
+			mesh->alphaspec = 0;
+			mesh->unlit = 0;
 			mesh->first = element.len;
 			mesh->count = 0;
 		}
@@ -271,6 +275,9 @@ struct model *load_obj_model(char *filename)
 	if (mesh_count == 0) {
 		mesh = meshbuf;
 		mesh->texture = 0;
+		mesh->alphatest = 1;
+		mesh->alphaspec = 0;
+		mesh->unlit = 0;
 		mesh->first = 0;
 		mesh->count = element.len;
 		mesh_count = 1;
@@ -282,13 +289,14 @@ struct model *load_obj_model(char *filename)
 
 	for (i = 0; i < material_count; i++) {
 		glBindTexture(GL_TEXTURE_2D, material[i].texture);
-		if (material[i].repeat) {
+		if (material[i].tile_s)
 			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-		} else {
+		else
 			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+		if (material[i].tile_t)
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+		else
 			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-		}
 	}
 	glBindTexture(GL_TEXTURE_2D, 0);
 

@@ -27,6 +27,8 @@ static struct bytearray blendindex = { 0, 0, NULL };
 static struct bytearray blendweight = { 0, 0, NULL };
 static struct intarray element = { 0, 0, NULL };
 
+static int tile_s, tile_t;
+
 static inline void push_float(struct floatarray *a, float v)
 {
 	if (a->len + 1 >= a->cap) {
@@ -64,6 +66,8 @@ static void add_position(float x, float y, float z)
 
 static void add_texcoord(float u, float v)
 {
+	if (u < 0 || u > 1) tile_s = 1;
+	if (v < 0 || v > 1) tile_t = 1;
 	push_float(&texcoord, u);
 	push_float(&texcoord, v);
 }
@@ -146,6 +150,8 @@ struct model *load_iqe_model(char *filename)
 	blendweight.len = 0;
 	element.len = 0;
 
+	tile_s = tile_t = 0;
+
 	fp = fopen(filename, "r");
 	if (!fp) {
 		fprintf(stderr, "error: cannot load model '%s'\n", filename);
@@ -203,6 +209,10 @@ struct model *load_iqe_model(char *filename)
 			add_triangle(atoi(x), atoi(y), atoi(z));
 		} else if (!strcmp(s, "mesh")) {
 			if (mesh) {
+				printf("mesh tile %d %d\n", tile_s, tile_t);
+				glBindTexture(GL_TEXTURE_2D, mesh->texture);
+				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, tile_s ? GL_REPEAT : GL_CLAMP_TO_EDGE);
+				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, tile_t ? GL_REPEAT : GL_CLAMP_TO_EDGE);
 				mesh->count = element.len - mesh->first;
 				if (mesh->count == 0)
 					mesh_count--;
@@ -212,11 +222,16 @@ struct model *load_iqe_model(char *filename)
 			mesh->first = element.len;
 			mesh->count = 0;
 			fm = position.len / 3;
+			tile_s = tile_t = 0;
 		} else if (!strcmp(s, "material")) {
 			s = strtok(NULL, SEP);
 			material = load_material(dirname, s);
-			if (mesh)
+			if (mesh) {
 				mesh->texture = material;
+				mesh->alphatest = !!strstr(s, "alphatest+");
+				mesh->alphaspec = !!strstr(s, "alphaspec+");
+				mesh->unlit = !!strstr(s, "unlit+");
+			}
 		} else if (!strcmp(s, "joint")) {
 			if (bone_count < MAXBONE) {
 				char *name = strtok(NULL, SEP);
@@ -252,6 +267,10 @@ struct model *load_iqe_model(char *filename)
 	}
 
 	if (mesh) {
+		printf("mesh tile %d %d\n", tile_s, tile_t);
+		glBindTexture(GL_TEXTURE_2D, mesh->texture);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, tile_s ? GL_REPEAT : GL_CLAMP_TO_EDGE);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, tile_t ? GL_REPEAT : GL_CLAMP_TO_EDGE);
 		mesh->count = element.len - mesh->first;
 		if (mesh->count == 0)
 			mesh_count--;
@@ -260,6 +279,9 @@ struct model *load_iqe_model(char *filename)
 	if (mesh_count == 0) {
 		mesh = meshbuf;
 		mesh->texture = 0;
+		mesh->alphatest = 1;
+		mesh->alphaspec = 0;
+		mesh->unlit = 0;
 		mesh->first = 0;
 		mesh->count = element.len;
 		mesh_count = 1;

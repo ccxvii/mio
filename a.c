@@ -226,7 +226,7 @@ static void display(void)
 	glClearColor(0.05, 0.05, 0.05, 1.0);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-	mat_perspective(projection, 75, (float)screenw / screenh, 0.05, 5000);
+	mat_perspective(projection, 75, (float)screenw / screenh, 0.1, 1000);
 	mat_identity(model_view);
 	mat_rotate_x(model_view, -90);
 
@@ -350,7 +350,8 @@ int main(int argc, char **argv)
 	glEnable(GL_FRAMEBUFFER_SRGB);
 	glEnable(GL_MULTISAMPLE);
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-	glDepthFunc(GL_LEQUAL);
+	//glDepthFunc(GL_LEQUAL);
+	glEnable(GL_CULL_FACE);
 
 	droid_sans = load_font("data/fonts/DroidSans.ttf");
 	if (!droid_sans)

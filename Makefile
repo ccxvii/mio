@@ -39,13 +39,13 @@ $(A_EXE) : $(OBJS) $(OUT)/a.o
 	$(LINK_CMD)
 
 %.iqe: %.dae
-	assiqe -l -o $@ $<
+	assiqe -l $< | iqe-ryzom $(<:%.dae=%.material) > $@
 
 %.mesh.iqe: %.dae
-	assiqe -l -m -o $@ $<
+	assiqe -l -m $< | iqe-ryzom > $@
 
 %.anim.iqe: %.dae
-	assiqe -l -a -o $@ $<
+	assiqe -l -a $< | iqe-ryzom > $@
 
 %.iqm: %.iqe
 	iqm $@ $<
