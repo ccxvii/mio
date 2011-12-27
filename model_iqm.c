@@ -114,7 +114,7 @@ struct model *load_iqm_model_from_memory(char *filename, unsigned char *data, in
 		char *material = text + iqmmesh[i].material;
 		model->mesh[i].texture = load_iqm_material(dir, material);
 		model->mesh[i].alphatest = !!strstr(material, "alphatest+");
-		model->mesh[i].alphaspec = !!strstr(material, "alphaspec+");
+		model->mesh[i].alphagloss = !!strstr(material, "alphagloss+");
 		model->mesh[i].unlit = !!strstr(material, "unlit+");
 		model->mesh[i].first = iqmmesh[i].first_triangle * 3;
 		model->mesh[i].count = iqmmesh[i].num_triangles * 3;

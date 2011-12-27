@@ -259,7 +259,7 @@ struct model *load_obj_model(char *filename)
 			mesh = &meshbuf[mesh_count++];
 			mesh->texture = s ? set_material(s) : 0;
 			mesh->alphatest = 1;
-			mesh->alphaspec = 0;
+			mesh->alphagloss = 0;
 			mesh->unlit = 0;
 			mesh->first = element.len;
 			mesh->count = 0;
@@ -276,7 +276,7 @@ struct model *load_obj_model(char *filename)
 		mesh = meshbuf;
 		mesh->texture = 0;
 		mesh->alphatest = 1;
-		mesh->alphaspec = 0;
+		mesh->alphagloss = 0;
 		mesh->unlit = 0;
 		mesh->first = 0;
 		mesh->count = element.len;

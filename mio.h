@@ -78,7 +78,7 @@ int compile_shader(const char *vert_src, const char *frag_src);
 
 struct mesh {
 	unsigned int texture;
-	int alphatest, alphaspec, unlit;
+	int alphatest, alphagloss, unlit;
 	int first, count;
 };
 

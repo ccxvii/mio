@@ -229,7 +229,7 @@ struct model *load_iqe_model(char *filename)
 			if (mesh) {
 				mesh->texture = material;
 				mesh->alphatest = !!strstr(s, "alphatest+");
-				mesh->alphaspec = !!strstr(s, "alphaspec+");
+				mesh->alphagloss = !!strstr(s, "alphagloss+");
 				mesh->unlit = !!strstr(s, "unlit+");
 			}
 		} else if (!strcmp(s, "joint")) {
@@ -280,7 +280,7 @@ struct model *load_iqe_model(char *filename)
 		mesh = meshbuf;
 		mesh->texture = 0;
 		mesh->alphatest = 1;
-		mesh->alphaspec = 0;
+		mesh->alphagloss = 0;
 		mesh->unlit = 0;
 		mesh->first = 0;
 		mesh->count = element.len;
