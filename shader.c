@@ -26,7 +26,7 @@ static void print_shader_log(char *kind, int shader)
 	glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &len);
 	char *log = malloc(len + 1);
 	glGetShaderInfoLog(shader, len, NULL, log);
-	printf("--- glsl %s shader compile results ---\n%s\n", kind, log);
+	fprintf(stderr, "--- glsl %s shader compile results ---\n%s\n", kind, log);
 	free(log);
 }
 
@@ -36,7 +36,7 @@ static void print_program_log(int program)
 	glGetProgramiv(program, GL_INFO_LOG_LENGTH, &len);
 	char *log = malloc(len + 1);
 	glGetProgramInfoLog(program, len, NULL, log);
-	printf("--- glsl program link results ---\n%s\n", log);
+	fprintf(stderr, "--- glsl program link results ---\n%s\n", log);
 	free(log);
 }
 

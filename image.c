@@ -118,7 +118,7 @@ static int load_dds_from_file(unsigned int texid, char *filename, int srgb)
 	unsigned char *data = load_file(filename, 0);
 	if (!data)
 		return 0;
-	printf("loading DDS '%s'\n", filename);
+	fprintf(stderr, "loading DDS '%s'\n", filename);
 	texid = load_dds_from_memory(texid, data, srgb);
 	free(data);
 	return texid;
@@ -147,7 +147,7 @@ int load_texture(unsigned int texid, char *filename, int srgb)
 	unsigned char *image;
 	int w, h, n;
 
-	printf("loading texture '%s'\n", filename);
+	fprintf(stderr, "loading texture '%s'\n", filename);
 
 	if (strstr(filename, ".dds"))
 		return load_dds_from_file(texid, filename, srgb);

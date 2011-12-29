@@ -88,7 +88,7 @@ struct model *load_iqm_model_from_memory(char *filename, unsigned char *data, in
 	char *p;
 	char dir[256];
 
-	printf("loading iqm model '%s'\n", filename);
+	fprintf(stderr, "loading iqm model '%s'\n", filename);
 
 	strlcpy(dir, filename, sizeof dir);
 	p = strrchr(dir, '/');
@@ -101,7 +101,7 @@ struct model *load_iqm_model_from_memory(char *filename, unsigned char *data, in
 	if (iqm->num_vertexes > 0xffff) { error(filename, "too many vertices in iqm"); return NULL; }
 	if (iqm->num_joints > MAXBONE) { error(filename, "too many bones in iqm"); return NULL; }
 
-	printf("\t%d meshes; %d bones; %d vertices; %d triangles\n",
+	fprintf(stderr, "\t%d meshes; %d bones; %d vertices; %d triangles\n",
 		iqm->num_meshes, iqm->num_joints, iqm->num_vertexes, iqm->num_triangles);
 
 	struct model *model = malloc(sizeof *model);
@@ -187,7 +187,7 @@ struct animation *load_iqm_animation_from_memory(char *filename, unsigned char *
 	unsigned short *s;
 	float *p;
 
-	printf("loading iqm animation '%s'\n", filename);
+	fprintf(stderr, "loading iqm animation '%s'\n", filename);
 
 	if (memcmp(iqm->magic, IQM_MAGIC, 16)) { error(filename, "bad iqm magic"); return NULL; }
 	if (iqm->version != IQM_VERSION) { error(filename, "bad iqm version"); return NULL; }
@@ -198,7 +198,7 @@ struct animation *load_iqm_animation_from_memory(char *filename, unsigned char *
 	if (iqm->num_anims == 0)
 		return NULL;
 
-	printf("\t%d bones; %d channels; %d animations; %d frames\n",
+	fprintf(stderr, "\t%d bones; %d channels; %d animations; %d frames\n",
 		iqm->num_joints, iqm->num_framechannels, iqm->num_anims, iqm->num_frames);
 
 	struct animation *anim = malloc(sizeof *anim);
@@ -217,15 +217,15 @@ struct animation *load_iqm_animation_from_memory(char *filename, unsigned char *
 		memcpy(&anim->bind_pose[i], iqmjoint[i].translate, 10*sizeof(float));
 
 		int mask = anim->mask[i];
-		if (mask) {
-			printf("anim chan %s:", anim->bone_name[i]);
+		if (0 && mask) {
+			fprintf(stderr, "anim chan %s:", anim->bone_name[i]);
 			if ((mask & 0x01) || (mask & 0x02) || (mask & 0x04))
-				printf(" translate %g", vec_length(iqmpose[i].channelscale+0)*65535);
+				fprintf(stderr, " translate %g", vec_length(iqmpose[i].channelscale+0)*65535);
 			if ((mask & 0x08) || (mask & 0x10) || (mask & 0x20) || (mask & 0x40))
-				printf(" rotate %g", vec_length(iqmpose[i].channelscale+3)*65535);
+				fprintf(stderr, " rotate %g", vec_length(iqmpose[i].channelscale+3)*65535);
 			if ((mask & 0x80) || (mask & 0x100) || (mask & 0x200))
-				printf(" scale %g", vec_length(iqmpose[i].channelscale+7)*65535);
-			printf("\n");
+				fprintf(stderr, " scale %g", vec_length(iqmpose[i].channelscale+7)*65535);
+			fprintf(stderr, "\n");
 		}
 	}
 

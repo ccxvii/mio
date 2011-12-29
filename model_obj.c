@@ -190,7 +190,7 @@ struct model *load_obj_model(char *filename)
 	int i, n;
 	FILE *fp;
 
-	printf("loading obj model '%s'\n", filename);
+	fprintf(stderr, "loading obj model '%s'\n", filename);
 
 	strlcpy(dirname, filename, sizeof dirname);
 	p = strrchr(dirname, '/');
@@ -285,7 +285,7 @@ struct model *load_obj_model(char *filename)
 
 	fclose(fp);
 
-	printf("\t%d meshes; %d vertices; %d triangles\n", mesh_count, vertex.len/8, element.len/3);
+	fprintf(stderr, "\t%d meshes; %d vertices; %d triangles\n", mesh_count, vertex.len/8, element.len/3);
 
 	for (i = 0; i < material_count; i++) {
 		glBindTexture(GL_TEXTURE_2D, material[i].texture);

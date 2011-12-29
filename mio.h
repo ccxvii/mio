@@ -93,6 +93,9 @@ struct model {
 	int mesh_count, bone_count;
 	struct mesh *mesh;
 
+	vec3 center;
+	float radius;
+
 	char bone_name[MAXBONE][32];
 	int parent[MAXBONE];
 	struct pose bind_pose[MAXBONE];

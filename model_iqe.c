@@ -120,6 +120,7 @@ struct model *load_iqe_model(char *filename)
 {
 	char dirname[1024];
 	char line[200];
+	float bboxmin[3], bboxmax[3], dx, dy, dz;
 	struct model *model;
 	struct mesh meshbuf[MAXMESH], *mesh = NULL;
 	char bonename[MAXBONE][32];
@@ -134,13 +135,16 @@ struct model *load_iqe_model(char *filename)
 	int i;
 	FILE *fp;
 
-	printf("loading iqe model '%s'\n", filename);
+	fprintf(stderr, "loading iqe model '%s'\n", filename);
 
 	strlcpy(dirname, filename, sizeof dirname);
 	p = strrchr(dirname, '/');
 	if (!p) p = strrchr(dirname, '\\');
 	if (p) *p = 0;
 	else strlcpy(dirname, ".", sizeof dirname);
+
+	bboxmin[0] = bboxmin[1] = bboxmin[2] = 1e10;
+	bboxmax[0] = bboxmax[1] = bboxmax[2] = -1e10;
 
 	position.len = 0;
 	texcoord.len = 0;
@@ -166,25 +170,28 @@ struct model *load_iqe_model(char *filename)
 		if (!s) {
 			continue;
 		} else if (!strcmp(s, "vp")) {
-			char *x = strtok(NULL, SEP);
-			char *y = strtok(NULL, SEP);
-			char *z = strtok(NULL, SEP);
-			add_position(atof(x), atof(y), atof(z));
+			float x = atof(strtok(NULL, SEP));
+			float y = atof(strtok(NULL, SEP));
+			float z = atof(strtok(NULL, SEP));
+			bboxmin[0] = MIN(bboxmin[0], x); bboxmax[0] = MAX(bboxmax[0], x);
+			bboxmin[1] = MIN(bboxmin[1], y); bboxmax[1] = MAX(bboxmax[1], y);
+			bboxmin[2] = MIN(bboxmin[2], z); bboxmax[2] = MAX(bboxmax[2], z);
+			add_position(x, y, z);
 		} else if (!strcmp(s, "vt")) {
-			char *u = strtok(NULL, SEP);
-			char *v = strtok(NULL, SEP);
-			add_texcoord(atof(u), atof(v));
+			float x = atof(strtok(NULL, SEP));
+			float y = atof(strtok(NULL, SEP));
+			add_texcoord(x, y);
 		} else if (!strcmp(s, "vn")) {
-			char *x = strtok(NULL, SEP);
-			char *y = strtok(NULL, SEP);
-			char *z = strtok(NULL, SEP);
-			add_normal(atof(x), atof(y), atof(z));
+			float x = atof(strtok(NULL, SEP));
+			float y = atof(strtok(NULL, SEP));
+			float z = atof(strtok(NULL, SEP));
+			add_normal(x, y, z);
 		} else if (!strcmp(s, "vc")) {
-			char *x = strtok(NULL, SEP);
-			char *y = strtok(NULL, SEP);
-			char *z = strtok(NULL, SEP);
-			char *w = strtok(NULL, SEP);
-			add_color(atof(x), atof(y), atof(z), atof(w));
+			float x = atof(strtok(NULL, SEP));
+			float y = atof(strtok(NULL, SEP));
+			float z = atof(strtok(NULL, SEP));
+			float w = atof(strtok(NULL, SEP));
+			add_color(x, y, z, w);
 		} else if (!strcmp(s, "vb")) {
 			int idx[4] = {0, 0, 0, 0};
 			float wgt[4] = {1, 0, 0, 0};
@@ -198,18 +205,18 @@ struct model *load_iqe_model(char *filename)
 			}
 			add_blend(idx, wgt);
 		} else if (!strcmp(s, "fm")) {
-			char *x = strtok(NULL, SEP);
-			char *y = strtok(NULL, SEP);
-			char *z = strtok(NULL, SEP);
-			add_triangle(atoi(x)+fm, atoi(y)+fm, atoi(z)+fm);
+			int x = atoi(strtok(NULL, SEP));
+			int y = atoi(strtok(NULL, SEP));
+			int z = atoi(strtok(NULL, SEP));
+			add_triangle(x+fm, y+fm, z+fm);
 		} else if (!strcmp(s, "fa")) {
-			char *x = strtok(NULL, SEP);
-			char *y = strtok(NULL, SEP);
-			char *z = strtok(NULL, SEP);
-			add_triangle(atoi(x), atoi(y), atoi(z));
+			int x = atoi(strtok(NULL, SEP));
+			int y = atoi(strtok(NULL, SEP));
+			int z = atoi(strtok(NULL, SEP));
+			add_triangle(x, y, z);
 		} else if (!strcmp(s, "mesh")) {
 			if (mesh) {
-				printf("mesh tile %d %d\n", tile_s, tile_t);
+				fprintf(stderr, "mesh tile %d %d\n", tile_s, tile_t);
 				glBindTexture(GL_TEXTURE_2D, mesh->texture);
 				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, tile_s ? GL_REPEAT : GL_CLAMP_TO_EDGE);
 				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, tile_t ? GL_REPEAT : GL_CLAMP_TO_EDGE);
@@ -267,7 +274,7 @@ struct model *load_iqe_model(char *filename)
 	}
 
 	if (mesh) {
-		printf("mesh tile %d %d\n", tile_s, tile_t);
+		fprintf(stderr, "mesh tile %d %d\n", tile_s, tile_t);
 		glBindTexture(GL_TEXTURE_2D, mesh->texture);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, tile_s ? GL_REPEAT : GL_CLAMP_TO_EDGE);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, tile_t ? GL_REPEAT : GL_CLAMP_TO_EDGE);
@@ -289,7 +296,7 @@ struct model *load_iqe_model(char *filename)
 
 	fclose(fp);
 
-	printf("\t%d meshes; %d bones; %d vertices; %d triangles\n",
+	fprintf(stderr, "\t%d meshes; %d bones; %d vertices; %d triangles\n",
 			mesh_count, bone_count, position.len/3, element.len/3);
 
 	model = malloc(sizeof *model);
@@ -368,6 +375,20 @@ struct model *load_iqe_model(char *filename)
 		calc_abs_pose_matrix(model->abs_bind_matrix, model->bind_matrix, model->parent, model->bone_count);
 		calc_inv_bind_matrix(model->inv_bind_matrix, model->abs_bind_matrix, model->bone_count);
 	}
+
+	fprintf(stderr, "bbox %g %g %g -- %g %g %g\n",
+		bboxmin[0], bboxmin[1], bboxmin[2],
+		bboxmax[0], bboxmax[1], bboxmax[2]);
+
+	model->center[0] = (bboxmin[0] + bboxmax[0]) / 2;
+	model->center[1] = (bboxmin[1] + bboxmax[1]) / 2;
+	model->center[2] = (bboxmin[2] + bboxmax[2]) / 2;
+
+	dx = MAX(model->center[0] - bboxmin[0], bboxmax[0] - model->center[0]);
+	dy = MAX(model->center[1] - bboxmin[1], bboxmax[1] - model->center[1]);
+	dz = MAX(model->center[2] - bboxmin[2], bboxmax[2] - model->center[2]);
+
+	model->radius = sqrtf(dx*dx + dy*dy + dz*dz);
 
 	return model;
 }
