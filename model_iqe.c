@@ -1,6 +1,8 @@
 #include "mio.h"
 
-#define SEP " \t\r\n"
+#include <ctype.h>
+
+#define IQE_MAGIC "# Inter-Quake Export"
 #define MAXMESH 256
 
 struct floatarray {
@@ -116,6 +118,47 @@ static int load_material(char *dirname, char *material)
 	return load_texture(0, filename, 1);
 }
 
+static char *parsestring(char **stringp)
+{
+	char *start, *end, *s = *stringp;
+	while (isspace(*s)) s++;
+	if (*s == '"') {
+		s++;
+		start = end = s;
+		while (*end && *end != '"') end++;
+		if (*end) *end++ = 0;
+	} else {
+		start = end = s;
+		while (*end && !isspace(*end)) end++;
+		if (*end) *end++ = 0;
+	}
+	*stringp = end;
+	return start;
+}
+
+static char *parseword(char **stringp)
+{
+	char *start, *end, *s = *stringp;
+	while (isspace(*s)) s++;
+	start = end = s;
+	while (*end && !isspace(*end)) end++;
+	if (*end) *end++ = 0;
+	*stringp = end;
+	return start;
+}
+
+static inline float parsefloat(char **stringp, float def)
+{
+	char *s = parseword(stringp);
+	return *s ? atof(s) : def;
+}
+
+static inline int parseint(char **stringp, int def)
+{
+	char *s = parseword(stringp);
+	return *s ? atoi(s) : def;
+}
+
 struct model *load_iqe_model(char *filename)
 {
 	char dirname[1024];
@@ -131,7 +174,7 @@ struct model *load_iqe_model(char *filename)
 	int pose_count = 0;
 	int material = 0;
 	int fm = 0;
-	char *p, *s;
+	char *p, *s, *sp;
 	int i;
 	FILE *fp;
 
@@ -158,65 +201,71 @@ struct model *load_iqe_model(char *filename)
 
 	fp = fopen(filename, "r");
 	if (!fp) {
-		fprintf(stderr, "error: cannot load model '%s'\n", filename);
+		fprintf(stderr, "cannot open file '%s'\n", filename);
+		return NULL;
+	}
+
+	if (!fgets(line, sizeof line, fp)) {
+		fprintf(stderr, "cannot load %s: read error\n", filename);
+		return NULL;
+	}
+
+	if (memcmp(line, IQE_MAGIC, strlen(IQE_MAGIC))) {
+		fprintf(stderr, "cannot load %s: bad iqe magic\n", filename);
 		return NULL;
 	}
 
 	while (1) {
 		if (!fgets(line, sizeof line, fp))
 			break;
+		sp = line;
 
-		s = strtok(line, SEP);
+		s = parseword(&sp);
 		if (!s) {
 			continue;
 		} else if (!strcmp(s, "vp")) {
-			float x = atof(strtok(NULL, SEP));
-			float y = atof(strtok(NULL, SEP));
-			float z = atof(strtok(NULL, SEP));
+			float x = parsefloat(&sp, 0);
+			float y = parsefloat(&sp, 0);
+			float z = parsefloat(&sp, 0);
 			bboxmin[0] = MIN(bboxmin[0], x); bboxmax[0] = MAX(bboxmax[0], x);
 			bboxmin[1] = MIN(bboxmin[1], y); bboxmax[1] = MAX(bboxmax[1], y);
 			bboxmin[2] = MIN(bboxmin[2], z); bboxmax[2] = MAX(bboxmax[2], z);
 			add_position(x, y, z);
 		} else if (!strcmp(s, "vt")) {
-			float x = atof(strtok(NULL, SEP));
-			float y = atof(strtok(NULL, SEP));
+			float x = parsefloat(&sp, 0);
+			float y = parsefloat(&sp, 0);
 			add_texcoord(x, y);
 		} else if (!strcmp(s, "vn")) {
-			float x = atof(strtok(NULL, SEP));
-			float y = atof(strtok(NULL, SEP));
-			float z = atof(strtok(NULL, SEP));
+			float x = parsefloat(&sp, 0);
+			float y = parsefloat(&sp, 0);
+			float z = parsefloat(&sp, 0);
 			add_normal(x, y, z);
 		} else if (!strcmp(s, "vc")) {
-			float x = atof(strtok(NULL, SEP));
-			float y = atof(strtok(NULL, SEP));
-			float z = atof(strtok(NULL, SEP));
-			float w = atof(strtok(NULL, SEP));
+			float x = parsefloat(&sp, 0);
+			float y = parsefloat(&sp, 0);
+			float z = parsefloat(&sp, 0);
+			float w = parsefloat(&sp, 1);
 			add_color(x, y, z, w);
 		} else if (!strcmp(s, "vb")) {
 			int idx[4] = {0, 0, 0, 0};
 			float wgt[4] = {1, 0, 0, 0};
 			for (i = 0; i < 4; i++) {
-				char *x = strtok(NULL, SEP);
-				char *y = strtok(NULL, SEP);
-				if (x && y) {
-					idx[i] = atoi(x);
-					wgt[i] = atof(y);
-				} else break;
+				idx[i] = parseint(&sp, 0);
+				wgt[i] = parsefloat(&sp, 0);
 			}
 			add_blend(idx, wgt);
 		} else if (!strcmp(s, "fm")) {
-			int x = atoi(strtok(NULL, SEP));
-			int y = atoi(strtok(NULL, SEP));
-			int z = atoi(strtok(NULL, SEP));
+			int x = parseint(&sp, 0);
+			int y = parseint(&sp, 0);
+			int z = parseint(&sp, 0);
 			add_triangle(x+fm, y+fm, z+fm);
 		} else if (!strcmp(s, "fa")) {
-			int x = atoi(strtok(NULL, SEP));
-			int y = atoi(strtok(NULL, SEP));
-			int z = atoi(strtok(NULL, SEP));
+			int x = parseint(&sp, 0);
+			int y = parseint(&sp, 0);
+			int z = parseint(&sp, 0);
 			add_triangle(x, y, z);
 		} else if (!strcmp(s, "mesh")) {
 			if (mesh) {
-				fprintf(stderr, "mesh tile %d %d\n", tile_s, tile_t);
 				glBindTexture(GL_TEXTURE_2D, mesh->texture);
 				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, tile_s ? GL_REPEAT : GL_CLAMP_TO_EDGE);
 				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, tile_t ? GL_REPEAT : GL_CLAMP_TO_EDGE);
@@ -231,7 +280,7 @@ struct model *load_iqe_model(char *filename)
 			fm = position.len / 3;
 			tile_s = tile_t = 0;
 		} else if (!strcmp(s, "material")) {
-			s = strtok(NULL, SEP);
+			s = parsestring(&sp);
 			material = load_material(dirname, s);
 			if (mesh) {
 				mesh->texture = material;
@@ -241,40 +290,30 @@ struct model *load_iqe_model(char *filename)
 			}
 		} else if (!strcmp(s, "joint")) {
 			if (bone_count < MAXBONE) {
-				char *name = strtok(NULL, SEP);
-				char *parent = strtok(NULL, SEP);
+				char *name = parsestring(&sp);
 				strlcpy(bonename[bone_count], name, sizeof bonename[0]);
-				boneparent[bone_count] = atoi(parent);
+				boneparent[bone_count] = parseint(&sp, -1);
 				bone_count++;
 			}
 		} else if (!strcmp(s, "pq")) {
 			if (pose_count < MAXBONE) {
-				posebuf[pose_count].translate[0] = atof(strtok(NULL, SEP));
-				posebuf[pose_count].translate[1] = atof(strtok(NULL, SEP));
-				posebuf[pose_count].translate[2] = atof(strtok(NULL, SEP));
-				posebuf[pose_count].rotate[0] = atof(strtok(NULL, SEP));
-				posebuf[pose_count].rotate[1] = atof(strtok(NULL, SEP));
-				posebuf[pose_count].rotate[2] = atof(strtok(NULL, SEP));
-				posebuf[pose_count].rotate[3] = atof(strtok(NULL, SEP));
-				char *sx = strtok(NULL, SEP);
-				char *sy = strtok(NULL, SEP);
-				char *sz = strtok(NULL, SEP);
-				if (sx) {
-					posebuf[pose_count].scale[0] = atof(sx);
-					posebuf[pose_count].scale[1] = atof(sy);
-					posebuf[pose_count].scale[2] = atof(sz);
-				} else {
-					posebuf[pose_count].scale[0] = 1;
-					posebuf[pose_count].scale[1] = 1;
-					posebuf[pose_count].scale[2] = 1;
-				}
+				posebuf[pose_count].translate[0] = parsefloat(&sp, 0);
+				posebuf[pose_count].translate[1] = parsefloat(&sp, 0);
+				posebuf[pose_count].translate[2] = parsefloat(&sp, 0);
+				posebuf[pose_count].rotate[0] = parsefloat(&sp, 0);
+				posebuf[pose_count].rotate[1] = parsefloat(&sp, 0);
+				posebuf[pose_count].rotate[2] = parsefloat(&sp, 0);
+				posebuf[pose_count].rotate[3] = parsefloat(&sp, 1);
+				posebuf[pose_count].scale[0] = parsefloat(&sp, 1);
+				posebuf[pose_count].scale[1] = parsefloat(&sp, 1);
+				posebuf[pose_count].scale[2] = parsefloat(&sp, 1);
 				pose_count++;
 			}
 		}
+		// TODO: "pm", "pa"
 	}
 
 	if (mesh) {
-		fprintf(stderr, "mesh tile %d %d\n", tile_s, tile_t);
 		glBindTexture(GL_TEXTURE_2D, mesh->texture);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, tile_s ? GL_REPEAT : GL_CLAMP_TO_EDGE);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, tile_t ? GL_REPEAT : GL_CLAMP_TO_EDGE);
