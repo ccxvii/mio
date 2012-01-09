@@ -20,16 +20,19 @@ static float animtick = 0;
 static struct font *droid_sans;
 static struct font *droid_sans_mono;
 
-static struct model *model;
-static struct animation *animation;
+static struct model *model = NULL;
+static struct model *askeleton = NULL;
+static struct model *mskeleton = NULL;
+static struct animation *animation = NULL;
 
 mat4 skin_matrix[MAXBONE];
+struct pose posebuf[MAXBONE];
 mat4 pose_matrix[MAXBONE];
+mat4 abs_pose_matrix[MAXBONE];
+
+struct pose animbuf[MAXBONE];
 mat4 anim_matrix[MAXBONE];
 mat4 abs_anim_matrix[MAXBONE];
-mat4 abs_pose_matrix[MAXBONE];
-struct pose posebuf[MAXBONE];
-struct pose animbuf[MAXBONE];
 
 static float cam_dist = 5;
 static float cam_yaw = 0;
@@ -166,57 +169,55 @@ static void display(void)
 		while (animtick < 0) animtick += animation->frame_count;
 		while (animtick >= animation->frame_count) animtick -= animation->frame_count;
 
+		if (askeleton)
+			fix_anim_skel(animation->bind_pose, askeleton->bind_pose, animation->bone_name, askeleton->bone_name, animation->bone_count, askeleton->bone_count);
+		if (mskeleton)
+			fix_anim_skel(model->bind_pose, mskeleton->bind_pose, model->bone_name, mskeleton->bone_name, model->bone_count, mskeleton->bone_count);
+
+		calc_matrix_from_pose(animation->bind_matrix, animation->bind_pose, animation->bone_count);
+		calc_abs_matrix(animation->abs_bind_matrix, animation->bind_matrix, animation->parent, animation->bone_count);
 
 		extract_pose(animbuf, animation, (int)animtick);
-		calc_pose_matrix(anim_matrix, animbuf, animation->bone_count);
-		calc_abs_pose_matrix(abs_anim_matrix, anim_matrix, animation->parent, animation->bone_count);
+		calc_matrix_from_pose(anim_matrix, animbuf, animation->bone_count);
+		calc_abs_matrix(abs_anim_matrix, anim_matrix, animation->parent, animation->bone_count);
 
-		retarget = CLAMP(retarget, 0, 4);
+		retarget = CLAMP(retarget, 0, 3);
 		switch (retarget) {
 		case 0:
-			// copy the animation poses directly
+			// copy the full animation poses directly
 			memcpy(posebuf, model->bind_pose, sizeof posebuf);
 			apply_animation(posebuf, model->bone_name, model->bone_count,
 					animbuf, animation->bone_name, animation->bone_count);
-			calc_pose_matrix(pose_matrix, posebuf, model->bone_count);
-			calc_abs_pose_matrix(abs_pose_matrix, pose_matrix, model->parent, model->bone_count);
+			calc_matrix_from_pose(pose_matrix, posebuf, model->bone_count);
+			calc_abs_matrix(abs_pose_matrix, pose_matrix, model->parent, model->bone_count);
 			break;
 
 		case 1:
-			// copy the animation rotation keys directly
-			retarget_skeleton_pose_rotate(posebuf,
-					model->bind_pose, model->bone_name, model->bone_count,
-					animation->bind_pose, animation->bone_name, animation->bone_count,
-					animbuf);
-			calc_pose_matrix(pose_matrix, posebuf, model->bone_count);
-			calc_abs_pose_matrix(abs_pose_matrix, pose_matrix, model->parent, model->bone_count);
-			break;
-
-		case 2:
-			// retarget using poses (quaternion bind pose diff based)
-			retarget_skeleton_pose(posebuf,
-					model->bind_pose, model->bone_name, model->bone_count,
-					animation->bind_pose, animation->bone_name, animation->bone_count,
-					animbuf);
-			calc_pose_matrix(pose_matrix, posebuf, model->bone_count);
-			calc_abs_pose_matrix(abs_pose_matrix, pose_matrix, model->parent, model->bone_count);
-			break;
-
-		case 3:
-			// retarget using matrix, in local space (bind pose diff based)
-			retarget_skeleton(pose_matrix,
+			// retarget using matrix, in local space (anim diff based, like blender)
+			apply_animation_delta(pose_matrix,
 					model->bind_matrix, model->bone_name, model->bone_count,
 					animation->bind_matrix, animation->bone_name, animation->bone_count,
 					anim_matrix);
-			calc_abs_pose_matrix(abs_pose_matrix, pose_matrix, model->parent, model->bone_count);
+			calc_abs_matrix(abs_pose_matrix, pose_matrix, model->parent, model->bone_count);
 			break;
 
-		case 4:
-			// retarget using matrix, in world space (bind pose diff based)
-			retarget_skeleton_world(abs_pose_matrix, model->bind_matrix, model->parent,
-					model->abs_bind_matrix, model->bone_name, model->bone_count,
-					animation->abs_bind_matrix, animation->bone_name, animation->bone_count,
-					abs_anim_matrix);
+		case 2:
+			// retarget using quats, in local space (anim diff based, like blender)
+			apply_animation_delta_q(posebuf,
+					model->bind_pose, model->bone_name, model->bone_count,
+					animation->bind_pose, animation->bone_name, animation->bone_count,
+					animbuf);
+			calc_matrix_from_pose(pose_matrix, posebuf, model->bone_count);
+			calc_abs_matrix(abs_pose_matrix, pose_matrix, model->parent, model->bone_count);
+			break;
+
+		case 3:
+			// copy only the animation rotation keys
+			memcpy(posebuf, model->bind_pose, sizeof posebuf);
+			apply_animation_rot(posebuf, model->bone_name, model->bone_count,
+					animbuf, animation->bone_name, animation->bone_count);
+			calc_matrix_from_pose(pose_matrix, posebuf, model->bone_count);
+			calc_abs_matrix(abs_pose_matrix, pose_matrix, model->parent, model->bone_count);
 			break;
 		}
 	}
@@ -254,10 +255,14 @@ static void display(void)
 		glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 
 	if (animation) {
-		calc_skin_matrix(skin_matrix, abs_pose_matrix, model->inv_bind_matrix, model->bone_count);
+		calc_mul_matrix(skin_matrix, abs_pose_matrix, model->inv_bind_matrix, model->bone_count);
 		draw_model_with_pose(model, projection, model_view, skin_matrix);
 	} else {
-		draw_model(model, projection, model_view);
+		// draw_model(model, projection, model_view);
+		static float phase = 0.0;
+		phase = phase + (timediff / 1000.0f);
+		draw_model_with_wind(model, projection, model_view, phase);
+		glutPostRedisplay();
 	}
 
 	glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
@@ -267,18 +272,24 @@ static void display(void)
 	glDisable(GL_DEPTH_TEST);
 
 	if (showskeleton && model->bone_count > 0) {
+		mat_translate(model_view, -3, 0, 0);
 		draw_begin(projection, model_view);
-		draw_skeleton_2(model->abs_bind_matrix, model->parent, model->bone_count);
+		draw_skeleton_with_axis(model->abs_bind_matrix, model->parent, model->bone_count);
 		draw_end();
 		if (animation) {
+			mat_translate(model_view, 2, 0, 0);
 			draw_begin(projection, model_view);
-			draw_skeleton_3(abs_pose_matrix, model->parent, model->bone_count);
+			draw_skeleton_with_axis(abs_pose_matrix, model->parent, model->bone_count);
 			draw_end();
 
 			mat_translate(model_view, 2, 0, 0);
 			draw_begin(projection, model_view);
-			draw_skeleton_2(animation->abs_bind_matrix, animation->parent, animation->bone_count);
-			draw_skeleton_3(abs_anim_matrix, animation->parent, animation->bone_count);
+			draw_skeleton_with_axis(abs_anim_matrix, animation->parent, animation->bone_count);
+			draw_end();
+
+			mat_translate(model_view, 2, 0, 0);
+			draw_begin(projection, model_view);
+			draw_skeleton_with_axis(animation->abs_bind_matrix, animation->parent, animation->bone_count);
 			draw_end();
 		}
 	}
@@ -365,6 +376,10 @@ int main(int argc, char **argv)
 		model = load_model(argv[1]);
 		if (argc > 2)
 			animation = load_iqm_animation(argv[2]);
+		if (argc > 3)
+			askeleton = load_iqm_model(argv[3]);
+		if (argc > 4)
+			mskeleton = load_iqm_model(argv[4]);
 	} else {
 		model = load_model("data/fo_s2_spiketree.obj");
 		animation = NULL;

@@ -128,9 +128,9 @@ struct model *load_iqm_model_from_memory(char *filename, unsigned char *data, in
 		memcpy(model->bind_pose[i].scale, joints[i].scale, 3*sizeof(float));
 	}
 
-	calc_pose_matrix(model->bind_matrix, model->bind_pose, model->bone_count);
-	calc_abs_pose_matrix(model->abs_bind_matrix, model->bind_matrix, model->parent, model->bone_count);
-	calc_inv_bind_matrix(model->inv_bind_matrix, model->abs_bind_matrix, model->bone_count);
+	calc_matrix_from_pose(model->bind_matrix, model->bind_pose, model->bone_count);
+	calc_abs_matrix(model->abs_bind_matrix, model->bind_matrix, model->parent, model->bone_count);
+	calc_inv_matrix(model->inv_bind_matrix, model->abs_bind_matrix, model->bone_count);
 
 	glGenVertexArrays(1, &model->vao);
 	glGenBuffers(1, &model->vbo);
@@ -176,6 +176,13 @@ struct model *load_iqm_model_from_memory(char *filename, unsigned char *data, in
 	return model;
 }
 
+void extract_pose(struct pose *pose, struct animation *anim, int frame)
+{
+	if (frame < 0) frame = 0;
+	if (frame >= anim->frame_count) frame = anim->frame_count - 1;
+	memcpy(pose, anim->frame + anim->bone_count * frame, sizeof(struct pose) * anim->bone_count);
+}
+
 struct animation *load_iqm_animation_from_memory(char *filename, unsigned char *data, int len)
 {
 	struct iqmheader *iqm = (void*) data;
@@ -183,9 +190,9 @@ struct animation *load_iqm_animation_from_memory(char *filename, unsigned char *
 	struct iqmjoint *iqmjoint = (void*) &data[iqm->ofs_joints];
 	struct iqmpose *iqmpose = (void*) &data[iqm->ofs_poses];
 	struct iqmanim *iqmanim = (void*) &data[iqm->ofs_anims];
-	int i, k;
+	struct pose *pose;
 	unsigned short *s;
-	float *p;
+	int i, k;
 
 	fprintf(stderr, "loading iqm animation '%s'\n", filename);
 
@@ -203,54 +210,42 @@ struct animation *load_iqm_animation_from_memory(char *filename, unsigned char *
 
 	struct animation *anim = malloc(sizeof *anim);
 	anim->bone_count = iqm->num_joints;
-	anim->frame_size = iqm->num_framechannels;
 	anim->frame_count = iqmanim->num_frames;
 	anim->flags = iqmanim->flags;
 
-	anim->frame = malloc(anim->frame_count * anim->frame_size * sizeof(float));
+	anim->frame = malloc(anim->frame_count * anim->bone_count * sizeof(struct pose));
 
 	for (i = 0; i < anim->bone_count; i++) {
 		strlcpy(anim->bone_name[i], text + iqmjoint[i].name, sizeof anim->bone_name[0]);
 		anim->parent[i] = iqmpose[i].parent;
-		anim->mask[i] = iqmpose[i].mask;
-		memcpy(&anim->offset[i], iqmpose[i].channeloffset, 10*sizeof(float));
 		memcpy(&anim->bind_pose[i], iqmjoint[i].translate, 10*sizeof(float));
-
-		int mask = anim->mask[i];
-		if (0 && mask) {
-			fprintf(stderr, "anim chan %s:", anim->bone_name[i]);
-			if ((mask & 0x01) || (mask & 0x02) || (mask & 0x04))
-				fprintf(stderr, " translate %g", vec_length(iqmpose[i].channelscale+0)*65535);
-			if ((mask & 0x08) || (mask & 0x10) || (mask & 0x20) || (mask & 0x40))
-				fprintf(stderr, " rotate %g", vec_length(iqmpose[i].channelscale+3)*65535);
-			if ((mask & 0x80) || (mask & 0x100) || (mask & 0x200))
-				fprintf(stderr, " scale %g", vec_length(iqmpose[i].channelscale+7)*65535);
-			fprintf(stderr, "\n");
-		}
 	}
 
-	calc_pose_matrix(anim->bind_matrix, anim->bind_pose, anim->bone_count);
-	calc_abs_pose_matrix(anim->abs_bind_matrix, anim->bind_matrix, anim->parent, anim->bone_count);
+	calc_matrix_from_pose(anim->bind_matrix, anim->bind_pose, anim->bone_count);
+	//calc_inv_matrix(anim->inv_loc_bind_matrix, anim->bind_matrix, anim->bone_count);
+	calc_abs_matrix(anim->abs_bind_matrix, anim->bind_matrix, anim->parent, anim->bone_count);
 
-	p = anim->frame;
 	s = (void*) &data[iqm->ofs_frames];
 	for (k = 0; k < anim->frame_count; k++) {
+		pose = anim->frame + anim->bone_count * k;
 		for (i = 0; i < anim->bone_count; i++) {
 			float *offset = iqmpose[i].channeloffset;
 			float *scale = iqmpose[i].channelscale;
 			unsigned int mask = iqmpose[i].mask;
-			if (mask & 0x01) *p++ = offset[0] + *s++ * scale[0];
-			if (mask & 0x02) *p++ = offset[1] + *s++ * scale[1];
-			if (mask & 0x04) *p++ = offset[2] + *s++ * scale[2];
-			if (mask & 0x08) *p++ = offset[3] + *s++ * scale[3];
-			if (mask & 0x10) *p++ = offset[4] + *s++ * scale[4];
-			if (mask & 0x20) *p++ = offset[5] + *s++ * scale[5];
-			if (mask & 0x40) *p++ = offset[6] + *s++ * scale[6];
-			if (mask & 0x80) *p++ = offset[7] + *s++ * scale[7];
-			if (mask & 0x100) *p++ = offset[8] + *s++ * scale[8];
-			if (mask & 0x200) *p++ = offset[9] + *s++ * scale[9];
+			pose[i].translate[0] = (mask & 0x01) ? offset[0] + *s++ * scale[0] : offset[0];
+			pose[i].translate[1] = (mask & 0x02) ? offset[1] + *s++ * scale[1] : offset[1];
+			pose[i].translate[2] = (mask & 0x04) ? offset[2] + *s++ * scale[2] : offset[2];
+			pose[i].rotate[0] = (mask & 0x08) ? offset[3] + *s++ * scale[3] : offset[3];
+			pose[i].rotate[1] = (mask & 0x10) ? offset[4] + *s++ * scale[4] : offset[4];
+			pose[i].rotate[2] = (mask & 0x20) ? offset[5] + *s++ * scale[5] : offset[5];
+			pose[i].rotate[3] = (mask & 0x40) ? offset[6] + *s++ * scale[6] : offset[6];
+			pose[i].scale[0] = (mask & 0x80) ? offset[7] + *s++ * scale[7] : offset[7];
+			pose[i].scale[1] = (mask & 0x100) ? offset[8] + *s++ * scale[8] : offset[8];
+			pose[i].scale[2] = (mask & 0x200) ? offset[9] + *s++ * scale[9] : offset[9];
 		}
 	}
+
+	// TODO: recalc anim pose as delta from skeleton / bind pose here
 
 	return anim;
 }

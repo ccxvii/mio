@@ -106,17 +106,16 @@ struct model {
 
 struct animation {
 	char name[80];
-	int bone_count, frame_size, frame_count;
+	int bone_count, frame_count;
 	int flags;
-	float *frame;
+	struct pose *frame;
 
 	char bone_name[MAXBONE][32];
 	int parent[MAXBONE];
-	int mask[MAXBONE];
-	struct pose offset[MAXBONE];
 	struct pose bind_pose[MAXBONE];
 	mat4 bind_matrix[MAXBONE];
 	mat4 abs_bind_matrix[MAXBONE];
+	mat4 inv_loc_bind_matrix[MAXBONE];
 };
 
 struct model *load_obj_model(char *filename);
@@ -129,41 +128,34 @@ struct animation *load_iqm_animation(char *filename);
 struct animation *load_iqm_animation_from_memory(char *filename, unsigned char *data, int len);
 
 void draw_model(struct model *model, mat4 projection, mat4 model_view);
+void draw_model_with_wind(struct model *model, mat4 projection, mat4 model_view, float phase);
 void draw_model_with_pose(struct model *model, mat4 projection, mat4 model_view, mat4 *skin_matrix);
 
-void calc_skin_matrix(mat4 *skin_matrix, mat4 *abs_pose_matrix, mat4 *inv_bind_matrix, int count);
-void calc_inv_bind_matrix(mat4 *inv_bind_matrix, mat4 *abs_bind_matrix, int count);
-void calc_abs_pose_matrix(mat4 *abs_pose_matrix, mat4 *pose_matrix, int *parent, int count);
-void calc_pose_matrix(mat4 *pose_matrix, struct pose *pose, int count);
+void calc_mul_matrix(mat4 *skin_matrix, mat4 *abs_pose_matrix, mat4 *inv_bind_matrix, int count);
+void calc_inv_matrix(mat4 *inv_bind_matrix, mat4 *abs_bind_matrix, int count);
+void calc_abs_matrix(mat4 *abs_pose_matrix, mat4 *pose_matrix, int *parent, int count);
+void calc_matrix_from_pose(mat4 *pose_matrix, struct pose *pose, int count);
 
 void draw_skeleton(mat4 *abs_pose_matrix, int *parent, int count);
-void draw_skeleton_2(mat4 *abs_pose_matrix, int *parent, int count);
-void draw_skeleton_3(mat4 *abs_pose_matrix, int *parent, int count);
-
-void retarget_skeleton_world(mat4 *out_matrix, mat4 *dst_local, int *dst_parent,
-		mat4 *dst_matrix, char (*dst_names)[32], int dst_count,
-		mat4 *src_matrix, char (*src_names)[32], int src_count,
-		mat4 *src_anim_matrix);
-void retarget_skeleton(mat4 *out_matrix,
-		mat4 *dst_matrix, char (*dst_names)[32], int dst_count,
-		mat4 *src_matrix, char (*src_names)[32], int src_count,
-		mat4 *src_anim_matrix);
-void retarget_skeleton_pose(struct pose *posebuf,
-		struct pose *dst_pose, char (*dst_names)[32], int dst_count,
-		struct pose *src_pose, char (*src_names)[32], int src_count,
-		struct pose *src_anim_pose);
-void retarget_skeleton_pose_rotate(struct pose *posebuf,
-		struct pose *dst_pose, char (*dst_names)[32], int dst_count,
-		struct pose *src_pose, char (*src_names)[32], int src_count,
-		struct pose *src_anim_pose);
+void draw_skeleton_with_axis(mat4 *abs_pose_matrix, int *parent, int count);
 
 void apply_animation(
 		struct pose *dst_pose, char (*dst_names)[32], int dst_count,
 		struct pose *src_pose, char (*src_names)[32], int src_count);
-void apply_animation2(
+
+void apply_animation_rot(
 		struct pose *dst_pose, char (*dst_names)[32], int dst_count,
-		struct pose *src_pose, char (*src_names)[32], int src_count,
-		int *mask);
+		struct pose *src_pose, char (*src_names)[32], int src_count);
+
+void apply_animation_delta_q(struct pose *out_pose,
+		struct pose *dst_bind_pose, char (*dst_names)[32], int dst_count,
+		struct pose *src_bind_pose, char (*src_names)[32], int src_count,
+		struct pose *src_pose);
+
+void apply_animation_delta(mat4 *out_mat,
+		mat4 *dst_bind_mat, char (*dst_names)[32], int dst_count,
+		mat4 *src_bind_mat, char (*src_names)[32], int src_count,
+		mat4 *src_mat);
 
 void extract_pose(struct pose *pose, struct animation *anim, int frame);
 
@@ -247,6 +239,8 @@ void mat_vec_mul_t(vec3 p, const mat4 m, const vec3 v);
 void vec_scale(vec3 p, const vec3 v, float s);
 void vec_add(vec3 p, const vec3 a, const vec3 b);
 void vec_sub(vec3 p, const vec3 a, const vec3 b);
+void vec_mul(vec3 p, const vec3 a, const vec3 b);
+void vec_div(vec3 p, const vec3 a, const vec3 b);
 void vec_lerp(vec3 p, const vec3 a, const vec3 b, float t);
 void vec_average(vec3 p, const vec3 a, const vec3 b);
 void vec_cross(vec3 p, const vec3 a, const vec3 b);
@@ -256,7 +250,8 @@ float vec_dist2(const vec3 a, const vec3 b);
 float vec_dist(const vec3 a, const vec3 b);
 void vec_normalize(vec3 v);
 void vec_face_normal(vec3 n, const vec3 p0, const vec3 p1, const vec3 p2);
-void vec_negate(vec3 p);
+void vec_negate(vec3 p, const vec3 a);
+void vec_invert(vec3 p, const vec3 a);
 void vec_yup_to_zup(vec3 v);
 
 float quat_dot(const vec4 a, const vec4 b);

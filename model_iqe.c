@@ -410,9 +410,9 @@ struct model *load_iqe_model(char *filename)
 		memcpy(model->bone_name, bonename, sizeof bonename); // XXX careful of size
 		memcpy(model->parent, boneparent, sizeof boneparent);
 		memcpy(model->bind_pose, posebuf, sizeof posebuf);
-		calc_pose_matrix(model->bind_matrix, model->bind_pose, model->bone_count);
-		calc_abs_pose_matrix(model->abs_bind_matrix, model->bind_matrix, model->parent, model->bone_count);
-		calc_inv_bind_matrix(model->inv_bind_matrix, model->abs_bind_matrix, model->bone_count);
+		calc_matrix_from_pose(model->bind_matrix, model->bind_pose, model->bone_count);
+		calc_abs_matrix(model->abs_bind_matrix, model->bind_matrix, model->parent, model->bone_count);
+		calc_inv_matrix(model->inv_bind_matrix, model->abs_bind_matrix, model->bone_count);
 	}
 
 	fprintf(stderr, "bbox %g %g %g -- %g %g %g\n",

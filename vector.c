@@ -281,6 +281,20 @@ void vec_sub(vec3 p, const vec3 a, const vec3 b)
 	p[2] = a[2] - b[2];
 }
 
+void vec_mul(vec3 p, const vec3 a, const vec3 b)
+{
+	p[0] = a[0] * b[0];
+	p[1] = a[1] * b[1];
+	p[2] = a[2] * b[2];
+}
+
+void vec_div(vec3 p, const vec3 a, const vec3 b)
+{
+	p[0] = a[0] / b[0];
+	p[1] = a[1] / b[1];
+	p[2] = a[2] / b[2];
+}
+
 void vec_lerp(vec3 p, const vec3 a, const vec3 b, float t)
 {
 	p[0] = a[0] + t * (b[0] - a[0]);
@@ -347,11 +361,18 @@ void vec_face_normal(vec3 n, const vec3 p0, const vec3 p1, const vec3 p2)
 	vec_cross(n, u, v);
 }
 
-void vec_negate(vec3 p)
+void vec_negate(vec3 p, const vec3 a)
 {
-	p[0] = -p[0];
-	p[1] = -p[1];
-	p[2] = -p[2];
+	p[0] = -a[0];
+	p[1] = -a[1];
+	p[2] = -a[2];
+}
+
+void vec_invert(vec3 p, const vec3 a)
+{
+	p[0] = 1 / a[0];
+	p[1] = 1 / a[1];
+	p[2] = 1 / a[2];
 }
 
 void vec_yup_to_zup(vec3 v)
