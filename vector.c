@@ -295,6 +295,13 @@ void vec_div(vec3 p, const vec3 a, const vec3 b)
 	p[2] = a[2] / b[2];
 }
 
+void vec_div_s(vec3 p, float a)
+{
+	p[0] = p[0] / a;
+	p[1] = p[1] / a;
+	p[2] = p[2] / a;
+}
+
 void vec_lerp(vec3 p, const vec3 a, const vec3 b, float t)
 {
 	p[0] = a[0] + t * (b[0] - a[0]);
@@ -585,4 +592,37 @@ void quat_from_mat(vec4 q, const mat4 m)
 		q[2] = 0.5f*r;
 		q[3] = (M(1,0) - M(0,1))*inv;
 	}
+}
+
+int mat_is_negative(const mat4 m)
+{
+	vec3 v;
+	vec_cross(v, m+0, m+4);
+	return vec_dot(v, m+8) < 0;
+}
+
+void mat_decompose(const mat4 m, vec3 t, vec4 q, vec3 s)
+{
+	mat4 mn;
+
+	t[0] = m[12];
+	t[1] = m[13];
+	t[2] = m[14];
+
+	s[0] = vec_length(m+0);
+	s[1] = vec_length(m+4);
+	s[2] = vec_length(m+8);
+
+	if (mat_is_negative(m)) {
+		s[0] = -s[0];
+		s[1] = -s[1];
+		s[2] = -s[2];
+	}
+
+	mat_copy(mn, m);
+	vec_div_s(mn+0, s[0]);
+	vec_div_s(mn+4, s[1]);
+	vec_div_s(mn+8, s[2]);
+
+	quat_from_mat(q, mn);
 }

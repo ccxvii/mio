@@ -264,3 +264,6 @@ void quat_lerp_normalize(vec4 p, const vec4 a, const vec4 b, float t);
 void quat_lerp_neighbor_normalize(vec4 p, const vec4 a, const vec4 b, float t);
 void mat_from_quat(mat4 m, const vec4 q);
 void mat_from_pose(mat4 m, const vec3 t, const vec4 q, const vec3 s);
+void quat_from_mat(vec4 q, const mat4 m);
+int mat_is_negative(const mat4 m);
+void mat_decompose(const mat4 m, vec3 t, vec4 q, vec3 s);
