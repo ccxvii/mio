@@ -4,15 +4,15 @@
 #define STBI_NO_WRITE
 #include "stb_image.c"
 
-int make_texture(unsigned int texid, unsigned char *data, int w, int h, int n, int srgb)
+int make_texture(unsigned char *data, int w, int h, int n, int srgb)
 {
+	unsigned int texid;
 	int intfmt, fmt;
 
 	if ((w & (w-1)) || (h & (h-1)))
 		fprintf(stderr, "warning: non-power-of-two texture size (%dx%d)!\n", w, h);
 
-	if (texid == 0)
-		glGenTextures(1, &texid);
+	glGenTextures(1, &texid);
 
 	glBindTexture(GL_TEXTURE_2D, texid);
 	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY_EXT, 4);
@@ -37,8 +37,9 @@ static inline int getint(unsigned char *p)
 	return p[0] | p[1] << 8 | p[2] << 16 | p[3] << 24;
 }
 
-static int load_dds_from_memory(unsigned int texid, unsigned char *data, int srgb)
+static int load_dds_from_memory(unsigned char *data, int srgb)
 {
+	unsigned int texid;
 	int h, w, mips, flags, size, bs, fmt, i;
 	unsigned char *four;
 
@@ -92,8 +93,7 @@ static int load_dds_from_memory(unsigned int texid, unsigned char *data, int srg
 		return 0;
 	}
 
-	if (texid == 0)
-		glGenTextures(1, &texid);
+	glGenTextures(1, &texid);
 
 	glBindTexture(GL_TEXTURE_2D, texid);
 	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY_EXT, 4);
@@ -113,51 +113,128 @@ static int load_dds_from_memory(unsigned int texid, unsigned char *data, int srg
 	return texid;
 }
 
-static int load_dds_from_file(unsigned int texid, char *filename, int srgb)
+static int load_dds_from_file(char *filename, int srgb)
 {
-	unsigned char *data = load_file(filename, 0);
+	unsigned int texid;
+	unsigned char *data;
+	data = load_file(filename, 0);
 	if (!data)
 		return 0;
 	fprintf(stderr, "loading DDS '%s'\n", filename);
-	texid = load_dds_from_memory(texid, data, srgb);
+	texid = load_dds_from_memory(data, srgb);
 	free(data);
 	return texid;
 }
 
-int load_texture_from_memory(unsigned int texid, unsigned char *data, int len, int srgb)
+int load_texture_from_memory(unsigned char *data, int len, int srgb)
 {
+	unsigned int texid;
 	unsigned char *image;
 	int w, h, n;
 
 	if (!memcmp(data, "DDS ", 4))
-		return load_dds_from_memory(texid, data, srgb);
+		return load_dds_from_memory(data, srgb);
 
 	image = stbi_load_from_memory(data, len, &w, &h, &n, 0);
 	if (!image) {
 		fprintf(stderr, "error: cannot decode image (%s)\n", stbi_failure_reason());
 		return 0;
 	}
-	texid = make_texture(texid, image, w, h, n, srgb);
+	texid = make_texture(image, w, h, n, srgb);
 	free(image);
 	return texid;
 }
 
-int load_texture(unsigned int texid, char *filename, int srgb)
+int load_texture(char *filename, int srgb)
 {
+	unsigned int texid;
 	unsigned char *image;
 	int w, h, n;
 
 	fprintf(stderr, "loading texture '%s'\n", filename);
 
 	if (strstr(filename, ".dds"))
-		return load_dds_from_file(texid, filename, srgb);
+		return load_dds_from_file(filename, srgb);
 
 	image = stbi_load(filename, &w, &h, &n, 0);
 	if (!image) {
 		fprintf(stderr, "error: cannot load image '%s' (%s)\n", filename, stbi_failure_reason());
 		return 0;
 	}
-	texid = make_texture(0, image, w, h, n, srgb);
+	texid = make_texture(image, w, h, n, srgb);
+	free(image);
+	return texid;
+}
+
+/*
+ * Texture arrays. Load and slice a tall image into a GL_TEXTURE_2D_ARRAY.
+ * Each slice is square, the number of slices determined by image h/w.
+ */
+
+int make_texture_array(unsigned char *data, int w, int h, int d, int n, int srgb)
+{
+	unsigned int texid;
+	int intfmt, fmt;
+
+	if ((w & (w-1)) || (h & (h-1)))
+		fprintf(stderr, "warning: non-power-of-two texture size (%dx%d)!\n", w, h);
+
+	glGenTextures(1, &texid);
+
+	glBindTexture(GL_TEXTURE_2D_ARRAY, texid);
+	glTexParameterf(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAX_ANISOTROPY_EXT, 4);
+	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+	if (n == 1) { intfmt = fmt = GL_RED; }
+	if (n == 2) { intfmt = fmt = GL_RG; }
+	if (n == 3) { intfmt = GL_SRGB; fmt = GL_RGB; }
+	if (n == 4) { intfmt = GL_SRGB_ALPHA; fmt = GL_RGBA; }
+	if (!srgb) intfmt = fmt;
+
+	glTexImage3D(GL_TEXTURE_2D_ARRAY, 0, intfmt, w, h, d, 0, fmt, GL_UNSIGNED_BYTE, data);
+
+	glGenerateMipmap(GL_TEXTURE_2D_ARRAY);
+
+	return texid;
+}
+
+int load_texture_array_from_memory(unsigned char *data, int len, int srgb, int *d)
+{
+	unsigned int texid;
+	unsigned char *image;
+	int w, h, n;
+
+	image = stbi_load_from_memory(data, len, &w, &h, &n, 0);
+	if (!image) {
+		fprintf(stderr, "error: cannot decode image (%s)\n", stbi_failure_reason());
+		return 0;
+	}
+	if (d)
+		*d = h / w;
+	texid = make_texture_array(image, w, w, h / w, n, srgb);
+	free(image);
+	return texid;
+}
+
+int load_texture_array(char *filename, int srgb, int *d)
+{
+	unsigned int texid;
+	unsigned char *image;
+	int w, h, n;
+
+	fprintf(stderr, "loading texture array '%s'\n", filename);
+
+	image = stbi_load(filename, &w, &h, &n, 0);
+	if (!image) {
+		fprintf(stderr, "error: cannot load image '%s' (%s)\n", filename, stbi_failure_reason());
+		return 0;
+	}
+	if (d)
+		*d = h / w;
+	texid = make_texture_array(image, w, w, h / w, n, srgb);
 	free(image);
 	return texid;
 }

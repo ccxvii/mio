@@ -74,7 +74,7 @@ static int load_iqm_material(char *dir, char *name)
 	strlcat(filename, "/", sizeof filename);
 	strlcat(filename, s, sizeof filename);
 	strlcat(filename, ".png", sizeof filename);
-	return load_texture(0, filename, 1);
+	return load_texture(filename, 1);
 }
 
 struct model *load_iqm_model_from_memory(char *filename, unsigned char *data, int len)

@@ -144,7 +144,7 @@ static void load_material(char *dirname, char *mtllib)
 				strlcpy(filename, dirname, sizeof filename);
 				strlcat(filename, "/", sizeof filename);
 				strlcat(filename, s, sizeof filename);
-				material[material_count-1].texture = load_texture(0, filename, 1);
+				material[material_count-1].texture = load_texture(filename, 1);
 			}
 		}
 	}

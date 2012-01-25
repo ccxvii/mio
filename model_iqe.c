@@ -115,7 +115,7 @@ static int load_material(char *dirname, char *material)
 	strlcat(filename, "/", sizeof filename);
 	strlcat(filename, s, sizeof filename);
 	strlcat(filename, ".png", sizeof filename);
-	return load_texture(0, filename, 1);
+	return load_texture(filename, 1);
 }
 
 static char *parsestring(char **stringp)

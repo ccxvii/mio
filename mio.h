@@ -165,9 +165,13 @@ void extract_pose(struct pose *pose, struct animation *anim, int frame);
 unsigned char *stbi_load(char const *filename, int *x, int *y, int *comp, int req_comp);
 unsigned char *stbi_load_from_memory(unsigned char const *buffer, int len, int *x, int *y, int *comp, int req_comp);
 
-int make_texture(unsigned int texid, unsigned char *data, int w, int h, int n, int srgb);
-int load_texture_from_memory(unsigned int texid, unsigned char *data, int len, int srgb);
-int load_texture(unsigned int texid, char *filename, int srgb);
+int make_texture(unsigned char *data, int w, int h, int n, int srgb);
+int load_texture_from_memory(unsigned char *data, int len, int srgb);
+int load_texture(char *filename, int srgb);
+
+int make_texture_array(unsigned char *data, int w, int h, int d, int n, int srgb);
+int load_texture_array_from_memory(unsigned char *data, int len, int srgb, int *d);
+int load_texture_array(char *filename, int srgb, int *d);
 
 void icon_set_color(float r, float g, float b, float a);
 void icon_begin(mat4 projection);
