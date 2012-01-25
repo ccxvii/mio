@@ -70,14 +70,19 @@ static int load_iqm_material(char *dir, char *name)
 	char filename[1024], *s;
 	s = strrchr(name, '+');
 	if (s) s++; else s = name;
-	strlcpy(filename, dir, sizeof filename);
-	strlcat(filename, "/", sizeof filename);
-	strlcat(filename, s, sizeof filename);
-	strlcat(filename, ".png", sizeof filename);
+	if (dir[0]) {
+		strlcpy(filename, dir, sizeof filename);
+		strlcat(filename, "/", sizeof filename);
+		strlcat(filename, s, sizeof filename);
+		strlcat(filename, ".png", sizeof filename);
+	} else {
+		strlcpy(filename, s, sizeof filename);
+		strlcat(filename, ".png", sizeof filename);
+	}
 	return load_texture(filename, 1);
 }
 
-struct model *load_iqm_model_from_memory(char *filename, unsigned char *data, int len)
+static struct model *load_iqm_model_from_memory(char *filename, unsigned char *data, int len)
 {
 	struct iqmheader *iqm = (void*) data;
 	char *text = (void*) &data[iqm->ofs_text];
@@ -93,7 +98,7 @@ struct model *load_iqm_model_from_memory(char *filename, unsigned char *data, in
 	strlcpy(dir, filename, sizeof dir);
 	p = strrchr(dir, '/');
 	if (!p) p = strrchr(dir, '\\');
-	if (p) p[1] = 0; else strlcpy(dir, "./", sizeof dir);
+	if (p) p[1] = 0; else strlcpy(dir, "", sizeof dir);
 
 	if (memcmp(iqm->magic, IQM_MAGIC, 16)) { error(filename, "bad iqm magic"); return NULL; }
 	if (iqm->version != IQM_VERSION) { error(filename, "bad iqm version"); return NULL; }
@@ -183,7 +188,7 @@ void extract_pose(struct pose *pose, struct animation *anim, int frame)
 	memcpy(pose, anim->frame + anim->bone_count * frame, sizeof(struct pose) * anim->bone_count);
 }
 
-struct animation *load_iqm_animation_from_memory(char *filename, unsigned char *data, int len)
+static struct animation *load_iqm_animation_from_memory(char *filename, unsigned char *data, int len)
 {
 	struct iqmheader *iqm = (void*) data;
 	char *text = (void*) &data[iqm->ofs_text];

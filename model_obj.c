@@ -109,23 +109,29 @@ static void add_triangle(
 static void load_material(char *dirname, char *mtllib)
 {
 	char filename[1024];
-	char line[200];
+	char *line, *next;
+	unsigned char *data;
 	char *s;
-	FILE *fp;
 
-	strlcpy(filename, dirname, sizeof filename);
-	strlcat(filename, "/", sizeof filename);
-	strlcat(filename, mtllib, sizeof filename);
+	if (dirname[0]) {
+		strlcpy(filename, dirname, sizeof filename);
+		strlcat(filename, "/", sizeof filename);
+		strlcat(filename, mtllib, sizeof filename);
+	} else {
+		strlcpy(filename, mtllib, sizeof filename);
+	}
 
-	fp = fopen(filename, "r");
-	if (!fp) {
+	data = load_file(filename, NULL);
+	if (!data) {
 		fprintf(stderr, "error: cannot load material library '%s'\n", filename);
 		return;
 	}
 
-	while (1) {
-		if (!fgets(line, sizeof line, fp))
-			break;
+	for (line = (char*)data; line; line = next) {
+		next = strchr(line, '\n');
+		if (next)
+			*next++ = 0;
+
 		s = strtok(line, SEP);
 		if (!s) {
 			continue;
@@ -141,15 +147,19 @@ static void load_material(char *dirname, char *mtllib)
 		} else if (!strcmp(s, "map_Kd")) {
 			s = strtok(NULL, SEP);
 			if (s && material_count > 0) {
-				strlcpy(filename, dirname, sizeof filename);
-				strlcat(filename, "/", sizeof filename);
-				strlcat(filename, s, sizeof filename);
+				if (dirname[0]) {
+					strlcpy(filename, dirname, sizeof filename);
+					strlcat(filename, "/", sizeof filename);
+					strlcat(filename, s, sizeof filename);
+				} else {
+					strlcpy(filename, s, sizeof filename);
+				}
 				material[material_count-1].texture = load_texture(filename, 1);
 			}
 		}
 	}
 
-	fclose(fp);
+	free(data);
 }
 
 int set_material(char *matname)
@@ -178,17 +188,16 @@ static void splitfv(char *buf, int *vpp, int *vtp, int *vnp)
 	*vnp = vn && vn[0] ? atoi(vn) - 1 : 0;
 }
 
-struct model *load_obj_model(char *filename)
+static struct model *load_obj_model_from_memory(char *filename, unsigned char *data, int len)
 {
 	char dirname[1024];
-	char line[200];
+	char *line, *next;
 	struct model *model;
 	struct mesh meshbuf[MAXMESH], *mesh = NULL;
 	int mesh_count = 0;
 	int fvp[20], fvt[20], fvn[20];
 	char *p, *s;
 	int i, n;
-	FILE *fp;
 
 	fprintf(stderr, "loading obj model '%s'\n", filename);
 
@@ -196,7 +205,7 @@ struct model *load_obj_model(char *filename)
 	p = strrchr(dirname, '/');
 	if (!p) p = strrchr(dirname, '\\');
 	if (p) *p = 0;
-	else strlcpy(dirname, ".", sizeof dirname);
+	else strlcpy(dirname, "", sizeof dirname);
 
 	material_count = 0;
 	position.len = 0;
@@ -204,15 +213,10 @@ struct model *load_obj_model(char *filename)
 	normal.len = 0;
 	element.len = 0;
 
-	fp = fopen(filename, "r");
-	if (!fp) {
-		fprintf(stderr, "error: cannot load model '%s'\n", filename);
-		return NULL;
-	}
-
-	while (1) {
-		if (!fgets(line, sizeof line, fp))
-			break;
+	for (line = (char*)data; line; line = next) {
+		next = strchr(line, '\n');
+		if (next)
+			*next++ = 0;
 
 		s = strtok(line, SEP);
 		if (!s) {
@@ -283,8 +287,6 @@ struct model *load_obj_model(char *filename)
 		mesh_count = 1;
 	}
 
-	fclose(fp);
-
 	fprintf(stderr, "\t%d meshes; %d vertices; %d triangles\n", mesh_count, vertex.len/8, element.len/3);
 
 	for (i = 0; i < material_count; i++) {
@@ -330,5 +332,17 @@ struct model *load_obj_model(char *filename)
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 
+	return model;
+}
+
+struct model *load_obj_model(char *filename)
+{
+	struct model *model;
+	unsigned char *data;
+	int len;
+	data = load_file(filename, &len);
+	if (!data) return NULL;
+	model = load_obj_model_from_memory(filename, data, len);
+	free(data);
 	return model;
 }

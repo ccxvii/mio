@@ -19,6 +19,7 @@ struct archive {
 	FILE *file;
 	int count;
 	struct entry *table;
+	struct archive *next;
 };
 
 static inline int getshort(FILE *file)
@@ -214,6 +215,7 @@ struct archive *open_archive(char *filename)
 	zip->file = file;
 	zip->count = 0;
 	zip->table = NULL;
+	zip->next = NULL;
 
 	if (read_zip_dir(zip) < 0) {
 		free(zip);
@@ -249,4 +251,85 @@ unsigned char *read_archive(struct archive *zip, char *filename, int *sizep)
 			return read_zip_file(zip->file, zip->table[m].offset, sizep);
 	}
 	return NULL;
+}
+
+unsigned char *read_file(char *filename, int *lenp)
+{
+	unsigned char *data;
+	int len;
+	FILE *file = fopen(filename, "rb");
+	if (!file) {
+		return NULL;
+	}
+	fseek(file, 0, 2);
+	len = ftell(file);
+	fseek(file, 0, 0);
+	data = malloc(len + 1);
+	fread(data, 1, len, file);
+	fclose(file);
+	if (lenp) *lenp = len;
+	data[len] = 0; // zero-terminate in case it's a text file that we use as a string
+	return data;
+}
+
+/*
+ * Virtual filesystem -- look for files in registered directories and archives.
+ */
+
+struct directory
+{
+	char *name;
+	struct directory *next;
+};
+
+static struct directory *dir_head = NULL;
+static struct archive *zip_head = NULL;
+
+void register_directory(char *dirname)
+{
+	char buf[MAX_PATH];
+	int n = strlen(dirname);
+	struct directory *dir = malloc(sizeof(struct directory));
+	strlcpy(buf, dirname, sizeof buf);
+	if (n > 0 && buf[n-1] != '/')
+		strlcat(buf, "/", sizeof buf);
+	dir->name = strdup(buf);
+	dir->next = dir_head;
+	dir_head = dir;
+}
+
+void register_archive(char *zipname)
+{
+	struct archive *zip = open_archive(zipname);
+	if (zip) {
+		zip->next = zip_head;
+		zip_head = zip;
+	}
+}
+
+unsigned char *load_file(char *filename, int *lenp)
+{
+	struct directory *dir = dir_head;
+	struct archive *zip = zip_head;
+	unsigned char *data;
+	char buf[MAX_PATH];
+
+	data = read_file(filename, lenp);
+
+	while (!data && dir) {
+		strlcpy(buf, dir->name, sizeof buf);
+		strlcat(buf, filename, sizeof buf);
+		data = read_file(buf, lenp);
+		dir = dir->next;
+	}
+
+	while (!data && zip) {
+		data = read_archive(zip, filename, lenp);
+		zip = zip->next;
+	}
+
+	if (!data)
+		fprintf(stderr, "error: cannot open file '%s'\n", filename);
+
+	return data;
 }

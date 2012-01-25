@@ -1,7 +1,7 @@
 #include "mio.h"
 
 #define STBI_NO_HDR
-#define STBI_NO_WRITE
+#define STBI_NO_STDIO
 #include "stb_image.c"
 
 int make_texture(unsigned char *data, int w, int h, int n, int srgb)
@@ -37,14 +37,14 @@ static inline int getint(unsigned char *p)
 	return p[0] | p[1] << 8 | p[2] << 16 | p[3] << 24;
 }
 
-static int load_dds_from_memory(unsigned char *data, int srgb)
+static int load_dds_from_memory(char *filename, unsigned char *data, int srgb)
 {
 	unsigned int texid;
 	int h, w, mips, flags, size, bs, fmt, i;
 	unsigned char *four;
 
 	if (memcmp(data, "DDS ", 4) || getint(data + 4) != 124) {
-		fprintf(stderr, "error: not a DDS texture\n");
+		fprintf(stderr, "error: not a DDS texture: '%s'\n", filename);
 		return 0;
 	}
 
@@ -53,13 +53,13 @@ static int load_dds_from_memory(unsigned char *data, int srgb)
 	mips = getint(data + 7*4);
 
 	if ((w & (w-1)) || (h & (h-1)))
-		fprintf(stderr, "warning: non-power-of-two DDS texture size (%dx%d)!\n", w, h);
+		fprintf(stderr, "warning: non-power-of-two DDS texture size (%dx%d): '%s'\n", w, h, filename);
 
 	flags = getint(data + 20*4);
 	four = data + 21*4;
 
 	if (!(flags & 4)) {
-		fprintf(stderr, "error: not a compressed DDS texture\n");
+		fprintf(stderr, "error: not a compressed DDS texture: '%s'\n", filename);
 		return 0;
 	}
 
@@ -89,7 +89,7 @@ static int load_dds_from_memory(unsigned char *data, int srgb)
 		else
 			fmt = GL_COMPRESSED_RGBA_S3TC_DXT5_EXT;
 	} else {
-		fprintf(stderr, "error: unknown format in DDS texture: '%4s'\n", four);
+		fprintf(stderr, "error: unknown format in DDS texture (%4s): '%s'\n", four, filename);
 		return 0;
 	}
 
@@ -113,31 +113,18 @@ static int load_dds_from_memory(unsigned char *data, int srgb)
 	return texid;
 }
 
-static int load_dds_from_file(char *filename, int srgb)
-{
-	unsigned int texid;
-	unsigned char *data;
-	data = load_file(filename, 0);
-	if (!data)
-		return 0;
-	fprintf(stderr, "loading DDS '%s'\n", filename);
-	texid = load_dds_from_memory(data, srgb);
-	free(data);
-	return texid;
-}
-
-int load_texture_from_memory(unsigned char *data, int len, int srgb)
+static int load_texture_from_memory(char *filename, unsigned char *data, int len, int srgb)
 {
 	unsigned int texid;
 	unsigned char *image;
 	int w, h, n;
 
 	if (!memcmp(data, "DDS ", 4))
-		return load_dds_from_memory(data, srgb);
+		return load_dds_from_memory(filename, data, srgb);
 
 	image = stbi_load_from_memory(data, len, &w, &h, &n, 0);
 	if (!image) {
-		fprintf(stderr, "error: cannot decode image (%s)\n", stbi_failure_reason());
+		fprintf(stderr, "error: cannot decode image '%s': %s\n", filename, stbi_failure_reason());
 		return 0;
 	}
 	texid = make_texture(image, w, h, n, srgb);
@@ -148,21 +135,18 @@ int load_texture_from_memory(unsigned char *data, int len, int srgb)
 int load_texture(char *filename, int srgb)
 {
 	unsigned int texid;
-	unsigned char *image;
-	int w, h, n;
+	unsigned char *data;
+	int len;
 
 	fprintf(stderr, "loading texture '%s'\n", filename);
 
-	if (strstr(filename, ".dds"))
-		return load_dds_from_file(filename, srgb);
-
-	image = stbi_load(filename, &w, &h, &n, 0);
-	if (!image) {
-		fprintf(stderr, "error: cannot load image '%s' (%s)\n", filename, stbi_failure_reason());
+	data = load_file(filename, &len);
+	if (!data) {
+		fprintf(stderr, "error: cannot load texture '%s'\n", filename);
 		return 0;
 	}
-	texid = make_texture(image, w, h, n, srgb);
-	free(image);
+	texid = load_texture_from_memory(filename, data, len, srgb);
+	free(data);
 	return texid;
 }
 
@@ -201,7 +185,7 @@ int make_texture_array(unsigned char *data, int w, int h, int d, int n, int srgb
 	return texid;
 }
 
-int load_texture_array_from_memory(unsigned char *data, int len, int srgb, int *d)
+static int load_texture_array_from_memory(char *filename, unsigned char *data, int len, int srgb, int *d)
 {
 	unsigned int texid;
 	unsigned char *image;
@@ -209,7 +193,7 @@ int load_texture_array_from_memory(unsigned char *data, int len, int srgb, int *
 
 	image = stbi_load_from_memory(data, len, &w, &h, &n, 0);
 	if (!image) {
-		fprintf(stderr, "error: cannot decode image (%s)\n", stbi_failure_reason());
+		fprintf(stderr, "error: cannot decode image '%s': %s\n", filename, stbi_failure_reason());
 		return 0;
 	}
 	if (d)
@@ -222,20 +206,18 @@ int load_texture_array_from_memory(unsigned char *data, int len, int srgb, int *
 int load_texture_array(char *filename, int srgb, int *d)
 {
 	unsigned int texid;
-	unsigned char *image;
-	int w, h, n;
+	unsigned char *data;
+	int len;
 
 	fprintf(stderr, "loading texture array '%s'\n", filename);
 
-	image = stbi_load(filename, &w, &h, &n, 0);
-	if (!image) {
-		fprintf(stderr, "error: cannot load image '%s' (%s)\n", filename, stbi_failure_reason());
+	data = load_file(filename, &len);
+	if (!data) {
+		fprintf(stderr, "error: cannot load texture array '%s'\n", filename);
 		return 0;
 	}
-	if (d)
-		*d = h / w;
-	texid = make_texture_array(image, w, w, h / w, n, srgb);
-	free(image);
+	texid = load_texture_array_from_memory(filename, data, len, srgb, d);
+	free(data);
 	return texid;
 }
 

@@ -364,11 +364,13 @@ int main(int argc, char **argv)
 	//glDepthFunc(GL_LEQUAL);
 	glEnable(GL_CULL_FACE);
 
-	droid_sans = load_font("data/fonts/DroidSans.ttf");
+	register_directory("data/");
+
+	droid_sans = load_font("fonts/DroidSans.ttf");
 	if (!droid_sans)
 		exit(1);
 
-	droid_sans_mono = load_font("data/fonts/DroidSansMono.ttf");
+	droid_sans_mono = load_font("fonts/DroidSansMono.ttf");
 	if (!droid_sans_mono)
 		exit(1);
 
@@ -381,7 +383,7 @@ int main(int argc, char **argv)
 		if (argc > 4)
 			mskeleton = load_iqm_model(argv[4]);
 	} else {
-		model = load_model("data/fo_s2_spiketree.obj");
+		model = load_model("fo_s2_spiketree.obj");
 		animation = NULL;
 	}
 

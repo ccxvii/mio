@@ -111,10 +111,15 @@ static int load_material(char *dirname, char *material)
 	char filename[1024], *s;
 	s = strrchr(material, '+');
 	if (s) s++; else s = material;
-	strlcpy(filename, dirname, sizeof filename);
-	strlcat(filename, "/", sizeof filename);
-	strlcat(filename, s, sizeof filename);
-	strlcat(filename, ".png", sizeof filename);
+	if (dirname[0]) {
+		strlcpy(filename, dirname, sizeof filename);
+		strlcat(filename, "/", sizeof filename);
+		strlcat(filename, s, sizeof filename);
+		strlcat(filename, ".png", sizeof filename);
+	} else {
+		strlcpy(filename, s, sizeof filename);
+		strlcat(filename, ".png", sizeof filename);
+	}
 	return load_texture(filename, 1);
 }
 
@@ -159,10 +164,10 @@ static inline int parseint(char **stringp, int def)
 	return *s ? atoi(s) : def;
 }
 
-struct model *load_iqe_model(char *filename)
+struct model *load_iqe_model_from_memory(char *filename, unsigned char *data, int len)
 {
 	char dirname[1024];
-	char line[200];
+	char *line, *next;
 	float bboxmin[3], bboxmax[3], dx, dy, dz;
 	struct model *model;
 	struct mesh meshbuf[MAXMESH], *mesh = NULL;
@@ -176,7 +181,6 @@ struct model *load_iqe_model(char *filename)
 	int fm = 0;
 	char *p, *s, *sp;
 	int i;
-	FILE *fp;
 
 	fprintf(stderr, "loading iqe model '%s'\n", filename);
 
@@ -184,7 +188,7 @@ struct model *load_iqe_model(char *filename)
 	p = strrchr(dirname, '/');
 	if (!p) p = strrchr(dirname, '\\');
 	if (p) *p = 0;
-	else strlcpy(dirname, ".", sizeof dirname);
+	else strlcpy(dirname, "", sizeof dirname);
 
 	bboxmin[0] = bboxmin[1] = bboxmin[2] = 1e10;
 	bboxmax[0] = bboxmax[1] = bboxmax[2] = -1e10;
@@ -199,27 +203,18 @@ struct model *load_iqe_model(char *filename)
 
 	tile_s = tile_t = 0;
 
-	fp = fopen(filename, "r");
-	if (!fp) {
-		fprintf(stderr, "cannot open file '%s'\n", filename);
-		return NULL;
-	}
-
-	if (!fgets(line, sizeof line, fp)) {
-		fprintf(stderr, "cannot load %s: read error\n", filename);
-		return NULL;
-	}
-
-	if (memcmp(line, IQE_MAGIC, strlen(IQE_MAGIC))) {
+	if (memcmp(data, IQE_MAGIC, strlen(IQE_MAGIC))) {
 		fprintf(stderr, "cannot load %s: bad iqe magic\n", filename);
 		return NULL;
 	}
 
-	while (1) {
-		if (!fgets(line, sizeof line, fp))
-			break;
-		sp = line;
+	// data is zero-terminated!
+	for (line = (char*)data; line; line = next) {
+		next = strchr(line, '\n');
+		if (next)
+			*next++ = 0;
 
+		sp = line;
 		s = parseword(&sp);
 		if (!s) {
 			continue;
@@ -333,8 +328,6 @@ struct model *load_iqe_model(char *filename)
 		mesh_count = 1;
 	}
 
-	fclose(fp);
-
 	fprintf(stderr, "\t%d meshes; %d bones; %d vertices; %d triangles\n",
 			mesh_count, bone_count, position.len/3, element.len/3);
 
@@ -429,5 +422,17 @@ struct model *load_iqe_model(char *filename)
 
 	model->radius = sqrtf(dx*dx + dy*dy + dz*dz);
 
+	return model;
+}
+
+struct model *load_iqe_model(char *filename)
+{
+	struct model *model;
+	unsigned char *data;
+	int len;
+	data = load_file(filename, &len);
+	if (!data) return NULL;
+	model = load_iqe_model_from_memory(filename, data, len);
+	free(data);
 	return model;
 }

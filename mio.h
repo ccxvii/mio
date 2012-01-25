@@ -52,6 +52,12 @@ int xstrlcat(char *dst, const char *src, int siz);
 #define SRGB(r,g,b) SLUM(r),SLUM(g),SLUM(b)
 #define SRGBA(r,g,b,a) SRGB(r,g,b),(a)
 
+/* archive data file loading */
+
+void register_directory(char *dirname);
+void register_archive(char *zipname);
+unsigned char *load_file(char *filename, int *lenp);
+
 /* shaders */
 
 typedef float vec2[2];
@@ -69,7 +75,6 @@ enum {
 	ATT_COLOR,
 };
 
-unsigned char *load_file(char *filename, int *lenp);
 int compile_shader(const char *vert_src, const char *frag_src);
 
 /* models and animations */
@@ -120,12 +125,8 @@ struct animation {
 
 struct model *load_obj_model(char *filename);
 struct model *load_iqe_model(char *filename);
-
 struct model *load_iqm_model(char *filename);
-struct model *load_iqm_model_from_memory(char *filename, unsigned char *data, int len);
-
 struct animation *load_iqm_animation(char *filename);
-struct animation *load_iqm_animation_from_memory(char *filename, unsigned char *data, int len);
 
 void draw_model(struct model *model, mat4 projection, mat4 model_view);
 void draw_model_with_wind(struct model *model, mat4 projection, mat4 model_view, float phase);
@@ -159,18 +160,15 @@ void apply_animation_delta(mat4 *out_mat,
 
 void extract_pose(struct pose *pose, struct animation *anim, int frame);
 
-
 /* texture loader based on stb_image */
 
 unsigned char *stbi_load(char const *filename, int *x, int *y, int *comp, int req_comp);
 unsigned char *stbi_load_from_memory(unsigned char const *buffer, int len, int *x, int *y, int *comp, int req_comp);
 
 int make_texture(unsigned char *data, int w, int h, int n, int srgb);
-int load_texture_from_memory(unsigned char *data, int len, int srgb);
 int load_texture(char *filename, int srgb);
 
 int make_texture_array(unsigned char *data, int w, int h, int d, int n, int srgb);
-int load_texture_array_from_memory(unsigned char *data, int len, int srgb, int *d);
 int load_texture_array(char *filename, int srgb, int *d);
 
 void icon_set_color(float r, float g, float b, float a);

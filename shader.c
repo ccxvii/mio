@@ -1,25 +1,5 @@
 #include "mio.h"
 
-unsigned char *load_file(char *filename, int *lenp)
-{
-	unsigned char *data;
-	int len;
-	FILE *file = fopen(filename, "rb");
-	if (!file) {
-		fprintf(stderr, "error: cannot open '%s'\n", filename);
-		return NULL;
-	}
-	fseek(file, 0, 2);
-	len = ftell(file);
-	fseek(file, 0, 0);
-	data = malloc(len + 1);
-	fread(data, 1, len, file);
-	fclose(file);
-	if (lenp) *lenp = len;
-	data[len] = 0; // nul-terminate in case it's a text file we use as a string
-	return data;
-}
-
 static void print_shader_log(char *kind, int shader)
 {
 	int len;
@@ -43,6 +23,9 @@ static void print_program_log(int program)
 int compile_shader(const char *vert_src, const char *frag_src)
 {
 	int status;
+
+	if (!vert_src || !frag_src)
+		return 0;
 
 	int vert = glCreateShader(GL_VERTEX_SHADER);
 	glShaderSource(vert, 1, &vert_src, NULL);
