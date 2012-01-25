@@ -58,6 +58,12 @@ void register_directory(char *dirname);
 void register_archive(char *zipname);
 unsigned char *load_file(char *filename, int *lenp);
 
+struct cache;
+
+void *lookup(struct cache *cache, char *key);
+struct cache *insert(struct cache *cache, char *key, void *value);
+void debug_cache(struct cache *cache);
+
 /* shaders */
 
 typedef float vec2[2];
@@ -123,10 +129,13 @@ struct animation {
 	mat4 inv_loc_bind_matrix[MAXBONE];
 };
 
-struct model *load_obj_model(char *filename);
-struct model *load_iqe_model(char *filename);
-struct model *load_iqm_model(char *filename);
-struct animation *load_iqm_animation(char *filename);
+struct model *load_obj_model_from_memory(char *filename, unsigned char *data, int len);
+struct model *load_iqe_model_from_memory(char *filename, unsigned char *data, int len);
+struct model *load_iqm_model_from_memory(char *filename, unsigned char *data, int len);
+struct animation *load_iqm_animation_from_memory(char *filename, unsigned char *data, int len);
+
+struct model *load_model(char *filename);
+struct animation *load_animation(char *filename);
 
 void draw_model(struct model *model, mat4 projection, mat4 model_view);
 void draw_model_with_wind(struct model *model, mat4 projection, mat4 model_view, float phase);

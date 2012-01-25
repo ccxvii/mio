@@ -1,5 +1,49 @@
 #include "mio.h"
 
+static struct cache *model_cache = NULL;
+static struct cache *animation_cache = NULL;
+
+struct model *load_model(char *filename)
+{
+	struct model *model;
+	unsigned char *data;
+	int len;
+
+	model = lookup(model_cache, filename);
+	if (model)
+		return model;
+
+	data = load_file(filename, &len);
+	if (!data)
+		return NULL;
+
+	model = NULL;
+	if (strstr(filename, ".iqm")) model = load_iqm_model_from_memory(filename, data, len);
+	if (strstr(filename, ".iqe")) model = load_iqe_model_from_memory(filename, data, len);
+	if (strstr(filename, ".obj")) model = load_obj_model_from_memory(filename, data, len);
+	if (!model)
+		fprintf(stderr, "error: cannot load model '%s'\n", filename);
+
+	free(data);
+
+	if (model)
+		model_cache = insert(model_cache, filename, model);
+
+	return model;
+}
+
+struct animation *load_animation(char *filename)
+{
+	struct animation *anim;
+	unsigned char *data;
+	int len;
+	data = load_file(filename, &len);
+	if (!data) return NULL;
+	anim = load_iqm_animation_from_memory(filename, data, len);
+	free(data);
+	return anim;
+}
+
 static const char *static_vert_src =
 	"#version 120\n"
 	"uniform mat4 Projection;\n"

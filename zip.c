@@ -287,7 +287,7 @@ static struct archive *zip_head = NULL;
 
 void register_directory(char *dirname)
 {
-	char buf[MAX_PATH];
+	char buf[512];
 	int n = strlen(dirname);
 	struct directory *dir = malloc(sizeof(struct directory));
 	strlcpy(buf, dirname, sizeof buf);
@@ -312,7 +312,7 @@ unsigned char *load_file(char *filename, int *lenp)
 	struct directory *dir = dir_head;
 	struct archive *zip = zip_head;
 	unsigned char *data;
-	char buf[MAX_PATH];
+	char buf[512];
 
 	data = read_file(filename, lenp);
 

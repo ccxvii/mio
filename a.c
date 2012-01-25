@@ -38,18 +38,6 @@ static float cam_dist = 5;
 static float cam_yaw = 0;
 static float cam_pitch = -20;
 
-struct model *load_model(char *filename)
-{
-	if (strstr(filename, ".iqm"))
-		return load_iqm_model(filename);
-	if (strstr(filename, ".iqe"))
-		return load_iqe_model(filename);
-	if (strstr(filename, ".obj"))
-		return load_obj_model(filename);
-	fprintf(stderr, "unknown model format: '%s'\n", filename);
-	return NULL;
-}
-
 void togglefullscreen(void)
 {
 	static int oldw = 100, oldh = 100, oldx = 0, oldy = 0;
@@ -365,6 +353,7 @@ int main(int argc, char **argv)
 	glEnable(GL_CULL_FACE);
 
 	register_directory("data/");
+	register_archive("testdata.zip");
 
 	droid_sans = load_font("fonts/DroidSans.ttf");
 	if (!droid_sans)
@@ -377,11 +366,11 @@ int main(int argc, char **argv)
 	if (argc > 1) {
 		model = load_model(argv[1]);
 		if (argc > 2)
-			animation = load_iqm_animation(argv[2]);
+			animation = load_animation(argv[2]);
 		if (argc > 3)
-			askeleton = load_iqm_model(argv[3]);
+			askeleton = load_model(argv[3]);
 		if (argc > 4)
-			mskeleton = load_iqm_model(argv[4]);
+			mskeleton = load_model(argv[4]);
 	} else {
 		model = load_model("fo_s2_spiketree.obj");
 		animation = NULL;

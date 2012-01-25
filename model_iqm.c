@@ -82,7 +82,7 @@ static int load_iqm_material(char *dir, char *name)
 	return load_texture(filename, 1);
 }
 
-static struct model *load_iqm_model_from_memory(char *filename, unsigned char *data, int len)
+struct model *load_iqm_model_from_memory(char *filename, unsigned char *data, int len)
 {
 	struct iqmheader *iqm = (void*) data;
 	char *text = (void*) &data[iqm->ofs_text];
@@ -188,7 +188,7 @@ void extract_pose(struct pose *pose, struct animation *anim, int frame)
 	memcpy(pose, anim->frame + anim->bone_count * frame, sizeof(struct pose) * anim->bone_count);
 }
 
-static struct animation *load_iqm_animation_from_memory(char *filename, unsigned char *data, int len)
+struct animation *load_iqm_animation_from_memory(char *filename, unsigned char *data, int len)
 {
 	struct iqmheader *iqm = (void*) data;
 	char *text = (void*) &data[iqm->ofs_text];
@@ -252,29 +252,5 @@ static struct animation *load_iqm_animation_from_memory(char *filename, unsigned
 
 	// TODO: recalc anim pose as delta from skeleton / bind pose here
 
-	return anim;
-}
-
-struct model *load_iqm_model(char *filename)
-{
-	struct model *model;
-	unsigned char *data;
-	int len;
-	data = load_file(filename, &len);
-	if (!data) return NULL;
-	model = load_iqm_model_from_memory(filename, data, len);
-	free(data);
-	return model;
-}
-
-struct animation *load_iqm_animation(char *filename)
-{
-	struct animation *anim;
-	unsigned char *data;
-	int len;
-	data = load_file(filename, &len);
-	if (!data) return NULL;
-	anim = load_iqm_animation_from_memory(filename, data, len);
-	free(data);
 	return anim;
 }

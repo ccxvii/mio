@@ -17,6 +17,8 @@
 static void text_flush(void);
 static void clear_font_cache(void);
 
+static struct cache *font_cache = NULL;
+
 /*
  * TrueType font
  */
@@ -26,7 +28,8 @@ static void clear_font_cache(void);
 #define STBTT_free(x,u) free(x)
 #include "stb_truetype.h"
 
-struct font {
+struct font
+{
 	unsigned char *data;
 	stbtt_fontinfo info;
 };
@@ -35,6 +38,10 @@ struct font *load_font(char *filename)
 {
 	struct font *font;
 	int ok;
+
+	font = lookup(font_cache, filename);
+	if (font)
+		return font;
 
 	fprintf(stderr, "loading font '%s'\n", filename);
 
@@ -46,6 +53,9 @@ struct font *load_font(char *filename)
 	ok = stbtt_InitFont(&font->info, font->data, 0);
 	if (!ok)
 		return NULL;
+
+	if (font)
+		font_cache = insert(font_cache, filename, font);
 
 	return font;
 }

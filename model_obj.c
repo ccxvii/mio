@@ -188,7 +188,7 @@ static void splitfv(char *buf, int *vpp, int *vtp, int *vnp)
 	*vnp = vn && vn[0] ? atoi(vn) - 1 : 0;
 }
 
-static struct model *load_obj_model_from_memory(char *filename, unsigned char *data, int len)
+struct model *load_obj_model_from_memory(char *filename, unsigned char *data, int len)
 {
 	char dirname[1024];
 	char *line, *next;
@@ -332,17 +332,5 @@ static struct model *load_obj_model_from_memory(char *filename, unsigned char *d
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 
-	return model;
-}
-
-struct model *load_obj_model(char *filename)
-{
-	struct model *model;
-	unsigned char *data;
-	int len;
-	data = load_file(filename, &len);
-	if (!data) return NULL;
-	model = load_obj_model_from_memory(filename, data, len);
-	free(data);
 	return model;
 }

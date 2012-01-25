@@ -21,7 +21,7 @@ LINK_CMD = $(QUIET_LINK) $(CC) -o $@ $^ $(LDFLAGS) $(LIBS)
 HDRS := $(wildcard *.h)
 OBJS := $(addprefix $(OUT)/, \
 	gl3w.o rune.o strlcpy.o vector.o \
-	zip.o image.o shader.o \
+	zip.o cache.o image.o shader.o \
 	model.o model_iqm.o model_iqe.o model_obj.o \
 	font.o draw.o console.o )
 

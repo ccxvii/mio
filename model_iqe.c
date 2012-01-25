@@ -424,15 +424,3 @@ struct model *load_iqe_model_from_memory(char *filename, unsigned char *data, in
 
 	return model;
 }
-
-struct model *load_iqe_model(char *filename)
-{
-	struct model *model;
-	unsigned char *data;
-	int len;
-	data = load_file(filename, &len);
-	if (!data) return NULL;
-	model = load_iqe_model_from_memory(filename, data, len);
-	free(data);
-	return model;
-}

@@ -1,8 +1,10 @@
 #include "mio.h"
 
 #define STBI_NO_HDR
-#define STBI_NO_STDIO
 #include "stb_image.c"
+
+static struct cache *texture_cache = NULL;
+static struct cache *texture_array_cache = NULL;
 
 int make_texture(unsigned char *data, int w, int h, int n, int srgb)
 {
@@ -138,15 +140,20 @@ int load_texture(char *filename, int srgb)
 	unsigned char *data;
 	int len;
 
+	texid = (unsigned int) lookup(texture_cache, filename);
+	if (texid)
+		return texid;
+
 	fprintf(stderr, "loading texture '%s'\n", filename);
 
 	data = load_file(filename, &len);
-	if (!data) {
-		fprintf(stderr, "error: cannot load texture '%s'\n", filename);
-		return 0;
-	}
+	if (!data) return 0;
 	texid = load_texture_from_memory(filename, data, len, srgb);
 	free(data);
+
+	if (texid)
+		texture_cache = insert(texture_cache, filename, (void*)texid);
+
 	return texid;
 }
 
@@ -209,15 +216,20 @@ int load_texture_array(char *filename, int srgb, int *d)
 	unsigned char *data;
 	int len;
 
+	texid = (unsigned int) lookup(texture_array_cache, filename);
+	if (texid)
+		return texid;
+
 	fprintf(stderr, "loading texture array '%s'\n", filename);
 
 	data = load_file(filename, &len);
-	if (!data) {
-		fprintf(stderr, "error: cannot load texture array '%s'\n", filename);
-		return 0;
-	}
+	if (!data) return 0;
 	texid = load_texture_array_from_memory(filename, data, len, srgb, d);
 	free(data);
+
+	if (texid)
+		texture_array_cache = insert(texture_array_cache, filename, (void*)texid);
+
 	return texid;
 }
 
