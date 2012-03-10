@@ -10,6 +10,7 @@
 #include <GLUT/glut.h>
 #define glGenVertexArrays glGenVertexArraysAPPLE
 #define glBindVertexArray glBindVertexArrayAPPLE
+#define GL_TEXTURE_2D_ARRAY GL_TEXTURE_2D_ARRAY_EXT
 #define GL_FRAMEBUFFER_SRGB GL_FRAMEBUFFER_SRGB_EXT
 #define GLUT_SRGB GLUT_RGB
 static inline int gl3wInit(void) { return 0; }

@@ -217,8 +217,11 @@ int load_texture_array(char *filename, int srgb, int *d)
 	int len;
 
 	texid = (unsigned int) lookup(texture_array_cache, filename);
-	if (texid)
+	if (texid) {
+		glBindTexture(GL_TEXTURE_2D_ARRAY, texid);
+		glGetTexLevelParameteriv(GL_TEXTURE_2D_ARRAY, 0, GL_TEXTURE_DEPTH, d);
 		return texid;
+	}
 
 	fprintf(stderr, "loading texture array '%s'\n", filename);
 
