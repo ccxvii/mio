@@ -182,8 +182,6 @@ struct model *load_iqe_model_from_memory(char *filename, unsigned char *data, in
 	char *p, *s, *sp;
 	int i;
 
-	fprintf(stderr, "loading iqe model '%s'\n", filename);
-
 	strlcpy(dirname, filename, sizeof dirname);
 	p = strrchr(dirname, '/');
 	if (!p) p = strrchr(dirname, '\\');
@@ -204,7 +202,7 @@ struct model *load_iqe_model_from_memory(char *filename, unsigned char *data, in
 	tile_s = tile_t = 0;
 
 	if (memcmp(data, IQE_MAGIC, strlen(IQE_MAGIC))) {
-		fprintf(stderr, "cannot load %s: bad iqe magic\n", filename);
+		fprintf(stderr, "error: bad iqe magic: '%s'\n", filename);
 		return NULL;
 	}
 
@@ -324,9 +322,6 @@ struct model *load_iqe_model_from_memory(char *filename, unsigned char *data, in
 		mesh_count = 1;
 	}
 
-	fprintf(stderr, "\t%d meshes; %d bones; %d vertices; %d triangles\n",
-			mesh_count, bone_count, position.len/3, element.len/3);
-
 	model = malloc(sizeof *model);
 	memset(model, 0, sizeof *model);
 
@@ -403,10 +398,6 @@ struct model *load_iqe_model_from_memory(char *filename, unsigned char *data, in
 		calc_abs_matrix(model->abs_bind_matrix, model->bind_matrix, model->parent, model->bone_count);
 		calc_inv_matrix(model->inv_bind_matrix, model->abs_bind_matrix, model->bone_count);
 	}
-
-	fprintf(stderr, "bbox %g %g %g -- %g %g %g\n",
-		bboxmin[0], bboxmin[1], bboxmin[2],
-		bboxmax[0], bboxmax[1], bboxmax[2]);
 
 	model->center[0] = (bboxmin[0] + bboxmax[0]) / 2;
 	model->center[1] = (bboxmin[1] + bboxmax[1]) / 2;

@@ -5,7 +5,7 @@
 
 static void error(char *filename, char *msg)
 {
-	fprintf(stderr, "cannot load %s: %s\n", filename, msg);
+	fprintf(stderr, "error: %s: '%s'\n", msg, filename);
 }
 
 static int use_vertex_array(int format)
@@ -93,8 +93,6 @@ struct model *load_iqm_model_from_memory(char *filename, unsigned char *data, in
 	char *p;
 	char dir[256];
 
-	fprintf(stderr, "loading iqm model '%s'\n", filename);
-
 	strlcpy(dir, filename, sizeof dir);
 	p = strrchr(dir, '/');
 	if (!p) p = strrchr(dir, '\\');
@@ -105,9 +103,6 @@ struct model *load_iqm_model_from_memory(char *filename, unsigned char *data, in
 	if (iqm->filesize > len) { error(filename, "bad iqm file size"); return NULL; }
 	if (iqm->num_vertexes > 0xffff) { error(filename, "too many vertices in iqm"); return NULL; }
 	if (iqm->num_joints > MAXBONE) { error(filename, "too many bones in iqm"); return NULL; }
-
-	fprintf(stderr, "\t%d meshes; %d bones; %d vertices; %d triangles\n",
-		iqm->num_meshes, iqm->num_joints, iqm->num_vertexes, iqm->num_triangles);
 
 	struct model *model = malloc(sizeof *model);
 	model->mesh_count = iqm->num_meshes;

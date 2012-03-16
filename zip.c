@@ -328,8 +328,5 @@ unsigned char *load_file(char *filename, int *lenp)
 		zip = zip->next;
 	}
 
-	if (!data)
-		fprintf(stderr, "error: cannot open file '%s'\n", filename);
-
 	return data;
 }

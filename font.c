@@ -43,12 +43,12 @@ struct font *load_font(char *filename)
 	if (font)
 		return font;
 
-	fprintf(stderr, "loading font '%s'\n", filename);
-
 	font = malloc(sizeof(struct font));
 	font->data = load_file(filename, NULL);
-	if (!font->data)
+	if (!font->data) {
+		fprintf(stderr, "error: cannot load font file: '%s'\n", filename);
 		return NULL;
+	}
 
 	ok = stbtt_InitFont(&font->info, font->data, 0);
 	if (!ok)

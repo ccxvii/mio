@@ -14,15 +14,17 @@ struct model *load_model(char *filename)
 		return model;
 
 	data = load_file(filename, &len);
-	if (!data)
+	if (!data) {
+		fprintf(stderr, "error: cannot load model file: '%s'\n", filename);
 		return NULL;
+	}
 
 	model = NULL;
 	if (strstr(filename, ".iqm")) model = load_iqm_model_from_memory(filename, data, len);
 	if (strstr(filename, ".iqe")) model = load_iqe_model_from_memory(filename, data, len);
 	if (strstr(filename, ".obj")) model = load_obj_model_from_memory(filename, data, len);
 	if (!model)
-		fprintf(stderr, "error: cannot load model '%s'\n", filename);
+		fprintf(stderr, "error: cannot load model: '%s'\n", filename);
 
 	free(data);
 
@@ -38,7 +40,10 @@ struct animation *load_animation(char *filename)
 	unsigned char *data;
 	int len;
 	data = load_file(filename, &len);
-	if (!data) return NULL;
+	if (!data) {
+		fprintf(stderr, "error: cannot load animation file: '%s'\n", filename);
+		return NULL;
+	}
 	anim = load_iqm_animation_from_memory(filename, data, len);
 	free(data);
 	return anim;

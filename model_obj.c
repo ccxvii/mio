@@ -123,7 +123,7 @@ static void load_material(char *dirname, char *mtllib)
 
 	data = load_file(filename, NULL);
 	if (!data) {
-		fprintf(stderr, "error: cannot load material library '%s'\n", filename);
+		fprintf(stderr, "cannot load material library: '%s'\n", filename);
 		return;
 	}
 

@@ -34,6 +34,15 @@ int make_texture(unsigned char *data, int w, int h, int n, int srgb)
 	return texid;
 }
 
+static int make_white_texture(void)
+{
+	static unsigned char white_pixel[4] = { 255, 255, 255, 255 };
+	static int white_texture = 0;
+	if (!white_texture)
+		white_texture = make_texture(white_pixel, 1, 1, 4, 1);
+	return white_texture;
+}
+
 static inline int getint(unsigned char *p)
 {
 	return p[0] | p[1] << 8 | p[2] << 16 | p[3] << 24;
@@ -144,17 +153,18 @@ int load_texture(char *filename, int srgb)
 	if (texid)
 		return texid;
 
-	fprintf(stderr, "loading texture '%s'\n", filename);
-
 	data = load_file(filename, &len);
-	if (!data) return 0;
-	texid = load_texture_from_memory(filename, data, len, srgb);
-	free(data);
+	if (data) {
+		texid = load_texture_from_memory(filename, data, len, srgb);
+		free(data);
+	} else {
+		fprintf(stderr, "error: cannot load image file: '%s'\n", filename);
+	}
 
 	if (texid)
 		texture_cache = insert(texture_cache, filename, (void*)texid);
 
-	return texid;
+	return texid ? texid : srgb ? make_white_texture() : 0;
 }
 
 /*
