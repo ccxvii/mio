@@ -246,11 +246,7 @@ static void display(void)
 		calc_mul_matrix(skin_matrix, abs_pose_matrix, model->inv_bind_matrix, model->bone_count);
 		draw_model_with_pose(model, projection, model_view, skin_matrix);
 	} else {
-		// draw_model(model, projection, model_view);
-		static float phase = 0.0;
-		phase = phase + (timediff / 1000.0f);
-		draw_model_with_wind(model, projection, model_view, phase);
-		glutPostRedisplay();
+		draw_model(model, projection, model_view);
 	}
 
 	glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);

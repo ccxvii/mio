@@ -98,7 +98,7 @@ struct model *load_iqm_model_from_memory(char *filename, unsigned char *data, in
 	strlcpy(dir, filename, sizeof dir);
 	p = strrchr(dir, '/');
 	if (!p) p = strrchr(dir, '\\');
-	if (p) p[1] = 0; else strlcpy(dir, "", sizeof dir);
+	if (p) p[0] = 0; else strlcpy(dir, "", sizeof dir);
 
 	if (memcmp(iqm->magic, IQM_MAGIC, 16)) { error(filename, "bad iqm magic"); return NULL; }
 	if (iqm->version != IQM_VERSION) { error(filename, "bad iqm version"); return NULL; }
@@ -118,9 +118,7 @@ struct model *load_iqm_model_from_memory(char *filename, unsigned char *data, in
 	for (i = 0; i < model->mesh_count; i++) {
 		char *material = text + iqmmesh[i].material;
 		model->mesh[i].texture = load_iqm_material(dir, material);
-		model->mesh[i].alphatest = !!strstr(material, "alphatest+");
-		model->mesh[i].alphagloss = !!strstr(material, "alphagloss+");
-		model->mesh[i].unlit = !!strstr(material, "unlit+");
+		model->mesh[i].ghost = !!strstr(material, "ghost+");
 		model->mesh[i].first = iqmmesh[i].first_triangle * 3;
 		model->mesh[i].count = iqmmesh[i].num_triangles * 3;
 	}

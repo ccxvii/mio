@@ -279,9 +279,7 @@ struct model *load_iqe_model_from_memory(char *filename, unsigned char *data, in
 			material = load_material(dirname, s);
 			if (mesh) {
 				mesh->texture = material;
-				mesh->alphatest = !!strstr(s, "alphatest+");
-				mesh->alphagloss = !!strstr(s, "alphagloss+");
-				mesh->unlit = !!strstr(s, "unlit+");
+				mesh->ghost = !!strstr(s, "ghost+");
 			}
 		} else if (!strcmp(s, "joint")) {
 			if (bone_count < MAXBONE) {
@@ -320,9 +318,7 @@ struct model *load_iqe_model_from_memory(char *filename, unsigned char *data, in
 	if (mesh_count == 0) {
 		mesh = meshbuf;
 		mesh->texture = 0;
-		mesh->alphatest = 1;
-		mesh->alphagloss = 0;
-		mesh->unlit = 0;
+		mesh->ghost = 0;
 		mesh->first = 0;
 		mesh->count = element.len;
 		mesh_count = 1;
