@@ -106,7 +106,7 @@ static void add_triangle(int a, int b, int c)
 	push_int(&element, a);
 }
 
-static int load_material(char *dirname, char *material)
+static int load_material(char *dirname, char *material, char *ext, int srgb)
 {
 	char filename[1024], *s;
 	s = strrchr(material, '+');
@@ -115,12 +115,12 @@ static int load_material(char *dirname, char *material)
 		strlcpy(filename, dirname, sizeof filename);
 		strlcat(filename, "/", sizeof filename);
 		strlcat(filename, s, sizeof filename);
-		strlcat(filename, ".png", sizeof filename);
+		strlcat(filename, ext, sizeof filename);
 	} else {
 		strlcpy(filename, s, sizeof filename);
-		strlcat(filename, ".png", sizeof filename);
+		strlcat(filename, ext, sizeof filename);
 	}
-	return load_texture(filename, 1);
+	return load_texture(filename, srgb);
 }
 
 static char *parsestring(char **stringp)
@@ -177,7 +177,8 @@ struct model *load_iqe_model_from_memory(char *filename, unsigned char *data, in
 	int mesh_count = 0;
 	int bone_count = 0;
 	int pose_count = 0;
-	int material = 0;
+	int diffuse = 0;
+	int specular = 0;
 	int fm = 0;
 	char *p, *s, *sp;
 	int i;
@@ -259,7 +260,7 @@ struct model *load_iqe_model_from_memory(char *filename, unsigned char *data, in
 			add_triangle(x, y, z);
 		} else if (!strcmp(s, "mesh")) {
 			if (mesh) {
-				glBindTexture(GL_TEXTURE_2D, mesh->texture);
+				glBindTexture(GL_TEXTURE_2D, mesh->diffuse);
 				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, tile_s ? GL_REPEAT : GL_CLAMP_TO_EDGE);
 				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, tile_t ? GL_REPEAT : GL_CLAMP_TO_EDGE);
 				mesh->count = element.len - mesh->first;
@@ -267,16 +268,19 @@ struct model *load_iqe_model_from_memory(char *filename, unsigned char *data, in
 					mesh_count--;
 			}
 			mesh = &meshbuf[mesh_count++];
-			mesh->texture = material;
+			mesh->diffuse = diffuse;
+			mesh->specular = specular;
 			mesh->first = element.len;
 			mesh->count = 0;
 			fm = position.len / 3;
 			tile_s = tile_t = 0;
 		} else if (!strcmp(s, "material")) {
 			s = parsestring(&sp);
-			material = load_material(dirname, s);
+			diffuse = load_material(dirname, s, ".png", 1);
+			specular = load_material(dirname, s, ".s.png", 0);
 			if (mesh) {
-				mesh->texture = material;
+				mesh->diffuse = diffuse;
+				mesh->specular = specular;
 				mesh->ghost = !!strstr(s, "ghost+");
 			}
 		} else if (!strcmp(s, "joint")) {
@@ -305,7 +309,7 @@ struct model *load_iqe_model_from_memory(char *filename, unsigned char *data, in
 	}
 
 	if (mesh) {
-		glBindTexture(GL_TEXTURE_2D, mesh->texture);
+		glBindTexture(GL_TEXTURE_2D, mesh->diffuse);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, tile_s ? GL_REPEAT : GL_CLAMP_TO_EDGE);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, tile_t ? GL_REPEAT : GL_CLAMP_TO_EDGE);
 		mesh->count = element.len - mesh->first;
@@ -315,7 +319,8 @@ struct model *load_iqe_model_from_memory(char *filename, unsigned char *data, in
 
 	if (mesh_count == 0) {
 		mesh = meshbuf;
-		mesh->texture = 0;
+		mesh->diffuse = 0;
+		mesh->specular = 0;
 		mesh->ghost = 0;
 		mesh->first = 0;
 		mesh->count = element.len;

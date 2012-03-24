@@ -65,7 +65,7 @@ static void flip_triangles(unsigned short *dst, unsigned int *src, int count)
 	}
 }
 
-static int load_iqm_material(char *dir, char *name)
+static int load_iqm_material(char *dir, char *name, char *ext, int srgb)
 {
 	char filename[1024], *s;
 	s = strrchr(name, '+');
@@ -74,12 +74,12 @@ static int load_iqm_material(char *dir, char *name)
 		strlcpy(filename, dir, sizeof filename);
 		strlcat(filename, "/", sizeof filename);
 		strlcat(filename, s, sizeof filename);
-		strlcat(filename, ".png", sizeof filename);
+		strlcat(filename, ext, sizeof filename);
 	} else {
 		strlcpy(filename, s, sizeof filename);
-		strlcat(filename, ".png", sizeof filename);
+		strlcat(filename, ext, sizeof filename);
 	}
-	return load_texture(filename, 1);
+	return load_texture(filename, srgb);
 }
 
 struct model *load_iqm_model_from_memory(char *filename, unsigned char *data, int len)
@@ -112,7 +112,8 @@ struct model *load_iqm_model_from_memory(char *filename, unsigned char *data, in
 
 	for (i = 0; i < model->mesh_count; i++) {
 		char *material = text + iqmmesh[i].material;
-		model->mesh[i].texture = load_iqm_material(dir, material);
+		model->mesh[i].diffuse = load_iqm_material(dir, material, ".png", 1);
+		model->mesh[i].specular = load_iqm_material(dir, material, ".s.png", 0);
 		model->mesh[i].ghost = !!strstr(material, "ghost+");
 		model->mesh[i].first = iqmmesh[i].first_triangle * 3;
 		model->mesh[i].count = iqmmesh[i].num_triangles * 3;
@@ -244,6 +245,9 @@ struct animation *load_iqm_animation_from_memory(char *filename, unsigned char *
 	}
 
 	// TODO: recalc anim pose as delta from skeleton / bind pose here
+
+	// HACK: looping animations, last and first frame
+	anim->frame_count--;
 
 	return anim;
 }

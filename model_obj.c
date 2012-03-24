@@ -261,7 +261,8 @@ struct model *load_obj_model_from_memory(char *filename, unsigned char *data, in
 					mesh_count--;
 			}
 			mesh = &meshbuf[mesh_count++];
-			mesh->texture = s ? set_material(s) : 0;
+			mesh->diffuse = s ? set_material(s) : 0;
+			mesh->specular = 0;
 			mesh->ghost = 0;
 			mesh->first = element.len;
 			mesh->count = 0;
@@ -276,7 +277,8 @@ struct model *load_obj_model_from_memory(char *filename, unsigned char *data, in
 
 	if (mesh_count == 0) {
 		mesh = meshbuf;
-		mesh->texture = 0;
+		mesh->diffuse = 0;
+		mesh->specular = 0;
 		mesh->ghost = 0;
 		mesh->first = 0;
 		mesh->count = element.len;

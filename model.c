@@ -1,5 +1,7 @@
 #include "mio.h"
 
+void draw_model_ghost(struct model *model, mat4 projection, mat4 model_view);
+
 static struct cache *model_cache = NULL;
 static struct cache *animation_cache = NULL;
 
@@ -105,27 +107,8 @@ static const char *bone_vert_src =
 
 static const char *model_frag_src =
 	"#version 120\n"
-	"uniform sampler2D Texture;\n"
-	"varying vec3 var_Normal;\n"
-	"varying vec2 var_TexCoord;\n"
-	"const vec3 LightDirection = vec3(-0.5773, 0.5773, 0.5773);\n"
-	"const vec3 LightAmbient = vec3(0.1);\n"
-	"const vec3 LightDiffuse = vec3(0.9);\n"
-	"void main() {\n"
-	"	vec4 albedo = texture2D(Texture, var_TexCoord);\n"
-	"	vec3 N = normalize(var_Normal);\n"
-	"	float diffuse = max(dot(N, LightDirection), 0.0);\n"
-	"	vec3 Ka = albedo.rgb * LightAmbient;\n"
-	"	vec3 Kd = albedo.rgb * LightDiffuse * diffuse;\n"
-	"	if (albedo.a < 0.2) discard;\n"
-	"	gl_FragColor = vec4(Ka + Kd, albedo.a);\n"
-	"}\n"
-;
-
-static const char *gloss_frag_src =
-	"#version 120\n"
-	"uniform sampler2D Texture;\n"
-	"uniform sampler2D GlossMap;\n"
+	"uniform sampler2D SamplerDiffuse;\n"
+	"uniform sampler2D SamplerSpecular;\n"
 	"varying vec3 var_Position;\n"
 	"varying vec3 var_Normal;\n"
 	"varying vec2 var_TexCoord;\n"
@@ -135,8 +118,8 @@ static const char *gloss_frag_src =
 	"const vec3 LightSpecular = vec3(1.0);\n"
 	"const float Shininess = 64.0;\n"
 	"void main() {\n"
-	"	vec4 albedo = texture2D(Texture, var_TexCoord);\n"
-	"	vec4 gloss = texture2D(GlossMap, var_TexCoord);\n"
+	"	vec4 albedo = texture2D(SamplerDiffuse, var_TexCoord);\n"
+	"	vec4 gloss = texture2D(SamplerSpecular, var_TexCoord);\n"
 	"	vec3 N = normalize(var_Normal);\n"
 	"	vec3 V = normalize(-var_Position);\n"
 	"	vec3 H = normalize(LightDirection + V);\n"
@@ -152,10 +135,10 @@ static const char *gloss_frag_src =
 
 static const char *ghost_frag_src =
 	"#version 120\n"
-	"uniform sampler2D Texture;\n"
+	"uniform sampler2D SamplerDiffuse;\n"
 	"varying vec2 var_TexCoord;\n"
 	"void main() {\n"
-	"	vec4 albedo = texture2D(Texture, var_TexCoord);\n"
+	"	vec4 albedo = texture2D(SamplerDiffuse, var_TexCoord);\n"
 	"	if (albedo.a == 0.0) discard;\n"
 	"	gl_FragColor = vec4(albedo.rgb, 1);\n"
 	"}\n"
@@ -378,6 +361,8 @@ draw_skeleton(mat4 *abs_pose_matrix, int *parent, int count)
 static int static_prog = 0;
 static int static_uni_projection;
 static int static_uni_model_view;
+static int static_uni_sampler_diffuse;
+static int static_uni_sampler_specular;
 
 void draw_model(struct model *model, mat4 projection, mat4 model_view)
 {
@@ -395,21 +380,28 @@ void draw_model(struct model *model, mat4 projection, mat4 model_view)
 		static_prog = compile_shader(static_vert_src, model_frag_src);
 		static_uni_projection = glGetUniformLocation(static_prog, "Projection");
 		static_uni_model_view = glGetUniformLocation(static_prog, "ModelView");
+		static_uni_sampler_diffuse = glGetUniformLocation(static_prog, "SamplerDiffuse");
+		static_uni_sampler_specular = glGetUniformLocation(static_prog, "SamplerSpecular");
 	}
 
 	glUseProgram(static_prog);
 	glUniformMatrix4fv(static_uni_projection, 1, 0, projection);
 	glUniformMatrix4fv(static_uni_model_view, 1, 0, model_view);
+	glUniform1i(static_uni_sampler_diffuse, 0);
+	glUniform1i(static_uni_sampler_specular, 1);
 
 	glBindVertexArray(model->vao);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, model->ibo);
 
 	for (i = 0; i < model->mesh_count; i++) {
-		glBindTexture(GL_TEXTURE_2D, model->mesh[i].texture);
+		glActiveTexture(GL_TEXTURE0);
+		glBindTexture(GL_TEXTURE_2D, model->mesh[i].diffuse);
+		glActiveTexture(GL_TEXTURE1);
+		glBindTexture(GL_TEXTURE_2D, model->mesh[i].specular);
+		glActiveTexture(GL_TEXTURE0);
 		glDrawElements(GL_TRIANGLES, model->mesh[i].count, GL_UNSIGNED_SHORT, (void*)(model->mesh[i].first * 2));
 	}
 
-	glBindTexture(GL_TEXTURE_2D, 0);
 	glBindVertexArray(0);
 	glUseProgram(0);
 }
@@ -417,6 +409,8 @@ void draw_model(struct model *model, mat4 projection, mat4 model_view)
 static int ghost_prog = 0;
 static int ghost_uni_projection;
 static int ghost_uni_model_view;
+static int ghost_uni_sampler_diffuse;
+static int ghost_uni_sampler_specular;
 
 void draw_model_ghost(struct model *model, mat4 projection, mat4 model_view)
 {
@@ -429,11 +423,15 @@ void draw_model_ghost(struct model *model, mat4 projection, mat4 model_view)
 		ghost_prog = compile_shader(static_vert_src, ghost_frag_src);
 		ghost_uni_projection = glGetUniformLocation(ghost_prog, "Projection");
 		ghost_uni_model_view = glGetUniformLocation(ghost_prog, "ModelView");
+		ghost_uni_sampler_diffuse = glGetUniformLocation(ghost_prog, "SamplerDiffuse");
+		ghost_uni_sampler_specular = glGetUniformLocation(ghost_prog, "SamplerSpecular");
 	}
 
 	glUseProgram(ghost_prog);
 	glUniformMatrix4fv(ghost_uni_projection, 1, 0, projection);
 	glUniformMatrix4fv(ghost_uni_model_view, 1, 0, model_view);
+	glUniform1i(ghost_uni_sampler_diffuse, 0);
+	glUniform1i(ghost_uni_sampler_specular, 1);
 
 	glEnable(GL_BLEND);
 	glBlendFunc(GL_ONE, GL_ONE);
@@ -443,7 +441,7 @@ void draw_model_ghost(struct model *model, mat4 projection, mat4 model_view)
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, model->ibo);
 
 	for (i = 0; i < model->mesh_count; i++) {
-		glBindTexture(GL_TEXTURE_2D, model->mesh[i].texture);
+		glBindTexture(GL_TEXTURE_2D, model->mesh[i].diffuse);
 		glDrawElements(GL_TRIANGLES, model->mesh[i].count, GL_UNSIGNED_SHORT, (void*)(model->mesh[i].first * 2));
 	}
 
@@ -451,7 +449,6 @@ void draw_model_ghost(struct model *model, mat4 projection, mat4 model_view)
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 	glDepthMask(GL_TRUE);
 
-	glBindTexture(GL_TEXTURE_2D, 0);
 	glBindVertexArray(0);
 	glUseProgram(0);
 }
@@ -459,6 +456,8 @@ void draw_model_ghost(struct model *model, mat4 projection, mat4 model_view)
 static int bone_prog = 0;
 static int bone_uni_projection;
 static int bone_uni_model_view;
+static int bone_uni_sampler_diffuse;
+static int bone_uni_sampler_specular;
 static int bone_uni_skin_matrix;
 
 void draw_model_with_pose(struct model *model, mat4 projection, mat4 model_view, mat4 *skin_matrix)
@@ -472,23 +471,30 @@ void draw_model_with_pose(struct model *model, mat4 projection, mat4 model_view,
 		bone_prog = compile_shader(bone_vert_src, model_frag_src);
 		bone_uni_projection = glGetUniformLocation(bone_prog, "Projection");
 		bone_uni_model_view = glGetUniformLocation(bone_prog, "ModelView");
+		bone_uni_sampler_diffuse = glGetUniformLocation(bone_prog, "SamplerDiffuse");
+		bone_uni_sampler_specular = glGetUniformLocation(bone_prog, "SamplerSpecular");
 		bone_uni_skin_matrix = glGetUniformLocation(bone_prog, "BoneMatrix");
 	}
 
 	glUseProgram(bone_prog);
 	glUniformMatrix4fv(bone_uni_projection, 1, 0, projection);
 	glUniformMatrix4fv(bone_uni_model_view, 1, 0, model_view);
+	glUniform1i(bone_uni_sampler_diffuse, 0);
+	glUniform1i(bone_uni_sampler_specular, 1);
 	glUniformMatrix4fv(bone_uni_skin_matrix, model->bone_count, 0, skin_matrix[0]);
 
 	glBindVertexArray(model->vao);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, model->ibo);
 
 	for (i = 0; i < model->mesh_count; i++) {
-		glBindTexture(GL_TEXTURE_2D, model->mesh[i].texture);
+		glActiveTexture(GL_TEXTURE0);
+		glBindTexture(GL_TEXTURE_2D, model->mesh[i].diffuse);
+		glActiveTexture(GL_TEXTURE1);
+		glBindTexture(GL_TEXTURE_2D, model->mesh[i].specular);
+		glActiveTexture(GL_TEXTURE0);
 		glDrawElements(GL_TRIANGLES, model->mesh[i].count, GL_UNSIGNED_SHORT, (void*)(model->mesh[i].first * 2));
 	}
 
-	glBindTexture(GL_TEXTURE_2D, 0);
 	glBindVertexArray(0);
 	glUseProgram(0);
 }
