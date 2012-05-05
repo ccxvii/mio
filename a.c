@@ -10,7 +10,8 @@ static int showwire = 0;
 static int showalpha = 0;
 static int showicon = 0;
 static int showbackface = 0;
-static int retarget = 0;
+
+static int ryzom = 0;
 
 static int lasttime = 0;
 static int showanim = 0;
@@ -20,10 +21,9 @@ static float animtick = 0;
 static struct font *droid_sans;
 static struct font *droid_sans_mono;
 
-static struct model *model = NULL;
-static struct model *askeleton = NULL;
-static struct model *mskeleton = NULL;
 static struct animation *animation = NULL;
+static struct model *model[200] = {0};
+static int model_count = 0;
 
 mat4 skin_matrix[MAXBONE];
 struct pose posebuf[MAXBONE];
@@ -113,8 +113,7 @@ static void keyboard(unsigned char key, int x, int y)
 		case 'w': showwire = !showwire; break;
 		case 'b': showbackface = !showbackface; break;
 		case 'a': showalpha = !showalpha; break;
-		case 'r': retarget++; break;
-		case 'R': retarget--; break;
+		case 'r': ryzom = !ryzom; break;
 	}
 
 	if (showanim)
@@ -157,57 +156,9 @@ static void display(void)
 		while (animtick < 0) animtick += animation->frame_count;
 		while (animtick >= animation->frame_count) animtick -= animation->frame_count;
 
-		if (askeleton)
-			fix_anim_skel(animation->bind_pose, askeleton->bind_pose, animation->bone_name, askeleton->bone_name, animation->bone_count, askeleton->bone_count);
-		if (mskeleton)
-			fix_anim_skel(model->bind_pose, mskeleton->bind_pose, model->bone_name, mskeleton->bone_name, model->bone_count, mskeleton->bone_count);
-
-		calc_matrix_from_pose(animation->bind_matrix, animation->bind_pose, animation->bone_count);
-		calc_abs_matrix(animation->abs_bind_matrix, animation->bind_matrix, animation->parent, animation->bone_count);
-
 		extract_pose(animbuf, animation, (int)animtick);
 		calc_matrix_from_pose(anim_matrix, animbuf, animation->bone_count);
 		calc_abs_matrix(abs_anim_matrix, anim_matrix, animation->parent, animation->bone_count);
-
-		retarget = CLAMP(retarget, 0, 3);
-		switch (retarget) {
-		case 0:
-			// copy the full animation poses directly
-			memcpy(posebuf, model->bind_pose, sizeof posebuf);
-			apply_animation(posebuf, model->bone_name, model->bone_count,
-					animbuf, animation->bone_name, animation->bone_count);
-			calc_matrix_from_pose(pose_matrix, posebuf, model->bone_count);
-			calc_abs_matrix(abs_pose_matrix, pose_matrix, model->parent, model->bone_count);
-			break;
-
-		case 1:
-			// retarget using matrix, in local space (anim diff based, like blender)
-			apply_animation_delta(pose_matrix,
-					model->bind_matrix, model->bone_name, model->bone_count,
-					animation->bind_matrix, animation->bone_name, animation->bone_count,
-					anim_matrix);
-			calc_abs_matrix(abs_pose_matrix, pose_matrix, model->parent, model->bone_count);
-			break;
-
-		case 2:
-			// retarget using quats, in local space (anim diff based, like blender)
-			apply_animation_delta_q(posebuf,
-					model->bind_pose, model->bone_name, model->bone_count,
-					animation->bind_pose, animation->bone_name, animation->bone_count,
-					animbuf);
-			calc_matrix_from_pose(pose_matrix, posebuf, model->bone_count);
-			calc_abs_matrix(abs_pose_matrix, pose_matrix, model->parent, model->bone_count);
-			break;
-
-		case 3:
-			// copy only the animation rotation keys
-			memcpy(posebuf, model->bind_pose, sizeof posebuf);
-			apply_animation_rot(posebuf, model->bone_name, model->bone_count,
-					animbuf, animation->bone_name, animation->bone_count);
-			calc_matrix_from_pose(pose_matrix, posebuf, model->bone_count);
-			calc_abs_matrix(abs_pose_matrix, pose_matrix, model->parent, model->bone_count);
-			break;
-		}
 	}
 
 	glViewport(0, 0, screenw, screenh);
@@ -243,10 +194,24 @@ static void display(void)
 		glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 
 	if (animation) {
-		calc_mul_matrix(skin_matrix, abs_pose_matrix, model->inv_bind_matrix, model->bone_count);
-		draw_model_with_pose(model, projection, model_view, skin_matrix);
+		for (i = 0; i < model_count; i++) {
+			memcpy(posebuf, model[i]->bind_pose, sizeof posebuf);
+			if (ryzom)
+				apply_animation_ryzom(posebuf, model[i]->bone_name, model[i]->bone_count,
+					animbuf, animation->bone_name, animation->bone_count);
+			else
+				apply_animation(posebuf, model[i]->bone_name, model[i]->bone_count,
+					animbuf, animation->bone_name, animation->bone_count);
+			calc_matrix_from_pose(pose_matrix, posebuf, model[i]->bone_count);
+			calc_abs_matrix(abs_pose_matrix, pose_matrix, model[i]->parent, model[i]->bone_count);
+			calc_mul_matrix(skin_matrix, abs_pose_matrix, model[i]->inv_bind_matrix, model[i]->bone_count);
+			draw_model_with_pose(model[i], projection, model_view, skin_matrix);
+		}
 	} else {
-		draw_model(model, projection, model_view);
+		for (i = 0; i < model_count; i++) {
+			draw_model(model[i], projection, model_view);
+		}
+		glutPostRedisplay();
 	}
 
 	glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
@@ -255,27 +220,15 @@ static void display(void)
 
 	glDisable(GL_DEPTH_TEST);
 
-	if (showskeleton && model->bone_count > 0) {
-		mat_translate(model_view, -3, 0, 0);
+	if (showskeleton && animation) {
 		draw_begin(projection, model_view);
-		draw_skeleton_with_axis(model->abs_bind_matrix, model->parent, model->bone_count);
+		draw_skeleton_with_axis(abs_pose_matrix, model[0]->parent, model[0]->bone_count);
 		draw_end();
-		if (animation) {
-			mat_translate(model_view, 2, 0, 0);
-			draw_begin(projection, model_view);
-			draw_skeleton_with_axis(abs_pose_matrix, model->parent, model->bone_count);
-			draw_end();
 
-			mat_translate(model_view, 2, 0, 0);
-			draw_begin(projection, model_view);
-			draw_skeleton_with_axis(abs_anim_matrix, animation->parent, animation->bone_count);
-			draw_end();
-
-			mat_translate(model_view, 2, 0, 0);
-			draw_begin(projection, model_view);
-			draw_skeleton_with_axis(animation->abs_bind_matrix, animation->parent, animation->bone_count);
-			draw_end();
-		}
+		mat_translate(model_view, 1, 0, 0);
+		draw_begin(projection, model_view);
+		draw_skeleton_with_axis(abs_anim_matrix, animation->parent, animation->bone_count);
+		draw_end();
 	}
 
 	mat_ortho(projection, 0, screenw, screenh, 0, -1, 1);
@@ -286,17 +239,18 @@ static void display(void)
 	text_set_color(1, 1, 1, 1);
 	{
 		char buf[256];
-		int nelem = 0;
-		if (model) {
-			for (i = 0; i < model->mesh_count; i++)
-				nelem += model->mesh[i].count;
-			sprintf(buf, "%d meshes, %d bones, %d triangles.", model->mesh_count, model->bone_count, nelem/3);
-			text_show(8, screenh-12, buf);
+		int k;
+		for (k = 0; k < model_count; k++) {
+			int nelem = 0;
+			for (i = 0; i < model[k]->mesh_count; i++)
+				nelem += model[k]->mesh[i].count;
+			sprintf(buf, "%d meshes, %d bones, %d triangles.", model[k]->mesh_count, model[k]->bone_count, nelem/3);
+			text_show(8, screenh-32-20*k, buf);
 		}
 
 		if (animation) {
-			sprintf(buf, "frame %03d / %03d (%d fps) r:%d", (int)animtick+1, animation->frame_count, animspeed, retarget);
-			text_show(8, screenh-12-20, buf);
+			sprintf(buf, "frame %03d / %03d (%d fps)", (int)animtick+1, animation->frame_count, animspeed);
+			text_show(8, screenh-12, buf);
 		}
 	}
 	text_end();
@@ -324,6 +278,8 @@ static void display(void)
 
 int main(int argc, char **argv)
 {
+	int i;
+
 	glutInit(&argc, argv);
 	glutInitWindowPosition(50, 50+24);
 	glutInitWindowSize(screenw, screenh);
@@ -349,7 +305,8 @@ int main(int argc, char **argv)
 	glEnable(GL_CULL_FACE);
 
 	register_directory("data/");
-	register_archive("testdata.zip");
+	register_archive("data/shapes.zip");
+	register_archive("data/textures.zip");
 
 	droid_sans = load_font("fonts/DroidSans.ttf");
 	if (!droid_sans)
@@ -359,18 +316,10 @@ int main(int argc, char **argv)
 	if (!droid_sans_mono)
 		exit(1);
 
-	if (argc > 1) {
-		model = load_model(argv[1]);
-		if (argc > 2)
-			animation = load_animation(argv[2]);
-		if (argc > 3)
-			askeleton = load_model(argv[3]);
-		if (argc > 4)
-			mskeleton = load_model(argv[4]);
-	} else {
-		model = load_model("fo_s2_spiketree.obj");
-		animation = NULL;
-	}
+	if (argc > 2)
+		animation = load_animation(argv[--argc]);
+	for (i = 1; i < argc; i++)
+		model[model_count++] = load_model(argv[i]);
 
 	console_init();
 
