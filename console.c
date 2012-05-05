@@ -100,7 +100,7 @@ void console_update(int key, int mod)
 
 		console_print(PS1);
 		cursor = 0;
-	} else if (key == '\b') {
+	} else if (key == 0x08 || key == 0x7F) {
 		if (cursor > 0)
 			input[--cursor] = 0;
 	} else if (isprint(key) && cursor + 1 < INPUT) {
