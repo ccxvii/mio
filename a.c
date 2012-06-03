@@ -153,8 +153,12 @@ static void display(void)
 			animtick = animtick + (timediff / 1000.0f) * animspeed;
 			glutPostRedisplay();
 		}
-		while (animtick < 0) animtick += animation->frame_count;
-		while (animtick >= animation->frame_count) animtick -= animation->frame_count;
+		if (animation->frame_count > 1) {
+			while (animtick < 0) animtick += animation->frame_count;
+			while (animtick >= animation->frame_count) animtick -= animation->frame_count;
+		} else {
+			animtick = 0;
+		}
 
 		extract_pose(animbuf, animation, (int)animtick);
 		calc_matrix_from_pose(anim_matrix, animbuf, animation->bone_count);

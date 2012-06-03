@@ -199,7 +199,7 @@ struct animation *load_iqm_animation_from_memory(char *filename, unsigned char *
 	if (iqm->version != IQM_VERSION) { error(filename, "bad iqm version"); return NULL; }
 	if (iqm->filesize > len) { error(filename, "bad iqm file size"); return NULL; }
 	if (iqm->num_joints > MAXBONE) { error(filename, "too many bones in iqm"); return NULL; }
-	if (iqm->num_joints != iqm->num_poses) { error(filename, "bad joint/pose data"); return NULL; }
+	if (iqm->num_joints < iqm->num_poses) { error(filename, "bad joint/pose data"); return NULL; }
 
 	if (iqm->num_anims == 0)
 		return NULL;
@@ -247,7 +247,8 @@ struct animation *load_iqm_animation_from_memory(char *filename, unsigned char *
 	// TODO: recalc anim pose as delta from skeleton / bind pose here
 
 	// HACK: looping animations, last and first frame
-	anim->frame_count--;
+	if (anim->frame_count > 1)
+		anim->frame_count--;
 
 	return anim;
 }
