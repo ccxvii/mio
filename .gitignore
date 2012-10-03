@@ -1,0 +1,7 @@
+build
+data
+.*.swp
+*.iqe
+*.iqm
+*.dae
+*.blend

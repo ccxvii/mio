@@ -1,6 +1,8 @@
 #include "mio.h"
 #include <ctype.h>
 
+#define USELUA
+
 #ifdef USELUA
 #include <lua.h>
 #include <lauxlib.h>
@@ -65,8 +67,8 @@ void console_init(void)
 	memset(screen, 0, sizeof screen);
 
 #ifdef USELUA
-	L = lua_open();
-	luaopen_base(L);
+	L = luaL_newstate();
+	luaL_openlibs(L);
 	lua_settop(L, 0);
 	lua_register(L, "print", print);
 #endif
