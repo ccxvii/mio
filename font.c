@@ -15,7 +15,7 @@
 #include "mio.h"
 
 static void text_flush(void);
-static void clear_font_cache(void);
+static void clear_glyph_cache(void);
 
 static struct cache *font_cache = NULL;
 
@@ -34,6 +34,24 @@ struct font
 	stbtt_fontinfo info;
 };
 
+struct font *load_font_from_memory(char *filename, unsigned char *data, int len)
+{
+	struct font *font;
+	int ok;
+
+	font = malloc(sizeof(struct font));
+	font->data = malloc(len);
+	memcpy(font->data, data, len);
+
+	ok = stbtt_InitFont(&font->info, font->data, 0);
+	if (!ok) {
+		fprintf(stderr, "error: cannot init font file: '%s'\n", filename);
+		return NULL;
+	}
+
+	return font;
+}
+
 struct font *load_font(char *filename)
 {
 	struct font *font;
@@ -51,8 +69,10 @@ struct font *load_font(char *filename)
 	}
 
 	ok = stbtt_InitFont(&font->info, font->data, 0);
-	if (!ok)
+	if (!ok) {
+		fprintf(stderr, "error: cannot init font file: '%s'\n", filename);
 		return NULL;
+	}
 
 	if (font)
 		font_cache = insert(font_cache, filename, font);
@@ -60,25 +80,9 @@ struct font *load_font(char *filename)
 	return font;
 }
 
-struct font *load_font_from_memory(unsigned char *data, int len)
-{
-	struct font *font;
-	int ok;
-
-	font = malloc(sizeof(struct font));
-	font->data = malloc(len);
-	memcpy(font->data, data, len);
-
-	ok = stbtt_InitFont(&font->info, font->data, 0);
-	if (!ok)
-		return NULL;
-
-	return font;
-}
-
 void free_font(struct font *font)
 {
-	clear_font_cache();
+	clear_glyph_cache();
 	free(font->data);
 	free(font);
 }
@@ -125,7 +129,7 @@ static int cache_row_y = PADDING;
 static int cache_row_x = PADDING;
 static int cache_row_h = 0;
 
-static void clear_font_cache(void)
+static void clear_glyph_cache(void)
 {
 	text_flush();
 
@@ -196,8 +200,8 @@ static struct glyph *lookup_glyph(struct font *font, float scale, int gid, int s
 	/* Find an empty slot in the texture */
 
 	if (table_load == (MAXGLYPHS * 3) / 4) {
-		puts("font cache table full, clearing cache");
-		clear_font_cache();
+		puts("glyph cache table full, clearing cache");
+		clear_glyph_cache();
 		pos = lookup_table(&key);
 	}
 
@@ -211,8 +215,8 @@ static struct glyph *lookup_glyph(struct font *font, float scale, int gid, int s
 		cache_row_x = PADDING;
 	}
 	if (cache_row_y + h + PADDING > CACHESIZE) {
-		puts("font cache texture full, clearing cache");
-		clear_font_cache();
+		puts("glyph cache texture full, clearing cache");
+		clear_glyph_cache();
 		pos = lookup_table(&key);
 	}
 

@@ -111,6 +111,7 @@ static void load_material(char *dirname, char *mtllib)
 	char filename[1024];
 	char *line, *next;
 	unsigned char *data;
+	int len;
 	char *s;
 
 	if (dirname[0]) {
@@ -121,11 +122,13 @@ static void load_material(char *dirname, char *mtllib)
 		strlcpy(filename, mtllib, sizeof filename);
 	}
 
-	data = load_file(filename, NULL);
+	data = load_file(filename, &len);
 	if (!data) {
 		fprintf(stderr, "cannot load material library: '%s'\n", filename);
 		return;
 	}
+
+	data[len-1] = 0; /* over-write final newline to zero-terminate */
 
 	for (line = (char*)data; line; line = next) {
 		next = strchr(line, '\n');
@@ -212,6 +215,8 @@ struct model *load_obj_model_from_memory(char *filename, unsigned char *data, in
 	texcoord.len = 0;
 	normal.len = 0;
 	element.len = 0;
+
+	data[len-1] = 0; /* over-write final newline to zero-terminate */
 
 	for (line = (char*)data; line; line = next) {
 		next = strchr(line, '\n');

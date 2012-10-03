@@ -229,7 +229,8 @@ int load_texture_array(char *filename, int srgb, int *d)
 	texid = (unsigned int) lookup(texture_array_cache, filename);
 	if (texid) {
 		glBindTexture(GL_TEXTURE_2D_ARRAY, texid);
-		glGetTexLevelParameteriv(GL_TEXTURE_2D_ARRAY, 0, GL_TEXTURE_DEPTH, d);
+		if (d)
+			glGetTexLevelParameteriv(GL_TEXTURE_2D_ARRAY, 0, GL_TEXTURE_DEPTH, d);
 		return texid;
 	}
 

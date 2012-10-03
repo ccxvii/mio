@@ -1,6 +1,6 @@
 #include "mio.h"
 
-// Use an AA-tree to quickly look up resources.
+/* Use an AA-tree to quickly look up resources. */
 
 struct cache
 {
@@ -79,22 +79,22 @@ struct cache *insert(struct cache *node, char *key, void *value)
 	}
 }
 
-static void debug_cache_imp(struct cache *node, int level)
+static void print_cache_imp(struct cache *node, int level)
 {
 	int i;
 	if (node->left != &sentinel)
-		debug_cache_imp(node->left, level + 1);
+		print_cache_imp(node->left, level + 1);
 	for (i = 0; i < level; i++)
 		putchar(' ');
 	printf("%s = %p (%d)\n", node->key, node->value, node->level);
 	if (node->right != &sentinel)
-		debug_cache_imp(node->right, level + 1);
+		print_cache_imp(node->right, level + 1);
 }
 
-void debug_cache(struct cache *root)
+void print_cache(struct cache *root)
 {
 	printf("--- cache dump ---\n");
 	if (root && root != &sentinel)
-		debug_cache_imp(root, 0);
+		print_cache_imp(root, 0);
 	printf("---\n");
 }

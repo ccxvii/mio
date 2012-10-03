@@ -53,24 +53,26 @@ int xstrlcat(char *dst, const char *src, int siz);
 #define SRGB(r,g,b) SLUM(r),SLUM(g),SLUM(b)
 #define SRGBA(r,g,b,a) SRGB(r,g,b),(a)
 
+typedef float vec2[2];
+typedef float vec3[3];
+typedef float vec4[4];
+typedef float mat4[16];
+
 /* archive data file loading */
 
 void register_directory(char *dirname);
 void register_archive(char *zipname);
 unsigned char *load_file(char *filename, int *lenp);
 
+/* resource cache */
+
 struct cache;
 
 void *lookup(struct cache *cache, char *key);
 struct cache *insert(struct cache *cache, char *key, void *value);
-void debug_cache(struct cache *cache);
+void print_cache(struct cache *cache);
 
 /* shaders */
-
-typedef float vec2[2];
-typedef float vec3[3];
-typedef float vec4[4];
-typedef float mat4[16];
 
 enum {
 	ATT_POSITION,
@@ -192,7 +194,7 @@ void icon_show(int texture,
 /* fonts based on stb_truetype */
 
 struct font *load_font(char *filename);
-struct font *load_font_from_memory(unsigned char *data, int len);
+struct font *load_font_from_memory(char *filename, unsigned char *data, int len);
 void free_font(struct font *font);
 float font_width(struct font *font, float size, char *str);
 

@@ -264,11 +264,10 @@ unsigned char *read_file(char *filename, int *lenp)
 	fseek(file, 0, 2);
 	len = ftell(file);
 	fseek(file, 0, 0);
-	data = malloc(len + 1);
+	data = malloc(len);
 	fread(data, 1, len, file);
 	fclose(file);
 	if (lenp) *lenp = len;
-	data[len] = 0; // zero-terminate in case it's a text file that we use as a string
 	return data;
 }
 

@@ -207,7 +207,8 @@ struct model *load_iqe_model_from_memory(char *filename, unsigned char *data, in
 		return NULL;
 	}
 
-	// data is zero-terminated!
+	data[len-1] = 0; /* over-write final newline to zero-terminate */
+
 	for (line = (char*)data; line; line = next) {
 		next = strchr(line, '\n');
 		if (next)
