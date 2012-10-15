@@ -31,7 +31,7 @@ LUA_LIB := $(OUT)/liblua.a
 MIO_HDR := getopt.h iqm.h mio.h stb_truetype.h stb_image.c
 MIO_SRC := \
 	cache.c console.c draw.c font.c gl3w.c image.c \
-	model.c model_iqe.c model_iqm.c model_obj.c \
+	model.c model_iqe.c model_iqm.c model_obj.c render.c \
 	rune.c shader.c strlcpy.c vector.c zip.c
 MIO_OBJ := $(addprefix $(OUT)/, $(MIO_SRC:%.c=%.o))
 MIO_LIB := $(OUT)/libmio.a
@@ -54,7 +54,10 @@ $(MIO_LIB) : $(MIO_OBJ)
 a.exe : $(OUT)/a.o $(MIO_LIB) $(LUA_LIB)
 	$(LINK_CMD)
 
-all: $(OUT) $(LUA_LIB) $(MIO_LIB) a.exe
+b.exe : $(OUT)/b.o $(MIO_LIB) $(LUA_LIB)
+	$(LINK_CMD)
+
+all: $(OUT) $(LUA_LIB) $(MIO_LIB) a.exe b.exe
 
 clean:
 	rm -rf $(OUT)
