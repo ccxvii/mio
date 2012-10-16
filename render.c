@@ -290,6 +290,7 @@ static const char *point_frag_src =
 	"uniform sampler2D AlbedoSampler;\n"
 	"uniform vec3 LightPosition;\n"
 	"uniform vec3 LightColor;\n"
+	"uniform float LightDistance;\n"
 	"const float Shininess = 64.0;\n"
 	"void main() {\n"
 	"	vec2 texcoord = gl_FragCoord.xy / Viewport.xy;\n"
@@ -301,14 +302,15 @@ static const char *point_frag_src =
 	"	vec4 albedo = texture2D(AlbedoSampler, texcoord);\n"
 
 	"	vec3 direction = LightPosition - position;\n"
-	"	float distance2 = dot(direction, direction);\n"
-	"	float attenuation = 1.0 / distance2;\n"
+	"	float dist2 = dot(direction, direction);\n"
+	"	float falloff = LightDistance / (LightDistance + dist2);\n"
+	"	falloff = falloff * max(LightDistance - sqrt(dist2), 0.0) / LightDistance;\n"
 	"	vec3 L = normalize(LightPosition - position);\n"
-	"	float diffuse = max(dot(normal, L), 0.0) * 10 * attenuation;\n"
+	"	float diffuse = max(dot(normal, L), 0.0) * falloff;\n"
 
 	"	vec3 V = normalize(-position);\n"
 	"	vec3 H = normalize(L + V);\n"
-	"	float specular = pow(max(dot(normal, H), 0.0), Shininess) * attenuation;\n"
+	"	float specular = pow(max(dot(normal, H), 0.0), Shininess) * falloff;\n"
 
 	"	gl_FragColor = vec4((albedo.rgb * diffuse + albedo.a * specular) * LightColor, 1.0);\n"
 	"}\n"
@@ -324,8 +326,9 @@ static int point_uni_normal_sampler;
 static int point_uni_albedo_sampler;
 static int point_uni_position;
 static int point_uni_color;
+static int point_uni_distance;
 
-void render_point_light(mat4 projection, mat4 model_view, vec3 point_position, vec3 color)
+void render_point_light(mat4 projection, mat4 model_view, vec3 point_position, vec3 color, float distance)
 {
 	mat4 inverse_projection;
 	vec2 viewport;
@@ -342,6 +345,7 @@ void render_point_light(mat4 projection, mat4 model_view, vec3 point_position, v
 		point_uni_albedo_sampler = glGetUniformLocation(point_prog, "AlbedoSampler");
 		point_uni_position = glGetUniformLocation(point_prog, "LightPosition");
 		point_uni_color = glGetUniformLocation(point_prog, "LightColor");
+		point_uni_distance = glGetUniformLocation(point_prog, "LightDistance");
 	}
 
 	mat_invert(inverse_projection, projection);
@@ -361,6 +365,113 @@ void render_point_light(mat4 projection, mat4 model_view, vec3 point_position, v
 	glUniform1i(point_uni_albedo_sampler, 2);
 	glUniform3fv(point_uni_position, 1, position);
 	glUniform3fv(point_uni_color, 1, color);
+	glUniform1f(point_uni_distance, distance);
+
+	draw_fullscreen_quad();
+}
+
+/* Spot light */
+
+static const char *spot_frag_src =
+	"#version 120\n"
+	"uniform vec2 Viewport;\n"
+	"uniform mat4 InverseProjection;\n"
+	"uniform sampler2D DepthSampler;\n"
+	"uniform sampler2D NormalSampler;\n"
+	"uniform sampler2D AlbedoSampler;\n"
+	"uniform vec3 LightPosition;\n"
+	"uniform vec3 LightDirection;\n"
+	"uniform float LightAngle;\n"
+	"uniform vec3 LightColor;\n"
+	"uniform float LightDistance;\n"
+	"const float Shininess = 64.0;\n"
+	"void main() {\n"
+	"	vec2 texcoord = gl_FragCoord.xy / Viewport.xy;\n"
+	"	float depth = texture2D(DepthSampler, texcoord).x;\n"
+	"	vec4 pos_ndc = 2.0 * vec4(texcoord, depth, 1.0) - 1.0;\n"
+	"	vec4 pos_hom = InverseProjection * pos_ndc;\n"
+	"	vec3 position = pos_hom.xyz / pos_hom.w;\n"
+	"	vec3 normal = texture2D(NormalSampler, texcoord).xyz;\n"
+	"	vec4 albedo = texture2D(AlbedoSampler, texcoord);\n"
+
+	"	vec3 direction = LightPosition - position;\n"
+	"	float dist2 = dot(direction, direction);\n"
+	"	float falloff = LightDistance / (LightDistance + dist2);\n"
+	"	falloff = falloff * max(LightDistance - sqrt(dist2), 0.0) / LightDistance;\n"
+
+	"	vec3 L = normalize(direction);\n"
+	"	float spot = dot(LightDirection, L);\n"
+	"	if (spot <= LightAngle) { spot = 0.0; }\n"
+	"	float diffuse = max(dot(normal, L), 0.0) * falloff * spot;\n"
+
+	"	vec3 V = normalize(-position);\n"
+	"	vec3 H = normalize(L + V);\n"
+	"	float specular = pow(max(dot(normal, H), 0.0), Shininess) * falloff * spot;\n"
+
+	"	gl_FragColor = vec4((albedo.rgb * diffuse + albedo.a * specular) * LightColor, 1.0);\n"
+	"}\n"
+;
+
+static int spot_prog = 0;
+static int spot_uni_viewport;
+static int spot_uni_inverse_projection;
+static int spot_uni_projection;
+static int spot_uni_model_view;
+static int spot_uni_depth_sampler;
+static int spot_uni_normal_sampler;
+static int spot_uni_albedo_sampler;
+static int spot_uni_position;
+static int spot_uni_direction;
+static int spot_uni_angle;
+static int spot_uni_color;
+static int spot_uni_distance;
+
+void render_spot_light(mat4 projection, mat4 model_view, vec3 spot_position, vec3 spot_direction, float angle, vec3 color, float distance)
+{
+	mat4 inverse_projection;
+	vec2 viewport;
+	vec3 position;
+	vec3 direction;
+
+	if (!spot_prog) {
+		spot_prog = compile_shader(quad_vert_src, spot_frag_src);
+		spot_uni_viewport = glGetUniformLocation(spot_prog, "Viewport");
+		spot_uni_inverse_projection = glGetUniformLocation(spot_prog, "InverseProjection");
+		spot_uni_projection = glGetUniformLocation(spot_prog, "Projection");
+		spot_uni_model_view = glGetUniformLocation(spot_prog, "ModelView");
+		spot_uni_depth_sampler = glGetUniformLocation(spot_prog, "DepthSampler");
+		spot_uni_normal_sampler = glGetUniformLocation(spot_prog, "NormalSampler");
+		spot_uni_albedo_sampler = glGetUniformLocation(spot_prog, "AlbedoSampler");
+		spot_uni_position = glGetUniformLocation(spot_prog, "LightPosition");
+		spot_uni_direction = glGetUniformLocation(spot_prog, "LightDirection");
+		spot_uni_angle = glGetUniformLocation(spot_prog, "LightAngle");
+		spot_uni_color = glGetUniformLocation(spot_prog, "LightColor");
+		spot_uni_distance = glGetUniformLocation(spot_prog, "LightDistance");
+	}
+
+	mat_invert(inverse_projection, projection);
+
+	viewport[0] = fbo_w;
+	viewport[1] = fbo_h;
+
+	mat_vec_mul(position, model_view, spot_position);
+
+	mat_vec_mul_n(direction, model_view, spot_direction);
+	vec_normalize(direction);
+
+	glUseProgram(spot_prog);
+	glUniform2fv(spot_uni_viewport, 1, viewport);
+	glUniformMatrix4fv(spot_uni_inverse_projection, 1, 0, inverse_projection);
+	glUniformMatrix4fv(spot_uni_projection, 1, 0, projection);
+	glUniformMatrix4fv(spot_uni_model_view, 1, 0, model_view);
+	glUniform1i(spot_uni_depth_sampler, 0);
+	glUniform1i(spot_uni_normal_sampler, 1);
+	glUniform1i(spot_uni_albedo_sampler, 2);
+	glUniform3fv(spot_uni_position, 1, position);
+	glUniform3fv(spot_uni_direction, 1, direction);
+	glUniform3fv(spot_uni_color, 1, color);
+	glUniform1f(spot_uni_distance, distance);
+	glUniform1f(spot_uni_angle, cos(angle * 3.14157 / 180.0));
 
 	draw_fullscreen_quad();
 }

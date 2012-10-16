@@ -127,18 +127,26 @@ static void display(void)
 
 	render_light_pass();
 	{
-		static const vec3 sun_direction = { -2, -1, 2 };
-		static const vec3 sun_color = { 0.8, 0.8, 0.8 };
+		static vec3 sun_direction = { -2, -1, 2 };
+		static vec3 sun_color = { 0.8, 0.8, 0.8 };
 		render_sun_light(projection, model_view, sun_direction, sun_color);
 
-		static const vec3 moon_direction = { 2, -1, 1 };
-		static const vec3 moon_color = { 0.2, 0.2, 0.2 };
-		render_sun_light(projection, model_view, moon_direction, moon_color);
+		static vec3 moon_direction = { 2, -1, 1 };
+		static vec3 moon_color = { 0.2, 0.2, 0.2 };
+		//render_sun_light(projection, model_view, moon_direction, moon_color);
 
 		static vec3 torch_position = { 1, 0, 1 };
 		static vec3 torch_color = { 1.0, 1.0, 1.0 };
+		static float torch_distance = 25.0;
 		torch_position[1] = X;
-		render_point_light(projection, model_view, torch_position, torch_color);
+		render_point_light(projection, model_view, torch_position, torch_color, torch_distance);
+
+		static vec3 spot_position = { 0, -3, 0 };
+		static vec3 spot_direction = { 0, -1, 0 };
+		static vec3 spot_color = { 1.0, 0.0, 0.0 };
+		static float spot_distance = 25.0;
+		static float spot_angle = 15.0;
+		render_spot_light(projection, model_view, spot_position, spot_direction, spot_angle, spot_color, spot_distance);
 	}
 
 	render_forward_pass();

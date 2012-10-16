@@ -237,6 +237,23 @@ void console_print(const char *s);
 void console_printnl(const char *s);
 void console_draw(mat4 projection, struct font *font, float size);
 
+/* deferred shading */
+
+void render_setup(int w, int h);
+
+void render_geometry_pass(void);
+void render_light_pass(void);
+void render_forward_pass(void);
+void render_finish(void);
+
+void render_sun_light(mat4 projection, mat4 model_view, vec3 sun_direction, vec3 color);
+void render_point_light(mat4 projection, mat4 model_view, vec3 point_position, vec3 color, float distance);
+void render_spot_light(mat4 projection, mat4 model_view, vec3 spot_position, vec3 spot_direction, float angle, vec3 color, float distance);
+void render_model(struct model *model, mat4 projection, mat4 model_view);
+
+void render_blit(float projection[16], int w, int h);
+void render_debug_buffers(float projection[16]);
+
 /* 4x4 column major matrices, vectors and quaternions */
 
 void mat_identity(mat4 m);
