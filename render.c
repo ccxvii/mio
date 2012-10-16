@@ -92,6 +92,12 @@ void render_geometry_pass(void)
 /* No depth testing, additive blending, to light buffer */
 void render_light_pass(void)
 {
+	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, fbo_forward);
+	glClear(GL_COLOR_BUFFER_BIT);
+	glDisable(GL_DEPTH_TEST);
+	glBlendFunc(GL_ONE, GL_ONE);
+	glEnable(GL_BLEND);
+
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, tex_depth);
 	glActiveTexture(GL_TEXTURE1);
@@ -99,17 +105,19 @@ void render_light_pass(void)
 	glActiveTexture(GL_TEXTURE2);
 	glBindTexture(GL_TEXTURE_2D, tex_albedo);
 	glActiveTexture(GL_TEXTURE0);
-
-	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, fbo_forward);
-	glClear(GL_COLOR_BUFFER_BIT);
-	glDisable(GL_DEPTH_TEST);
-	glBlendFunc(GL_ONE, GL_ONE);
-	glEnable(GL_BLEND);
 }
 
 /* Depth testing, no depth writing, additive blending, to light buffer */
 void render_forward_pass(void)
 {
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, 0);
+	glActiveTexture(GL_TEXTURE1);
+	glBindTexture(GL_TEXTURE_2D, 0);
+	glActiveTexture(GL_TEXTURE2);
+	glBindTexture(GL_TEXTURE_2D, 0);
+	glActiveTexture(GL_TEXTURE0);
+
 	glDepthMask(GL_FALSE);
 	glEnable(GL_DEPTH_TEST);
 }
@@ -150,15 +158,45 @@ void render_debug_buffers(float projection[16])
 	icon_end();
 }
 
-/* draw light */
+/* draw lights */
 
-static const char *sun_vert_src =
+static const char *quad_vert_src =
 	"#version 120\n"
 	"attribute vec4 att_Position;\n"
 	"void main() {\n"
 	"	gl_Position = att_Position;\n"
 	"}\n"
 ;
+
+static unsigned int quad_vao = 0;
+static unsigned int quad_vbo = 0;
+static float quad_vertex[] = {
+	-1, 1,
+	-1, -1,
+	1, 1,
+	1, -1,
+};
+
+static void draw_fullscreen_quad(void)
+{
+	if (!quad_vao) {
+		glGenVertexArrays(1, &quad_vao);
+		glGenBuffers(1, &quad_vbo);
+
+		glBindVertexArray(quad_vao);
+		glBindBuffer(GL_ARRAY_BUFFER, quad_vbo);
+		glBufferData(GL_ARRAY_BUFFER, 8 * sizeof(float), quad_vertex, GL_STATIC_DRAW);
+
+		glEnableVertexAttribArray(ATT_POSITION);
+		glVertexAttribPointer(ATT_POSITION, 2, GL_FLOAT, 0, 0, 0);
+	}
+
+	glBindVertexArray(quad_vao);
+	glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+	glBindVertexArray(0);
+}
+
+/* Sun light */
 
 static const char *sun_frag_src =
 	"#version 120\n"
@@ -167,8 +205,8 @@ static const char *sun_frag_src =
 	"uniform sampler2D DepthSampler;\n"
 	"uniform sampler2D NormalSampler;\n"
 	"uniform sampler2D AlbedoSampler;\n"
-	"uniform vec3 Direction;\n"
-	"uniform vec3 Color;\n"
+	"uniform vec3 LightDirection;\n"
+	"uniform vec3 LightColor;\n"
 	"const float Shininess = 64.0;\n"
 	"void main() {\n"
 	"	vec2 texcoord = gl_FragCoord.xy / Viewport.xy;\n"
@@ -179,13 +217,13 @@ static const char *sun_frag_src =
 	"	vec3 normal = texture2D(NormalSampler, texcoord).xyz;\n"
 	"	vec4 albedo = texture2D(AlbedoSampler, texcoord);\n"
 
-	"	float diffuse = max(dot(normal, Direction), 0.0);\n"
+	"	float diffuse = max(dot(normal, LightDirection), 0.0);\n"
 
 	"	vec3 V = normalize(-position);\n"
-	"	vec3 H = normalize(Direction + V);\n"
+	"	vec3 H = normalize(LightDirection + V);\n"
 	"	float specular = pow(max(dot(normal, H), 0.0), Shininess);\n"
 
-	"	gl_FragColor = vec4((albedo.rgb * diffuse + albedo.a * specular) * Color, 1.0);\n"
+	"	gl_FragColor = vec4((albedo.rgb * diffuse + albedo.a * specular) * LightColor, 1.0);\n"
 	"}\n"
 ;
 
@@ -200,15 +238,6 @@ static int sun_uni_albedo_sampler;
 static int sun_uni_direction;
 static int sun_uni_color;
 
-static unsigned int quad_vao = 0;
-static unsigned int quad_vbo = 0;
-static float quad_vertex[] = {
-	-1, 1,
-	-1, -1,
-	1, 1,
-	1, -1,
-};
-
 void render_sun_light(mat4 projection, mat4 model_view, vec3 sun_direction, vec3 color)
 {
 	mat4 inverse_projection;
@@ -216,7 +245,7 @@ void render_sun_light(mat4 projection, mat4 model_view, vec3 sun_direction, vec3
 	vec3 direction;
 
 	if (!sun_prog) {
-		sun_prog = compile_shader(sun_vert_src, sun_frag_src);
+		sun_prog = compile_shader(quad_vert_src, sun_frag_src);
 		sun_uni_viewport = glGetUniformLocation(sun_prog, "Viewport");
 		sun_uni_inverse_projection = glGetUniformLocation(sun_prog, "InverseProjection");
 		sun_uni_projection = glGetUniformLocation(sun_prog, "Projection");
@@ -224,8 +253,8 @@ void render_sun_light(mat4 projection, mat4 model_view, vec3 sun_direction, vec3
 		sun_uni_depth_sampler = glGetUniformLocation(sun_prog, "DepthSampler");
 		sun_uni_normal_sampler = glGetUniformLocation(sun_prog, "NormalSampler");
 		sun_uni_albedo_sampler = glGetUniformLocation(sun_prog, "AlbedoSampler");
-		sun_uni_direction = glGetUniformLocation(sun_prog, "Direction");
-		sun_uni_color = glGetUniformLocation(sun_prog, "Color");
+		sun_uni_direction = glGetUniformLocation(sun_prog, "LightDirection");
+		sun_uni_color = glGetUniformLocation(sun_prog, "LightColor");
 	}
 
 	mat_invert(inverse_projection, projection);
@@ -247,21 +276,93 @@ void render_sun_light(mat4 projection, mat4 model_view, vec3 sun_direction, vec3
 	glUniform3fv(sun_uni_direction, 1, direction);
 	glUniform3fv(sun_uni_color, 1, color);
 
-	if (!quad_vao) {
-		glGenVertexArrays(1, &quad_vao);
-		glGenBuffers(1, &quad_vbo);
+	draw_fullscreen_quad();
+}
 
-		glBindVertexArray(quad_vao);
-		glBindBuffer(GL_ARRAY_BUFFER, quad_vbo);
-		glBufferData(GL_ARRAY_BUFFER, 8 * sizeof(float), quad_vertex, GL_STATIC_DRAW);
+/* Point light */
 
-		glEnableVertexAttribArray(ATT_POSITION);
-		glVertexAttribPointer(ATT_POSITION, 2, GL_FLOAT, 0, 0, 0);
+static const char *point_frag_src =
+	"#version 120\n"
+	"uniform vec2 Viewport;\n"
+	"uniform mat4 InverseProjection;\n"
+	"uniform sampler2D DepthSampler;\n"
+	"uniform sampler2D NormalSampler;\n"
+	"uniform sampler2D AlbedoSampler;\n"
+	"uniform vec3 LightPosition;\n"
+	"uniform vec3 LightColor;\n"
+	"const float Shininess = 64.0;\n"
+	"void main() {\n"
+	"	vec2 texcoord = gl_FragCoord.xy / Viewport.xy;\n"
+	"	float depth = texture2D(DepthSampler, texcoord).x;\n"
+	"	vec4 pos_ndc = 2.0 * vec4(texcoord, depth, 1.0) - 1.0;\n"
+	"	vec4 pos_hom = InverseProjection * pos_ndc;\n"
+	"	vec3 position = pos_hom.xyz / pos_hom.w;\n"
+	"	vec3 normal = texture2D(NormalSampler, texcoord).xyz;\n"
+	"	vec4 albedo = texture2D(AlbedoSampler, texcoord);\n"
+
+	"	vec3 direction = LightPosition - position;\n"
+	"	float distance2 = dot(direction, direction);\n"
+	"	float attenuation = 1.0 / distance2;\n"
+	"	vec3 L = normalize(LightPosition - position);\n"
+	"	float diffuse = max(dot(normal, L), 0.0) * 10 * attenuation;\n"
+
+	"	vec3 V = normalize(-position);\n"
+	"	vec3 H = normalize(L + V);\n"
+	"	float specular = pow(max(dot(normal, H), 0.0), Shininess) * attenuation;\n"
+
+	"	gl_FragColor = vec4((albedo.rgb * diffuse + albedo.a * specular) * LightColor, 1.0);\n"
+	"}\n"
+;
+
+static int point_prog = 0;
+static int point_uni_viewport;
+static int point_uni_inverse_projection;
+static int point_uni_projection;
+static int point_uni_model_view;
+static int point_uni_depth_sampler;
+static int point_uni_normal_sampler;
+static int point_uni_albedo_sampler;
+static int point_uni_position;
+static int point_uni_color;
+
+void render_point_light(mat4 projection, mat4 model_view, vec3 point_position, vec3 color)
+{
+	mat4 inverse_projection;
+	vec2 viewport;
+	vec3 position;
+
+	if (!point_prog) {
+		point_prog = compile_shader(quad_vert_src, point_frag_src);
+		point_uni_viewport = glGetUniformLocation(point_prog, "Viewport");
+		point_uni_inverse_projection = glGetUniformLocation(point_prog, "InverseProjection");
+		point_uni_projection = glGetUniformLocation(point_prog, "Projection");
+		point_uni_model_view = glGetUniformLocation(point_prog, "ModelView");
+		point_uni_depth_sampler = glGetUniformLocation(point_prog, "DepthSampler");
+		point_uni_normal_sampler = glGetUniformLocation(point_prog, "NormalSampler");
+		point_uni_albedo_sampler = glGetUniformLocation(point_prog, "AlbedoSampler");
+		point_uni_position = glGetUniformLocation(point_prog, "LightPosition");
+		point_uni_color = glGetUniformLocation(point_prog, "LightColor");
 	}
 
-	glBindVertexArray(quad_vao);
-	glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
-	glBindVertexArray(0);
+	mat_invert(inverse_projection, projection);
+
+	viewport[0] = fbo_w;
+	viewport[1] = fbo_h;
+
+	mat_vec_mul(position, model_view, point_position);
+
+	glUseProgram(point_prog);
+	glUniform2fv(point_uni_viewport, 1, viewport);
+	glUniformMatrix4fv(point_uni_inverse_projection, 1, 0, inverse_projection);
+	glUniformMatrix4fv(point_uni_projection, 1, 0, projection);
+	glUniformMatrix4fv(point_uni_model_view, 1, 0, model_view);
+	glUniform1i(point_uni_depth_sampler, 0);
+	glUniform1i(point_uni_normal_sampler, 1);
+	glUniform1i(point_uni_albedo_sampler, 2);
+	glUniform3fv(point_uni_position, 1, position);
+	glUniform3fv(point_uni_color, 1, color);
+
+	draw_fullscreen_quad();
 }
 
 /* draw model */

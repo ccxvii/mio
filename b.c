@@ -14,6 +14,8 @@ static float cam_dist = 5;
 static float cam_yaw = 0;
 static float cam_pitch = -20;
 
+static float X = 3;
+
 void togglefullscreen(void)
 {
 	static int oldw = 100, oldh = 100, oldx = 0, oldy = 0;
@@ -76,6 +78,8 @@ static void keyboard(unsigned char key, int x, int y)
 	else switch (key) {
 		case 27: case 'q': exit(0); break;
 		case 'f': togglefullscreen(); break;
+		case 'x': X -= 0.1; break;
+		case 'X': X += 0.1; break;
 	}
 
 	glutPostRedisplay();
@@ -123,15 +127,18 @@ static void display(void)
 
 	render_light_pass();
 	{
-		static const vec3 sun_direction = { 0, 0, 1 };
-		static const vec3 sun_color = { 1, 1, 1 };
-
+		static const vec3 sun_direction = { -2, -1, 2 };
+		static const vec3 sun_color = { 0.8, 0.8, 0.8 };
 		render_sun_light(projection, model_view, sun_direction, sun_color);
 
-		static const vec3 moon_direction = { 1, 0, 0 };
-		static const vec3 moon_color = { 0.0, 0.0, 0.3 };
-
+		static const vec3 moon_direction = { 2, -1, 1 };
+		static const vec3 moon_color = { 0.2, 0.2, 0.2 };
 		render_sun_light(projection, model_view, moon_direction, moon_color);
+
+		static vec3 torch_position = { 1, 0, 1 };
+		static vec3 torch_color = { 1.0, 1.0, 1.0 };
+		torch_position[1] = X;
+		render_point_light(projection, model_view, torch_position, torch_color);
 	}
 
 	render_forward_pass();
