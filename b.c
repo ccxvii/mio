@@ -168,7 +168,7 @@ int main(int argc, char **argv)
 	glutInit(&argc, argv);
 	glutInitWindowPosition(50, 50+24);
 	glutInitWindowSize(screenw, screenh);
-	glutInitDisplayMode(GLUT_RGBA | GLUT_DOUBLE);
+	glutInitDisplayMode(GLUT_SRGB | GLUT_DOUBLE);
 	glutCreateWindow("Mio");
 
 	gl3wInit();

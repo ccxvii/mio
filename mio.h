@@ -16,6 +16,9 @@
 #ifndef GL_FRAMEBUFFER_SRGB
 #define GL_FRAMEBUFFER_SRGB GL_FRAMEBUFFER_SRGB_EXT
 #endif
+#ifndef GL_RGB16F
+#define GL_RGB16F 0x881B
+#endif
 #define GLUT_SRGB GLUT_RGB
 static inline int gl3wInit(void) { return 0; }
 #else
