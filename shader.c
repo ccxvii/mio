@@ -42,6 +42,7 @@ int compile_shader(const char *vert_src, const char *frag_src)
 		print_shader_log("fragment", frag);
 
 	int prog = glCreateProgram();
+
 	glBindAttribLocation(prog, ATT_POSITION, "att_Position");
 	glBindAttribLocation(prog, ATT_TEXCOORD, "att_TexCoord");
 	glBindAttribLocation(prog, ATT_NORMAL, "att_Normal");
@@ -49,6 +50,11 @@ int compile_shader(const char *vert_src, const char *frag_src)
 	glBindAttribLocation(prog, ATT_BLEND_INDEX, "att_BlendIndex");
 	glBindAttribLocation(prog, ATT_BLEND_WEIGHT, "att_BlendWeight");
 	glBindAttribLocation(prog, ATT_COLOR, "att_Color");
+
+	glBindFragDataLocation(prog, FRAG_COLOR, "frag_Color");
+	glBindFragDataLocation(prog, FRAG_NORMAL, "frag_Normal");
+	glBindFragDataLocation(prog, FRAG_ALBEDO, "frag_Albedo");
+
 	glAttachShader(prog, vert);
 	glAttachShader(prog, frag);
 	glLinkProgram(prog);

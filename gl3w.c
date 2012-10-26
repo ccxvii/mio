@@ -1,4 +1,4 @@
-#include <GL3/gl3w.h>
+#include <GL/gl3w.h>
 
 #ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN 1
@@ -90,6 +90,14 @@ static struct {
 
 static int parse_version(void)
 {
+	if (!glGetIntegerv)
+		return -1;
+
+	glGetIntegerv(GL_MAJOR_VERSION, &version.major);
+	glGetIntegerv(GL_MINOR_VERSION, &version.minor);
+
+	if (version.major < 3)
+		return -1;
 	return 0;
 }
 
@@ -643,18 +651,6 @@ PFNGLDEBUGMESSAGEINSERTARBPROC gl3wDebugMessageInsertARB;
 PFNGLDEBUGMESSAGECALLBACKARBPROC gl3wDebugMessageCallbackARB;
 PFNGLGETDEBUGMESSAGELOGARBPROC gl3wGetDebugMessageLogARB;
 PFNGLGETGRAPHICSRESETSTATUSARBPROC gl3wGetGraphicsResetStatusARB;
-PFNGLGETNMAPDVARBPROC gl3wGetnMapdvARB;
-PFNGLGETNMAPFVARBPROC gl3wGetnMapfvARB;
-PFNGLGETNMAPIVARBPROC gl3wGetnMapivARB;
-PFNGLGETNPIXELMAPFVARBPROC gl3wGetnPixelMapfvARB;
-PFNGLGETNPIXELMAPUIVARBPROC gl3wGetnPixelMapuivARB;
-PFNGLGETNPIXELMAPUSVARBPROC gl3wGetnPixelMapusvARB;
-PFNGLGETNPOLYGONSTIPPLEARBPROC gl3wGetnPolygonStippleARB;
-PFNGLGETNCOLORTABLEARBPROC gl3wGetnColorTableARB;
-PFNGLGETNCONVOLUTIONFILTERARBPROC gl3wGetnConvolutionFilterARB;
-PFNGLGETNSEPARABLEFILTERARBPROC gl3wGetnSeparableFilterARB;
-PFNGLGETNHISTOGRAMARBPROC gl3wGetnHistogramARB;
-PFNGLGETNMINMAXARBPROC gl3wGetnMinmaxARB;
 PFNGLGETNTEXIMAGEARBPROC gl3wGetnTexImageARB;
 PFNGLREADNPIXELSARBPROC gl3wReadnPixelsARB;
 PFNGLGETNCOMPRESSEDTEXIMAGEARBPROC gl3wGetnCompressedTexImageARB;
@@ -677,6 +673,62 @@ PFNGLTEXSTORAGE3DPROC gl3wTexStorage3D;
 PFNGLTEXTURESTORAGE1DEXTPROC gl3wTextureStorage1DEXT;
 PFNGLTEXTURESTORAGE2DEXTPROC gl3wTextureStorage2DEXT;
 PFNGLTEXTURESTORAGE3DEXTPROC gl3wTextureStorage3DEXT;
+PFNGLDEBUGMESSAGECONTROLPROC gl3wDebugMessageControl;
+PFNGLDEBUGMESSAGEINSERTPROC gl3wDebugMessageInsert;
+PFNGLDEBUGMESSAGECALLBACKPROC gl3wDebugMessageCallback;
+PFNGLGETDEBUGMESSAGELOGPROC gl3wGetDebugMessageLog;
+PFNGLPUSHDEBUGGROUPPROC gl3wPushDebugGroup;
+PFNGLPOPDEBUGGROUPPROC gl3wPopDebugGroup;
+PFNGLOBJECTLABELPROC gl3wObjectLabel;
+PFNGLGETOBJECTLABELPROC gl3wGetObjectLabel;
+PFNGLOBJECTPTRLABELPROC gl3wObjectPtrLabel;
+PFNGLGETOBJECTPTRLABELPROC gl3wGetObjectPtrLabel;
+PFNGLCLEARBUFFERDATAPROC gl3wClearBufferData;
+PFNGLCLEARBUFFERSUBDATAPROC gl3wClearBufferSubData;
+PFNGLCLEARNAMEDBUFFERDATAEXTPROC gl3wClearNamedBufferDataEXT;
+PFNGLCLEARNAMEDBUFFERSUBDATAEXTPROC gl3wClearNamedBufferSubDataEXT;
+PFNGLDISPATCHCOMPUTEPROC gl3wDispatchCompute;
+PFNGLDISPATCHCOMPUTEINDIRECTPROC gl3wDispatchComputeIndirect;
+PFNGLCOPYIMAGESUBDATAPROC gl3wCopyImageSubData;
+PFNGLTEXTUREVIEWPROC gl3wTextureView;
+PFNGLBINDVERTEXBUFFERPROC gl3wBindVertexBuffer;
+PFNGLVERTEXATTRIBFORMATPROC gl3wVertexAttribFormat;
+PFNGLVERTEXATTRIBIFORMATPROC gl3wVertexAttribIFormat;
+PFNGLVERTEXATTRIBLFORMATPROC gl3wVertexAttribLFormat;
+PFNGLVERTEXATTRIBBINDINGPROC gl3wVertexAttribBinding;
+PFNGLVERTEXBINDINGDIVISORPROC gl3wVertexBindingDivisor;
+PFNGLVERTEXARRAYBINDVERTEXBUFFEREXTPROC gl3wVertexArrayBindVertexBufferEXT;
+PFNGLVERTEXARRAYVERTEXATTRIBFORMATEXTPROC gl3wVertexArrayVertexAttribFormatEXT;
+PFNGLVERTEXARRAYVERTEXATTRIBIFORMATEXTPROC gl3wVertexArrayVertexAttribIFormatEXT;
+PFNGLVERTEXARRAYVERTEXATTRIBLFORMATEXTPROC gl3wVertexArrayVertexAttribLFormatEXT;
+PFNGLVERTEXARRAYVERTEXATTRIBBINDINGEXTPROC gl3wVertexArrayVertexAttribBindingEXT;
+PFNGLVERTEXARRAYVERTEXBINDINGDIVISOREXTPROC gl3wVertexArrayVertexBindingDivisorEXT;
+PFNGLFRAMEBUFFERPARAMETERIPROC gl3wFramebufferParameteri;
+PFNGLGETFRAMEBUFFERPARAMETERIVPROC gl3wGetFramebufferParameteriv;
+PFNGLNAMEDFRAMEBUFFERPARAMETERIEXTPROC gl3wNamedFramebufferParameteriEXT;
+PFNGLGETNAMEDFRAMEBUFFERPARAMETERIVEXTPROC gl3wGetNamedFramebufferParameterivEXT;
+PFNGLGETINTERNALFORMATI64VPROC gl3wGetInternalformati64v;
+PFNGLINVALIDATETEXSUBIMAGEPROC gl3wInvalidateTexSubImage;
+PFNGLINVALIDATETEXIMAGEPROC gl3wInvalidateTexImage;
+PFNGLINVALIDATEBUFFERSUBDATAPROC gl3wInvalidateBufferSubData;
+PFNGLINVALIDATEBUFFERDATAPROC gl3wInvalidateBufferData;
+PFNGLINVALIDATEFRAMEBUFFERPROC gl3wInvalidateFramebuffer;
+PFNGLINVALIDATESUBFRAMEBUFFERPROC gl3wInvalidateSubFramebuffer;
+PFNGLMULTIDRAWARRAYSINDIRECTPROC gl3wMultiDrawArraysIndirect;
+PFNGLMULTIDRAWELEMENTSINDIRECTPROC gl3wMultiDrawElementsIndirect;
+PFNGLGETPROGRAMINTERFACEIVPROC gl3wGetProgramInterfaceiv;
+PFNGLGETPROGRAMRESOURCEINDEXPROC gl3wGetProgramResourceIndex;
+PFNGLGETPROGRAMRESOURCENAMEPROC gl3wGetProgramResourceName;
+PFNGLGETPROGRAMRESOURCEIVPROC gl3wGetProgramResourceiv;
+PFNGLGETPROGRAMRESOURCELOCATIONPROC gl3wGetProgramResourceLocation;
+PFNGLGETPROGRAMRESOURCELOCATIONINDEXPROC gl3wGetProgramResourceLocationIndex;
+PFNGLSHADERSTORAGEBLOCKBINDINGPROC gl3wShaderStorageBlockBinding;
+PFNGLTEXBUFFERRANGEPROC gl3wTexBufferRange;
+PFNGLTEXTUREBUFFERRANGEEXTPROC gl3wTextureBufferRangeEXT;
+PFNGLTEXSTORAGE2DMULTISAMPLEPROC gl3wTexStorage2DMultisample;
+PFNGLTEXSTORAGE3DMULTISAMPLEPROC gl3wTexStorage3DMultisample;
+PFNGLTEXTURESTORAGE2DMULTISAMPLEEXTPROC gl3wTextureStorage2DMultisampleEXT;
+PFNGLTEXTURESTORAGE3DMULTISAMPLEEXTPROC gl3wTextureStorage3DMultisampleEXT;
 
 static void load_procs(void)
 {
@@ -1206,18 +1258,6 @@ static void load_procs(void)
 	gl3wDebugMessageCallbackARB = (PFNGLDEBUGMESSAGECALLBACKARBPROC) get_proc("glDebugMessageCallbackARB");
 	gl3wGetDebugMessageLogARB = (PFNGLGETDEBUGMESSAGELOGARBPROC) get_proc("glGetDebugMessageLogARB");
 	gl3wGetGraphicsResetStatusARB = (PFNGLGETGRAPHICSRESETSTATUSARBPROC) get_proc("glGetGraphicsResetStatusARB");
-	gl3wGetnMapdvARB = (PFNGLGETNMAPDVARBPROC) get_proc("glGetnMapdvARB");
-	gl3wGetnMapfvARB = (PFNGLGETNMAPFVARBPROC) get_proc("glGetnMapfvARB");
-	gl3wGetnMapivARB = (PFNGLGETNMAPIVARBPROC) get_proc("glGetnMapivARB");
-	gl3wGetnPixelMapfvARB = (PFNGLGETNPIXELMAPFVARBPROC) get_proc("glGetnPixelMapfvARB");
-	gl3wGetnPixelMapuivARB = (PFNGLGETNPIXELMAPUIVARBPROC) get_proc("glGetnPixelMapuivARB");
-	gl3wGetnPixelMapusvARB = (PFNGLGETNPIXELMAPUSVARBPROC) get_proc("glGetnPixelMapusvARB");
-	gl3wGetnPolygonStippleARB = (PFNGLGETNPOLYGONSTIPPLEARBPROC) get_proc("glGetnPolygonStippleARB");
-	gl3wGetnColorTableARB = (PFNGLGETNCOLORTABLEARBPROC) get_proc("glGetnColorTableARB");
-	gl3wGetnConvolutionFilterARB = (PFNGLGETNCONVOLUTIONFILTERARBPROC) get_proc("glGetnConvolutionFilterARB");
-	gl3wGetnSeparableFilterARB = (PFNGLGETNSEPARABLEFILTERARBPROC) get_proc("glGetnSeparableFilterARB");
-	gl3wGetnHistogramARB = (PFNGLGETNHISTOGRAMARBPROC) get_proc("glGetnHistogramARB");
-	gl3wGetnMinmaxARB = (PFNGLGETNMINMAXARBPROC) get_proc("glGetnMinmaxARB");
 	gl3wGetnTexImageARB = (PFNGLGETNTEXIMAGEARBPROC) get_proc("glGetnTexImageARB");
 	gl3wReadnPixelsARB = (PFNGLREADNPIXELSARBPROC) get_proc("glReadnPixelsARB");
 	gl3wGetnCompressedTexImageARB = (PFNGLGETNCOMPRESSEDTEXIMAGEARBPROC) get_proc("glGetnCompressedTexImageARB");
@@ -1240,4 +1280,60 @@ static void load_procs(void)
 	gl3wTextureStorage1DEXT = (PFNGLTEXTURESTORAGE1DEXTPROC) get_proc("glTextureStorage1DEXT");
 	gl3wTextureStorage2DEXT = (PFNGLTEXTURESTORAGE2DEXTPROC) get_proc("glTextureStorage2DEXT");
 	gl3wTextureStorage3DEXT = (PFNGLTEXTURESTORAGE3DEXTPROC) get_proc("glTextureStorage3DEXT");
+	gl3wDebugMessageControl = (PFNGLDEBUGMESSAGECONTROLPROC) get_proc("glDebugMessageControl");
+	gl3wDebugMessageInsert = (PFNGLDEBUGMESSAGEINSERTPROC) get_proc("glDebugMessageInsert");
+	gl3wDebugMessageCallback = (PFNGLDEBUGMESSAGECALLBACKPROC) get_proc("glDebugMessageCallback");
+	gl3wGetDebugMessageLog = (PFNGLGETDEBUGMESSAGELOGPROC) get_proc("glGetDebugMessageLog");
+	gl3wPushDebugGroup = (PFNGLPUSHDEBUGGROUPPROC) get_proc("glPushDebugGroup");
+	gl3wPopDebugGroup = (PFNGLPOPDEBUGGROUPPROC) get_proc("glPopDebugGroup");
+	gl3wObjectLabel = (PFNGLOBJECTLABELPROC) get_proc("glObjectLabel");
+	gl3wGetObjectLabel = (PFNGLGETOBJECTLABELPROC) get_proc("glGetObjectLabel");
+	gl3wObjectPtrLabel = (PFNGLOBJECTPTRLABELPROC) get_proc("glObjectPtrLabel");
+	gl3wGetObjectPtrLabel = (PFNGLGETOBJECTPTRLABELPROC) get_proc("glGetObjectPtrLabel");
+	gl3wClearBufferData = (PFNGLCLEARBUFFERDATAPROC) get_proc("glClearBufferData");
+	gl3wClearBufferSubData = (PFNGLCLEARBUFFERSUBDATAPROC) get_proc("glClearBufferSubData");
+	gl3wClearNamedBufferDataEXT = (PFNGLCLEARNAMEDBUFFERDATAEXTPROC) get_proc("glClearNamedBufferDataEXT");
+	gl3wClearNamedBufferSubDataEXT = (PFNGLCLEARNAMEDBUFFERSUBDATAEXTPROC) get_proc("glClearNamedBufferSubDataEXT");
+	gl3wDispatchCompute = (PFNGLDISPATCHCOMPUTEPROC) get_proc("glDispatchCompute");
+	gl3wDispatchComputeIndirect = (PFNGLDISPATCHCOMPUTEINDIRECTPROC) get_proc("glDispatchComputeIndirect");
+	gl3wCopyImageSubData = (PFNGLCOPYIMAGESUBDATAPROC) get_proc("glCopyImageSubData");
+	gl3wTextureView = (PFNGLTEXTUREVIEWPROC) get_proc("glTextureView");
+	gl3wBindVertexBuffer = (PFNGLBINDVERTEXBUFFERPROC) get_proc("glBindVertexBuffer");
+	gl3wVertexAttribFormat = (PFNGLVERTEXATTRIBFORMATPROC) get_proc("glVertexAttribFormat");
+	gl3wVertexAttribIFormat = (PFNGLVERTEXATTRIBIFORMATPROC) get_proc("glVertexAttribIFormat");
+	gl3wVertexAttribLFormat = (PFNGLVERTEXATTRIBLFORMATPROC) get_proc("glVertexAttribLFormat");
+	gl3wVertexAttribBinding = (PFNGLVERTEXATTRIBBINDINGPROC) get_proc("glVertexAttribBinding");
+	gl3wVertexBindingDivisor = (PFNGLVERTEXBINDINGDIVISORPROC) get_proc("glVertexBindingDivisor");
+	gl3wVertexArrayBindVertexBufferEXT = (PFNGLVERTEXARRAYBINDVERTEXBUFFEREXTPROC) get_proc("glVertexArrayBindVertexBufferEXT");
+	gl3wVertexArrayVertexAttribFormatEXT = (PFNGLVERTEXARRAYVERTEXATTRIBFORMATEXTPROC) get_proc("glVertexArrayVertexAttribFormatEXT");
+	gl3wVertexArrayVertexAttribIFormatEXT = (PFNGLVERTEXARRAYVERTEXATTRIBIFORMATEXTPROC) get_proc("glVertexArrayVertexAttribIFormatEXT");
+	gl3wVertexArrayVertexAttribLFormatEXT = (PFNGLVERTEXARRAYVERTEXATTRIBLFORMATEXTPROC) get_proc("glVertexArrayVertexAttribLFormatEXT");
+	gl3wVertexArrayVertexAttribBindingEXT = (PFNGLVERTEXARRAYVERTEXATTRIBBINDINGEXTPROC) get_proc("glVertexArrayVertexAttribBindingEXT");
+	gl3wVertexArrayVertexBindingDivisorEXT = (PFNGLVERTEXARRAYVERTEXBINDINGDIVISOREXTPROC) get_proc("glVertexArrayVertexBindingDivisorEXT");
+	gl3wFramebufferParameteri = (PFNGLFRAMEBUFFERPARAMETERIPROC) get_proc("glFramebufferParameteri");
+	gl3wGetFramebufferParameteriv = (PFNGLGETFRAMEBUFFERPARAMETERIVPROC) get_proc("glGetFramebufferParameteriv");
+	gl3wNamedFramebufferParameteriEXT = (PFNGLNAMEDFRAMEBUFFERPARAMETERIEXTPROC) get_proc("glNamedFramebufferParameteriEXT");
+	gl3wGetNamedFramebufferParameterivEXT = (PFNGLGETNAMEDFRAMEBUFFERPARAMETERIVEXTPROC) get_proc("glGetNamedFramebufferParameterivEXT");
+	gl3wGetInternalformati64v = (PFNGLGETINTERNALFORMATI64VPROC) get_proc("glGetInternalformati64v");
+	gl3wInvalidateTexSubImage = (PFNGLINVALIDATETEXSUBIMAGEPROC) get_proc("glInvalidateTexSubImage");
+	gl3wInvalidateTexImage = (PFNGLINVALIDATETEXIMAGEPROC) get_proc("glInvalidateTexImage");
+	gl3wInvalidateBufferSubData = (PFNGLINVALIDATEBUFFERSUBDATAPROC) get_proc("glInvalidateBufferSubData");
+	gl3wInvalidateBufferData = (PFNGLINVALIDATEBUFFERDATAPROC) get_proc("glInvalidateBufferData");
+	gl3wInvalidateFramebuffer = (PFNGLINVALIDATEFRAMEBUFFERPROC) get_proc("glInvalidateFramebuffer");
+	gl3wInvalidateSubFramebuffer = (PFNGLINVALIDATESUBFRAMEBUFFERPROC) get_proc("glInvalidateSubFramebuffer");
+	gl3wMultiDrawArraysIndirect = (PFNGLMULTIDRAWARRAYSINDIRECTPROC) get_proc("glMultiDrawArraysIndirect");
+	gl3wMultiDrawElementsIndirect = (PFNGLMULTIDRAWELEMENTSINDIRECTPROC) get_proc("glMultiDrawElementsIndirect");
+	gl3wGetProgramInterfaceiv = (PFNGLGETPROGRAMINTERFACEIVPROC) get_proc("glGetProgramInterfaceiv");
+	gl3wGetProgramResourceIndex = (PFNGLGETPROGRAMRESOURCEINDEXPROC) get_proc("glGetProgramResourceIndex");
+	gl3wGetProgramResourceName = (PFNGLGETPROGRAMRESOURCENAMEPROC) get_proc("glGetProgramResourceName");
+	gl3wGetProgramResourceiv = (PFNGLGETPROGRAMRESOURCEIVPROC) get_proc("glGetProgramResourceiv");
+	gl3wGetProgramResourceLocation = (PFNGLGETPROGRAMRESOURCELOCATIONPROC) get_proc("glGetProgramResourceLocation");
+	gl3wGetProgramResourceLocationIndex = (PFNGLGETPROGRAMRESOURCELOCATIONINDEXPROC) get_proc("glGetProgramResourceLocationIndex");
+	gl3wShaderStorageBlockBinding = (PFNGLSHADERSTORAGEBLOCKBINDINGPROC) get_proc("glShaderStorageBlockBinding");
+	gl3wTexBufferRange = (PFNGLTEXBUFFERRANGEPROC) get_proc("glTexBufferRange");
+	gl3wTextureBufferRangeEXT = (PFNGLTEXTUREBUFFERRANGEEXTPROC) get_proc("glTextureBufferRangeEXT");
+	gl3wTexStorage2DMultisample = (PFNGLTEXSTORAGE2DMULTISAMPLEPROC) get_proc("glTexStorage2DMultisample");
+	gl3wTexStorage3DMultisample = (PFNGLTEXSTORAGE3DMULTISAMPLEPROC) get_proc("glTexStorage3DMultisample");
+	gl3wTextureStorage2DMultisampleEXT = (PFNGLTEXTURESTORAGE2DMULTISAMPLEEXTPROC) get_proc("glTextureStorage2DMultisampleEXT");
+	gl3wTextureStorage3DMultisampleEXT = (PFNGLTEXTURESTORAGE3DMULTISAMPLEEXTPROC) get_proc("glTextureStorage3DMultisampleEXT");
 }

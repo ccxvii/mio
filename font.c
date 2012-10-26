@@ -258,13 +258,13 @@ static int text_prog = 0;
 static int text_uni_projection = -1;
 
 static const char *text_vert_src =
-	"#version 120\n"
+	"#version 150\n"
 	"uniform mat4 Projection;\n"
-	"attribute vec2 att_Position;\n"
-	"attribute vec2 att_TexCoord;\n"
-	"attribute vec4 att_Color;\n"
-	"varying vec2 var_TexCoord;\n"
-	"varying vec4 var_Color;\n"
+	"in vec2 att_Position;\n"
+	"in vec2 att_TexCoord;\n"
+	"in vec4 att_Color;\n"
+	"out vec2 var_TexCoord;\n"
+	"out vec4 var_Color;\n"
 	"void main() {\n"
 	"	gl_Position = Projection * vec4(att_Position, 0.0, 1.0);\n"
 	"	var_TexCoord = att_TexCoord;\n"
@@ -273,18 +273,20 @@ static const char *text_vert_src =
 ;
 
 static const char *text_frag_src =
-	"#version 120\n"
+	"#version 150\n"
 	"uniform sampler2D Texture;\n"
-	"varying vec2 var_TexCoord;\n"
-	"varying vec4 var_Color;\n"
+	"in vec2 var_TexCoord;\n"
+	"in vec4 var_Color;\n"
+	"out vec4 frag_Color;\n"
 	"void main() {\n"
-	"	float coverage = texture2D(Texture, var_TexCoord).r;\n"
-	"	gl_FragColor = vec4(var_Color.rgb, var_Color.a * coverage);\n"
+	"	float coverage = texture(Texture, var_TexCoord).r;\n"
+	"	frag_Color = vec4(var_Color.rgb, var_Color.a * coverage);\n"
 	"}\n"
 ;
 
 #define MAXBUFFER (256*6)	/* size of our triangle buffer */
 
+static unsigned int text_vao = 0;
 static unsigned int text_vbo = 0;
 static int text_buf_len = 0;
 static struct {
@@ -331,11 +333,15 @@ void text_begin(float projection[16])
 		text_uni_projection = glGetUniformLocation(text_prog, "Projection");
 	}
 
+	if (!text_vao)
+		glGenVertexArrays(1, &text_vao);
+
+	glBindVertexArray(text_vao);
+
 	if (!text_vbo) {
 		glGenBuffers(1, &text_vbo);
 		glBindBuffer(GL_ARRAY_BUFFER, text_vbo);
 		glBufferData(GL_ARRAY_BUFFER, sizeof text_buf, NULL, GL_STREAM_DRAW);
-		glBindBuffer(GL_ARRAY_BUFFER, 0);
 	}
 
 	glEnable(GL_BLEND);
@@ -367,11 +373,6 @@ void text_end(void)
 {
 	text_flush();
 
-	glDisableVertexAttribArray(ATT_POSITION);
-	glDisableVertexAttribArray(ATT_TEXCOORD);
-	glDisableVertexAttribArray(ATT_COLOR);
-	glBindBuffer(GL_ARRAY_BUFFER, 0);
-	glBindTexture(GL_TEXTURE_2D, 0);
 	glUseProgram(0);
 
 	glDisable(GL_BLEND);

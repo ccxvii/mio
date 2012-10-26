@@ -255,13 +255,13 @@ static int icon_prog = 0;
 static int icon_uni_projection = -1;
 
 static const char *icon_vert_src =
-	"#version 120\n"
+	"#version 150\n"
 	"uniform mat4 Projection;\n"
-	"attribute vec2 att_Position;\n"
-	"attribute vec2 att_TexCoord;\n"
-	"attribute vec4 att_Color;\n"
-	"varying vec2 var_TexCoord;\n"
-	"varying vec4 var_Color;\n"
+	"in vec2 att_Position;\n"
+	"in vec2 att_TexCoord;\n"
+	"in vec4 att_Color;\n"
+	"out vec2 var_TexCoord;\n"
+	"out vec4 var_Color;\n"
 	"void main() {\n"
 	"	gl_Position = Projection * vec4(att_Position, 0.0, 1.0);\n"
 	"	var_TexCoord = att_TexCoord;\n"
@@ -270,15 +270,17 @@ static const char *icon_vert_src =
 ;
 
 static const char *icon_frag_src =
-	"#version 120\n"
+	"#version 150\n"
 	"uniform sampler2D Texture;\n"
-	"varying vec2 var_TexCoord;\n"
-	"varying vec4 var_Color;\n"
+	"in vec2 var_TexCoord;\n"
+	"in vec4 var_Color;\n"
+	"out vec4 frag_Color;\n"
 	"void main() {\n"
-	"	gl_FragColor = var_Color * texture2D(Texture, var_TexCoord);\n"
+	"	frag_Color = var_Color * texture(Texture, var_TexCoord);\n"
 	"}\n"
 ;
 
+static unsigned int icon_vao = 0;
 static unsigned int icon_vbo = 0;
 static int icon_buf_len = 0;
 static struct {
@@ -304,6 +306,11 @@ void icon_begin(float projection[16])
 		icon_uni_projection = glGetUniformLocation(icon_prog, "Projection");
 	}
 
+	if (!icon_vao)
+		glGenVertexArrays(1, &icon_vao);
+
+	glBindVertexArray(icon_vao);
+
 	if (!icon_vbo) {
 		glGenBuffers(1, &icon_vbo);
 		glBindBuffer(GL_ARRAY_BUFFER, icon_vbo);
@@ -327,10 +334,6 @@ void icon_begin(float projection[16])
 
 void icon_end(void)
 {
-	glDisableVertexAttribArray(ATT_POSITION);
-	glDisableVertexAttribArray(ATT_TEXCOORD);
-	glDisableVertexAttribArray(ATT_COLOR);
-	glBindBuffer(GL_ARRAY_BUFFER, 0);
 	glUseProgram(0);
 
 	glDisable(GL_BLEND);

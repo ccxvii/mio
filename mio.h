@@ -5,24 +5,16 @@
 #include <assert.h>
 #include <errno.h>
 
+#include <GL/gl3w.h>
+
 #ifdef __APPLE__
-#include <OpenGL/OpenGL.h>
-#include <GLUT/glut.h>
-#define glGenVertexArrays glGenVertexArraysAPPLE
-#define glBindVertexArray glBindVertexArrayAPPLE
-#ifndef GL_TEXTURE_2D_ARRAY
-#define GL_TEXTURE_2D_ARRAY GL_TEXTURE_2D_ARRAY_EXT
-#endif
-#ifndef GL_FRAMEBUFFER_SRGB
-#define GL_FRAMEBUFFER_SRGB GL_FRAMEBUFFER_SRGB_EXT
-#endif
-#ifndef GL_RGB16F
-#define GL_RGB16F 0x881B
-#endif
+#define glutInitContextVersion(a,b)
+#define glutInitContextFlags(a)
+#define glutInitContextProfile(a)
 #define GLUT_SRGB GLUT_RGB
-static inline int gl3wInit(void) { return 0; }
+#include <GLUT/glut.h>
 #else
-#include <GL3/gl3w.h>
+#define GLUT_3_2_CORE_PROFILE 0
 #include <GL/freeglut.h>
 #endif
 
@@ -89,6 +81,15 @@ enum {
 	ATT_BLEND_INDEX,
 	ATT_BLEND_WEIGHT,
 	ATT_COLOR,
+};
+
+enum {
+	FRAG_COLOR = 0
+};
+
+enum {
+	FRAG_NORMAL = 0,
+	FRAG_ALBEDO = 1,
 };
 
 int compile_shader(const char *vert_src, const char *frag_src);

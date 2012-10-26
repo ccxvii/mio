@@ -9,12 +9,12 @@ static int draw_uni_projection = -1;
 static int draw_uni_model_view = -1;
 
 static const char *draw_vert_src =
-	"#version 120\n"
+	"#version 150\n"
 	"uniform mat4 Projection;\n"
 	"uniform mat4 ModelView;\n"
-	"attribute vec3 att_Position;\n"
-	"attribute vec4 att_Color;\n"
-	"varying vec4 var_Color;\n"
+	"in vec3 att_Position;\n"
+	"in vec4 att_Color;\n"
+	"out vec4 var_Color;\n"
 	"void main() {\n"
 	"	vec4 position = ModelView * vec4(att_Position, 1.0);\n"
 	"	gl_Position = Projection * position;\n"
@@ -23,15 +23,17 @@ static const char *draw_vert_src =
 ;
 
 static const char *draw_frag_src =
-	"#version 120\n"
-	"varying vec4 var_Color;\n"
+	"#version 150\n"
+	"in vec4 var_Color;\n"
+	"out vec4 frag_Color;\n"
 	"void main() {\n"
-	"	gl_FragColor = var_Color;\n"
+	"	frag_Color = var_Color;\n"
 	"}\n"
 ;
 
 #define MAXBUFFER (256*2)	/* size of our triangle buffer */
 
+static unsigned int draw_vao = 0;
 static unsigned int draw_vbo = 0;
 static int draw_buf_len = 0;
 static struct {
@@ -59,11 +61,15 @@ void draw_begin(float projection[16], float model_view[16])
 		draw_uni_model_view = glGetUniformLocation(draw_prog, "ModelView");
 	}
 
+	if (!draw_vao)
+		glGenVertexArrays(1, &draw_vao);
+
+	glBindVertexArray(draw_vao);
+
 	if (!draw_vbo) {
 		glGenBuffers(1, &draw_vbo);
 		glBindBuffer(GL_ARRAY_BUFFER, draw_vbo);
 		glBufferData(GL_ARRAY_BUFFER, sizeof draw_buf, NULL, GL_STREAM_DRAW);
-		glBindBuffer(GL_ARRAY_BUFFER, 0);
 	}
 
 	glEnable(GL_BLEND);
@@ -92,9 +98,6 @@ void draw_end(void)
 {
 	draw_flush();
 
-	glDisableVertexAttribArray(ATT_POSITION);
-	glDisableVertexAttribArray(ATT_COLOR);
-	glBindBuffer(GL_ARRAY_BUFFER, 0);
 	glUseProgram(0);
 
 	glDisable(GL_BLEND);
