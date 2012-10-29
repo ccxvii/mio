@@ -274,7 +274,8 @@ void apply_animation(
 }
 
 static const char *ryzom_bones[] = {
-	"bip01", "bip01_pelvis", "bip01_l_clavicle", "bip01_r_clavicle", "bip01_spine", "bip01_tail"
+	"bip01", "bip01_pelvis", "bip01_l_clavicle", "bip01_r_clavicle", "bip01_spine", "bip01_tail",
+	"bip02", "bip02_pelvis",
 };
 
 void apply_animation_ryzom(
