@@ -110,6 +110,60 @@ void mat_ortho(mat4 m,
 	M(3,3) = 1;
 }
 
+void mat_look_at(mat4 m, const vec3 eye, const vec3 center, const vec3 up_in)
+{
+	vec3 forward, side, up;
+	vec_sub(forward, center, eye);
+	vec_normalize(forward, forward);
+	vec_cross(side, forward, up_in);
+	vec_normalize(side, side);
+	vec_cross(up, side, forward);
+	m[0] = side[0];
+	m[4] = side[1];
+	m[8] = side[2];
+	m[12] = 0;
+	m[1] = up[0];
+	m[5] = up[1];
+	m[9] = up[2];
+	m[13] = 0;
+	m[2] = -forward[0];
+	m[6] = -forward[1];
+	m[10] = -forward[2];
+	m[14] = 0;
+	m[3] = 0;
+	m[7] = 0;
+	m[11] = 0;
+	m[15] = 1;
+	mat_translate(m, -eye[0], -eye[1], -eye[2]);
+}
+
+void mat_look(mat4 m, const vec3 eye, const vec3 forward_in, const vec3 up_in)
+{
+	vec3 forward, side, up;
+	vec_normalize(forward, forward_in);
+	vec_cross(side, forward, up_in);
+	vec_normalize(side, side);
+	vec_cross(up, side, forward);
+	vec_normalize(up, up);
+	m[0] = side[0];
+	m[4] = side[1];
+	m[8] = side[2];
+	m[12] = 0;
+	m[1] = up[0];
+	m[5] = up[1];
+	m[9] = up[2];
+	m[13] = 0;
+	m[2] = -forward[0];
+	m[6] = -forward[1];
+	m[10] = -forward[2];
+	m[14] = 0;
+	m[3] = 0;
+	m[7] = 0;
+	m[11] = 0;
+	m[15] = 1;
+	mat_translate(m, -eye[0], -eye[1], -eye[2]);
+}
+
 void mat_scale(mat4 m, float x, float y, float z)
 {
 	m[0] *= x; m[4] *= y; m[8] *= z;
@@ -346,14 +400,14 @@ float vec_dist(const vec3 a, const vec3 b)
 	return sqrtf(vec_dist2(a, b));
 }
 
-void vec_normalize(vec3 v)
+void vec_normalize(vec3 v, const vec3 a)
 {
-	float d = sqrtf(v[0]*v[0] + v[1]*v[1] + v[2]*v[2]);
+	float d = sqrtf(a[0]*a[0] + a[1]*a[1] + a[2]*a[2]);
 	if (d >= 0.00001) {
 		d = 1 / d;
-		v[0] *= d;
-		v[1] *= d;
-		v[2] *= d;
+		v[0] = a[0] * d;
+		v[1] = a[1] * d;
+		v[2] = a[2] * d;
 	} else {
 		v[0] = v[1] = 0;
 		v[2] = 1;
@@ -430,15 +484,15 @@ void quat_vec_mul(vec3 dest, const vec4 q, const vec3 v)
 	dest[2] = t2[2];
 }
 
-void quat_normalize(vec4 q)
+void quat_normalize(vec4 q, const vec4 a)
 {
-	float d = sqrtf(q[0]*q[0] + q[1]*q[1] + q[2]*q[2] + q[3]*q[3]);
+	float d = sqrtf(a[0]*a[0] + a[1]*a[1] + a[2]*a[2] + a[3]*a[3]);
 	if (d >= 0.00001) {
 		d = 1 / d;
-		q[0] *= d;
-		q[1] *= d;
-		q[2] *= d;
-		q[3] *= d;
+		q[0] = a[0] * d;
+		q[1] = a[1] * d;
+		q[2] = a[2] * d;
+		q[3] = a[3] * d;
 	} else {
 		q[0] = q[1] = q[2] = 0;
 		q[3] = 1;
@@ -456,7 +510,7 @@ void quat_lerp(vec4 p, const vec4 a, const vec4 b, float t)
 void quat_lerp_normalize(vec4 p, const vec4 a, const vec4 b, float t)
 {
 	quat_lerp(p, a, b, t);
-	quat_normalize(p);
+	quat_normalize(p, p);
 }
 
 void quat_lerp_neighbor_normalize(vec4 p, const vec4 a, const vec4 b, float t)
@@ -466,7 +520,7 @@ void quat_lerp_neighbor_normalize(vec4 p, const vec4 a, const vec4 b, float t)
 		quat_lerp(p, temp, b, t);
 	} else
 		quat_lerp(p, a, b, t);
-	quat_normalize(p);
+	quat_normalize(p, p);
 }
 
 void mat_from_quat(mat4 m, const vec4 q)
