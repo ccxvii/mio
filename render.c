@@ -3,7 +3,7 @@
 #include "mio.h"
 
 static unsigned int fbo_shadow = 0;
-static unsigned int shadow_size = 128;
+static unsigned int shadow_size = 512;
 
 static const mat4 bias_matrix = {
 	0.5f, 0.0f, 0.0f, 0.0f,
@@ -537,7 +537,7 @@ static const char *spot_frag_src =
 
 	"	vec3 L = normalize(direction);\n"
 	"	float spot = dot(LightDirection, L);\n"
-	//"	if (spot <= LightAngle) { shadow = 0.0; }\n"
+	"	if (spot <= LightAngle) { shadow = 0.0; }\n"
 
 	"	float diffuse = max(dot(normal, L), 0.0) * falloff;\n"
 
