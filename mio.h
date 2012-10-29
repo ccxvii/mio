@@ -240,6 +240,11 @@ void console_draw(mat4 projection, struct font *font, float size);
 
 /* deferred shading */
 
+int alloc_shadow_map(void);
+void render_spot_shadow(int map, vec3 spot_position, vec3 spot_direction, float spot_angle, float distance);
+void render_sun_shadow(int map, vec3 sun_position, vec3 sun_direction, float width, float depth);
+void render_model_shadow(struct model *model);
+
 void render_setup(int w, int h);
 
 void render_geometry_pass(void);
@@ -247,9 +252,9 @@ void render_light_pass(void);
 void render_forward_pass(void);
 void render_finish(void);
 
-void render_sun_light(mat4 projection, mat4 model_view, vec3 sun_direction, vec3 color);
+void render_sun_light(int shadow_map, mat4 projection, mat4 model_view, vec3 sun_position, vec3 sun_direction, float w, float d, vec3 color);
 void render_point_light(mat4 projection, mat4 model_view, vec3 point_position, vec3 color, float distance);
-void render_spot_light(mat4 projection, mat4 model_view, vec3 spot_position, vec3 spot_direction, float angle, vec3 color, float distance);
+void render_spot_light(int map, mat4 projection, mat4 model_view, vec3 spot_position, vec3 spot_direction, float angle, vec3 color, float distance);
 void render_model(struct model *model, mat4 projection, mat4 model_view);
 
 void render_blit(float projection[16], int w, int h);

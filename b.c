@@ -14,7 +14,10 @@ static float cam_dist = 5;
 static float cam_yaw = 0;
 static float cam_pitch = -20;
 
-static float X = 3;
+static float X = 0;
+
+static int spot_shadow = 0;
+static int sun_shadow = 0;
 
 void togglefullscreen(void)
 {
@@ -105,6 +108,11 @@ static void display(void)
 	float model_view[16];
 	int i;
 
+	if (!spot_shadow)
+		spot_shadow = alloc_shadow_map();
+	if (!sun_shadow)
+		sun_shadow = alloc_shadow_map();
+
 	/* Render world */
 
 	glViewport(0, 0, screenw, screenh);
@@ -112,13 +120,39 @@ static void display(void)
 	glClearColor(0.05, 0.05, 0.05, 1.0);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-	mat_perspective(projection, 75, (float)screenw / screenh, 0.1, 1000);
+	mat_perspective(projection, 75, (float)screenw / screenh, 0.5, 100);
 	mat_identity(model_view);
 	mat_rotate_x(model_view, -90);
 
 	mat_translate(model_view, 0, cam_dist, -cam_dist / 5);
 	mat_rotate_x(model_view, -cam_pitch);
 	mat_rotate_z(model_view, -cam_yaw);
+
+	static vec3 spot_position = { 0, 0, 5 };
+	static vec3 spot_direction = { 0.5, 0, -1 };
+	static vec3 spot_color = { 1.0, 1.0, 1.0 };
+	static float spot_distance = 50.0;
+	static float spot_angle = 90.0;
+
+	static vec3 sun_position = { 0, 0, 5 };
+	//static vec3 sun_direction = { -2, -1, 2 };
+	static vec3 sun_direction = { 2, 1, -2 };
+	static vec3 sun_color = { 0.1, 0.1, 0.1 };
+
+	spot_position[0] = X;
+
+	render_spot_shadow(spot_shadow, spot_position, spot_direction, spot_angle, spot_distance);
+	{
+		render_model_shadow(model);
+	}
+
+#define SUN_W 10
+#define SUN_D 10
+
+	render_sun_shadow(sun_shadow, sun_position, sun_direction, SUN_W, SUN_D);
+	{
+		render_model_shadow(model);
+	}
 
 	render_geometry_pass();
 	{
@@ -127,9 +161,7 @@ static void display(void)
 
 	render_light_pass();
 	{
-		static vec3 sun_direction = { -2, -1, 2 };
-		static vec3 sun_color = { 0.8, 0.8, 0.8 };
-		render_sun_light(projection, model_view, sun_direction, sun_color);
+		render_sun_light(sun_shadow, projection, model_view, sun_position, sun_direction, SUN_W, SUN_D, sun_color);
 
 		static vec3 moon_direction = { 2, -1, 1 };
 		static vec3 moon_color = { 0.2, 0.2, 0.2 };
@@ -139,14 +171,9 @@ static void display(void)
 		static vec3 torch_color = { 1.0, 1.0, 1.0 };
 		static float torch_distance = 25.0;
 		torch_position[1] = X;
-		render_point_light(projection, model_view, torch_position, torch_color, torch_distance);
+		//render_point_light(projection, model_view, torch_position, torch_color, torch_distance);
 
-		static vec3 spot_position = { 0, -3, 0 };
-		static vec3 spot_direction = { 0, -1, 0 };
-		static vec3 spot_color = { 1.0, 0.0, 0.0 };
-		static float spot_distance = 25.0;
-		static float spot_angle = 15.0;
-		render_spot_light(projection, model_view, spot_position, spot_direction, spot_angle, spot_color, spot_distance);
+		render_spot_light(spot_shadow, projection, model_view, spot_position, spot_direction, spot_angle, spot_color, spot_distance);
 	}
 
 	render_forward_pass();
@@ -163,8 +190,13 @@ static void display(void)
 	mat_ortho(projection, 0, screenw, screenh, 0, -1, 1);
 	mat_identity(model_view);
 
-	render_blit(projection, screenw, screenh);
-	//render_debug_buffers(projection);
+	//render_blit(projection, screenw, screenh);
+	render_debug_buffers(projection);
+
+	icon_begin(projection);
+	icon_show(spot_shadow, 0, 0, 128, 128, 0, 0, 1, 1);
+	icon_show(sun_shadow, 128, 0, 256, 128, 0, 0, 1, 1);
+	icon_end();
 
 	if (showconsole)
 		console_draw(projection, droid_sans_mono, 15);
@@ -221,7 +253,10 @@ int main(int argc, char **argv)
 
 	console_init();
 
-	model = load_model("tr_mo_kami_caster.iqm");
+	if (argc > 1)
+		model = load_model(argv[1]);
+	else
+		model = load_model("untitled.iqe");
 
 	glutMainLoop();
 	return 0;
