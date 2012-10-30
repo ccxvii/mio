@@ -261,7 +261,6 @@ void render_debug_buffers(float projection[16])
 /* draw lights */
 
 static const char *quad_vert_src =
-	"#version 150\n"
 	"in vec4 att_Position;\n"
 	"void main() {\n"
 	"	gl_Position = att_Position;\n"
@@ -299,7 +298,6 @@ static void draw_fullscreen_quad(void)
 /* Sun light */
 
 static const char *sun_frag_src =
-	"#version 150\n"
 	"uniform vec2 Viewport;\n"
 	"uniform mat4 InverseProjection;\n"
 	"uniform mat4 ShadowMatrix;\n"
@@ -410,7 +408,6 @@ void render_sun_light(int shadow_map, mat4 projection, mat4 model_view, vec3 sun
 /* Point light */
 
 static const char *point_frag_src =
-	"#version 150\n"
 	"uniform vec2 Viewport;\n"
 	"uniform mat4 InverseProjection;\n"
 	"uniform sampler2D DepthSampler;\n"
@@ -502,7 +499,6 @@ void render_point_light(mat4 projection, mat4 model_view, vec3 point_position, v
 /* Spot light */
 
 static const char *spot_frag_src =
-	"#version 150\n"
 	"uniform vec2 Viewport;\n"
 	"uniform mat4 InverseProjection;\n"
 	"uniform mat4 ShadowMatrix;\n"
@@ -637,7 +633,6 @@ void render_spot_light(int shadow_map, mat4 projection, mat4 model_view, vec3 sp
 /* draw model */
 
 static const char *static_vert_src =
-	"#version 150\n"
 	"uniform mat4 Projection;\n"
 	"uniform mat4 ModelView;\n"
 	"in vec4 att_Position;\n"
@@ -654,7 +649,6 @@ static const char *static_vert_src =
 ;
 
 static const char *static_frag_src =
-	"#version 150\n"
 	"uniform sampler2D SamplerDiffuse;\n"
 	"uniform sampler2D SamplerSpecular;\n"
 	"in vec3 var_Normal;\n"
@@ -715,7 +709,6 @@ void render_model(struct model *model, mat4 projection, mat4 model_view)
 }
 
 static const char *shadow_vert_src =
-	"#version 150\n"
 	"uniform mat4 Projection;\n"
 	"uniform mat4 ModelView;\n"
 	"in vec4 att_Position;\n"
@@ -728,7 +721,6 @@ static const char *shadow_vert_src =
 ;
 
 static const char *shadow_frag_src =
-	"#version 150\n"
 	"uniform sampler2D SamplerDiffuse;\n"
 	"in vec2 var_TexCoord;\n"
 	"void main() {\n"

@@ -9,7 +9,6 @@ static int draw_uni_projection = -1;
 static int draw_uni_model_view = -1;
 
 static const char *draw_vert_src =
-	"#version 150\n"
 	"uniform mat4 Projection;\n"
 	"uniform mat4 ModelView;\n"
 	"in vec3 att_Position;\n"
@@ -23,7 +22,6 @@ static const char *draw_vert_src =
 ;
 
 static const char *draw_frag_src =
-	"#version 150\n"
 	"in vec4 var_Color;\n"
 	"out vec4 frag_Color;\n"
 	"void main() {\n"

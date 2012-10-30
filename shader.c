@@ -1,5 +1,13 @@
 #include "mio.h"
 
+#ifdef __APPLE__
+#define GLSL_VERT_PROLOG "#version 150\n"
+#define GLSL_FRAG_PROLOG "#version 150\n"
+#else
+#define GLSL_VERT_PROLOG "#version 130\n"
+#define GLSL_FRAG_PROLOG "#version 130\n"
+#endif
+
 static void print_shader_log(char *kind, int shader)
 {
 	int len;
@@ -22,20 +30,28 @@ static void print_program_log(int program)
 
 int compile_shader(const char *vert_src, const char *frag_src)
 {
+	const char *vert_src_list[2];
+	const char *frag_src_list[2];
 	int status;
 
 	if (!vert_src || !frag_src)
 		return 0;
 
+	vert_src_list[0] = GLSL_VERT_PROLOG;
+	vert_src_list[1] = vert_src;
+
 	int vert = glCreateShader(GL_VERTEX_SHADER);
-	glShaderSource(vert, 1, &vert_src, NULL);
+	glShaderSource(vert, nelem(vert_src_list), vert_src_list, NULL);
 	glCompileShader(vert);
 	glGetShaderiv(vert, GL_COMPILE_STATUS, &status);
 	if (!status)
 		print_shader_log("vertex", vert);
 
+	frag_src_list[0] = GLSL_FRAG_PROLOG;
+	frag_src_list[1] = frag_src;
+
 	int frag = glCreateShader(GL_FRAGMENT_SHADER);
-	glShaderSource(frag, 1, &frag_src, NULL);
+	glShaderSource(frag, nelem(frag_src_list), frag_src_list, NULL);
 	glCompileShader(frag);
 	glGetShaderiv(frag, GL_COMPILE_STATUS, &status);
 	if (!status)
@@ -61,10 +77,6 @@ int compile_shader(const char *vert_src, const char *frag_src)
 	glGetProgramiv(prog, GL_LINK_STATUS, &status);
 	if (!status)
 		print_program_log(prog);
-
-//	print_shader_log("vertex", vert);
-//	print_shader_log("fragment", frag);
-//	print_program_log(prog);
 
 	glDeleteShader(vert);
 	glDeleteShader(frag);

@@ -52,7 +52,6 @@ struct animation *load_animation(char *filename)
 }
 
 static const char *static_vert_src =
-	"#version 150\n"
 	"uniform mat4 Projection;\n"
 	"uniform mat4 ModelView;\n"
 	"in vec4 att_Position;\n"
@@ -72,7 +71,6 @@ static const char *static_vert_src =
 ;
 
 static const char *bone_vert_src =
-	"#version 150\n"
 	"uniform mat4 Projection;\n"
 	"uniform mat4 ModelView;\n"
 	"uniform mat4 BoneMatrix[80];\n"
@@ -106,7 +104,6 @@ static const char *bone_vert_src =
 ;
 
 static const char *model_frag_src =
-	"#version 150\n"
 	"uniform sampler2D SamplerDiffuse;\n"
 	"uniform sampler2D SamplerSpecular;\n"
 	"in vec3 var_Position;\n"
@@ -135,7 +132,6 @@ static const char *model_frag_src =
 ;
 
 static const char *ghost_frag_src =
-	"#version 150\n"
 	"uniform sampler2D SamplerDiffuse;\n"
 	"in vec2 var_TexCoord;\n"
 	"out vec4 frag_Color;\n"

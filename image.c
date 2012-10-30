@@ -255,7 +255,6 @@ static int icon_prog = 0;
 static int icon_uni_projection = -1;
 
 static const char *icon_vert_src =
-	"#version 150\n"
 	"uniform mat4 Projection;\n"
 	"in vec2 att_Position;\n"
 	"in vec2 att_TexCoord;\n"
@@ -270,7 +269,6 @@ static const char *icon_vert_src =
 ;
 
 static const char *icon_frag_src =
-	"#version 150\n"
 	"uniform sampler2D Texture;\n"
 	"in vec2 var_TexCoord;\n"
 	"in vec4 var_Color;\n"
