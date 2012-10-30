@@ -490,7 +490,4 @@ void draw_model_with_pose(struct model *model, mat4 projection, mat4 model_view,
 		glActiveTexture(GL_TEXTURE0);
 		glDrawElements(GL_TRIANGLES, model->mesh[i].count, GL_UNSIGNED_SHORT, (void*)(model->mesh[i].first * 2));
 	}
-
-	glBindVertexArray(0);
-	glUseProgram(0);
 }

@@ -331,15 +331,21 @@ void text_begin(float projection[16])
 		text_uni_projection = glGetUniformLocation(text_prog, "Projection");
 	}
 
-	if (!text_vao)
+	if (!text_vao) {
 		glGenVertexArrays(1, &text_vao);
+		glBindVertexArray(text_vao);
 
-	glBindVertexArray(text_vao);
-
-	if (!text_vbo) {
 		glGenBuffers(1, &text_vbo);
 		glBindBuffer(GL_ARRAY_BUFFER, text_vbo);
+
 		glBufferData(GL_ARRAY_BUFFER, sizeof text_buf, NULL, GL_STREAM_DRAW);
+
+		glEnableVertexAttribArray(ATT_POSITION);
+		glEnableVertexAttribArray(ATT_TEXCOORD);
+		glEnableVertexAttribArray(ATT_COLOR);
+		glVertexAttribPointer(ATT_POSITION, 2, GL_FLOAT, 0, sizeof text_buf[0], (void*)0);
+		glVertexAttribPointer(ATT_TEXCOORD, 2, GL_FLOAT, 0, sizeof text_buf[0], (void*)8);
+		glVertexAttribPointer(ATT_COLOR, 4, GL_FLOAT, 0, sizeof text_buf[0], (void*)16);
 	}
 
 	glEnable(GL_BLEND);
@@ -347,15 +353,9 @@ void text_begin(float projection[16])
 	glUseProgram(text_prog);
 	glUniformMatrix4fv(text_uni_projection, 1, 0, projection);
 
-	glBindTexture(GL_TEXTURE_2D, cache_tex);
+	glBindVertexArray(text_vao);
 
-	glBindBuffer(GL_ARRAY_BUFFER, text_vbo);
-	glEnableVertexAttribArray(ATT_POSITION);
-	glEnableVertexAttribArray(ATT_TEXCOORD);
-	glEnableVertexAttribArray(ATT_COLOR);
-	glVertexAttribPointer(ATT_POSITION, 2, GL_FLOAT, 0, sizeof text_buf[0], (void*)0);
-	glVertexAttribPointer(ATT_TEXCOORD, 2, GL_FLOAT, 0, sizeof text_buf[0], (void*)8);
-	glVertexAttribPointer(ATT_COLOR, 4, GL_FLOAT, 0, sizeof text_buf[0], (void*)16);
+	glBindTexture(GL_TEXTURE_2D, cache_tex);
 }
 
 static void text_flush(void)
@@ -370,8 +370,6 @@ static void text_flush(void)
 void text_end(void)
 {
 	text_flush();
-
-	glUseProgram(0);
 
 	glDisable(GL_BLEND);
 }

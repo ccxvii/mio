@@ -59,15 +59,19 @@ void draw_begin(float projection[16], float model_view[16])
 		draw_uni_model_view = glGetUniformLocation(draw_prog, "ModelView");
 	}
 
-	if (!draw_vao)
+	if (!draw_vao) {
 		glGenVertexArrays(1, &draw_vao);
+		glBindVertexArray(draw_vao);
 
-	glBindVertexArray(draw_vao);
-
-	if (!draw_vbo) {
 		glGenBuffers(1, &draw_vbo);
 		glBindBuffer(GL_ARRAY_BUFFER, draw_vbo);
+
 		glBufferData(GL_ARRAY_BUFFER, sizeof draw_buf, NULL, GL_STREAM_DRAW);
+
+		glEnableVertexAttribArray(ATT_POSITION);
+		glEnableVertexAttribArray(ATT_COLOR);
+		glVertexAttribPointer(ATT_POSITION, 3, GL_FLOAT, 0, sizeof draw_buf[0], (void*)0);
+		glVertexAttribPointer(ATT_COLOR, 4, GL_FLOAT, 0, sizeof draw_buf[0], (void*)12);
 	}
 
 	glEnable(GL_BLEND);
@@ -76,11 +80,7 @@ void draw_begin(float projection[16], float model_view[16])
 	glUniformMatrix4fv(draw_uni_projection, 1, 0, projection);
 	glUniformMatrix4fv(draw_uni_model_view, 1, 0, model_view);
 
-	glBindBuffer(GL_ARRAY_BUFFER, draw_vbo);
-	glEnableVertexAttribArray(ATT_POSITION);
-	glEnableVertexAttribArray(ATT_COLOR);
-	glVertexAttribPointer(ATT_POSITION, 3, GL_FLOAT, 0, sizeof draw_buf[0], (void*)0);
-	glVertexAttribPointer(ATT_COLOR, 4, GL_FLOAT, 0, sizeof draw_buf[0], (void*)12);
+	glBindVertexArray(draw_vao);
 }
 
 static void draw_flush(void)
@@ -95,8 +95,6 @@ static void draw_flush(void)
 void draw_end(void)
 {
 	draw_flush();
-
-	glUseProgram(0);
 
 	glDisable(GL_BLEND);
 }

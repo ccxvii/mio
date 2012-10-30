@@ -391,10 +391,6 @@ struct model *load_iqe_model_from_memory(char *filename, unsigned char *data, in
 
 	glBufferData(GL_ELEMENT_ARRAY_BUFFER, element.len * 2, element.data, GL_STATIC_DRAW);
 
-	glBindVertexArray(0);
-	glBindBuffer(GL_ARRAY_BUFFER, 0);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-
 	if (bone_count > 0 && pose_count >= bone_count) {
 		model->bone_count = bone_count;
 		memcpy(model->bone_name, bonename, sizeof bonename); // XXX careful of size

@@ -304,16 +304,21 @@ void icon_begin(float projection[16])
 		icon_uni_projection = glGetUniformLocation(icon_prog, "Projection");
 	}
 
-	if (!icon_vao)
+	if (!icon_vao) {
 		glGenVertexArrays(1, &icon_vao);
+		glBindVertexArray(icon_vao);
 
-	glBindVertexArray(icon_vao);
-
-	if (!icon_vbo) {
 		glGenBuffers(1, &icon_vbo);
 		glBindBuffer(GL_ARRAY_BUFFER, icon_vbo);
+
 		glBufferData(GL_ARRAY_BUFFER, sizeof icon_buf, NULL, GL_STREAM_DRAW);
-		glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+		glEnableVertexAttribArray(ATT_POSITION);
+		glEnableVertexAttribArray(ATT_TEXCOORD);
+		glEnableVertexAttribArray(ATT_COLOR);
+		glVertexAttribPointer(ATT_POSITION, 2, GL_FLOAT, 0, sizeof icon_buf[0], (void*)0);
+		glVertexAttribPointer(ATT_TEXCOORD, 2, GL_FLOAT, 0, sizeof icon_buf[0], (void*)8);
+		glVertexAttribPointer(ATT_COLOR, 4, GL_FLOAT, 0, sizeof icon_buf[0], (void*)16);
 	}
 
 	glEnable(GL_BLEND);
@@ -321,19 +326,11 @@ void icon_begin(float projection[16])
 	glUseProgram(icon_prog);
 	glUniformMatrix4fv(icon_uni_projection, 1, 0, projection);
 
-	glBindBuffer(GL_ARRAY_BUFFER, icon_vbo);
-	glEnableVertexAttribArray(ATT_POSITION);
-	glEnableVertexAttribArray(ATT_TEXCOORD);
-	glEnableVertexAttribArray(ATT_COLOR);
-	glVertexAttribPointer(ATT_POSITION, 2, GL_FLOAT, 0, sizeof icon_buf[0], (void*)0);
-	glVertexAttribPointer(ATT_TEXCOORD, 2, GL_FLOAT, 0, sizeof icon_buf[0], (void*)8);
-	glVertexAttribPointer(ATT_COLOR, 4, GL_FLOAT, 0, sizeof icon_buf[0], (void*)16);
+	glBindVertexArray(icon_vao);
 }
 
 void icon_end(void)
 {
-	glUseProgram(0);
-
 	glDisable(GL_BLEND);
 }
 
@@ -367,5 +364,4 @@ void icon_show(int texture,
 	glBindTexture(GL_TEXTURE_2D, texture);
 	glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof icon_buf[0] * icon_buf_len, icon_buf);
 	glDrawArrays(GL_TRIANGLES, 0, icon_buf_len);
-	glBindTexture(GL_TEXTURE_2D, 0);
 }
