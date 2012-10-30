@@ -693,7 +693,6 @@ void render_model(struct model *model, mat4 projection, mat4 model_view)
 	glUniform1i(static_uni_sampler_specular, 1);
 
 	glBindVertexArray(model->vao);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, model->ibo);
 
 	for (i = 0; i < model->mesh_count; i++) {
 		glActiveTexture(GL_TEXTURE0);
@@ -759,7 +758,6 @@ void render_model_shadow(struct model *model)
 	glUniform1i(shadow_uni_sampler_diffuse, 0);
 
 	glBindVertexArray(model->vao);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, model->ibo);
 
 	for (i = 0; i < model->mesh_count; i++) {
 		glBindTexture(GL_TEXTURE_2D, model->mesh[i].diffuse);

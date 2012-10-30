@@ -390,7 +390,6 @@ void draw_model(struct model *model, mat4 projection, mat4 model_view)
 	glUniform1i(static_uni_sampler_specular, 1);
 
 	glBindVertexArray(model->vao);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, model->ibo);
 
 	for (i = 0; i < model->mesh_count; i++) {
 		glActiveTexture(GL_TEXTURE0);
@@ -437,7 +436,6 @@ void draw_model_ghost(struct model *model, mat4 projection, mat4 model_view)
 	glDepthMask(GL_FALSE);
 
 	glBindVertexArray(model->vao);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, model->ibo);
 
 	for (i = 0; i < model->mesh_count; i++) {
 		glBindTexture(GL_TEXTURE_2D, model->mesh[i].diffuse);
@@ -483,7 +481,6 @@ void draw_model_with_pose(struct model *model, mat4 projection, mat4 model_view,
 	glUniformMatrix4fv(bone_uni_skin_matrix, model->bone_count, 0, skin_matrix[0]);
 
 	glBindVertexArray(model->vao);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, model->ibo);
 
 	for (i = 0; i < model->mesh_count; i++) {
 		glActiveTexture(GL_TEXTURE0);
