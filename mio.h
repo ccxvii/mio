@@ -18,6 +18,10 @@
 #include <GL/freeglut.h>
 #endif
 
+const char *gl_error_string(GLenum code);
+void gl_assert(const char *msg);
+void gl_assert_framebuffer(GLenum target, const char *msg);
+
 #define GL_TEXTURE_MAX_ANISOTROPY_EXT 0x84FE
 #define GL_COMPRESSED_RGB_S3TC_DXT1_EXT 0x83F0
 #define GL_COMPRESSED_RGBA_S3TC_DXT1_EXT 0x83F1

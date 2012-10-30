@@ -18,7 +18,6 @@ static mat4 shadow_matrix;
 
 int alloc_shadow_map(void)
 {
-	int status;
 	unsigned int tex;
 
 	glGenTextures(1, &tex);
@@ -36,16 +35,12 @@ int alloc_shadow_map(void)
 		glGenFramebuffers(1, &fbo_shadow);
 		glBindFramebuffer(GL_FRAMEBUFFER, fbo_shadow);
 
-		glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, tex, 0);
+		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, tex, 0);
 
 		glReadBuffer(GL_NONE);
 		glDrawBuffer(GL_NONE);
 
-		status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
-		if (status != GL_FRAMEBUFFER_COMPLETE) {
-			fprintf(stderr, "cannot create shadow framebuffer (0x%X)\n", status);
-			exit(1);
-		}
+		gl_assert_framebuffer(GL_FRAMEBUFFER, "shadow");
 	}
 
 	return tex;
@@ -64,7 +59,7 @@ static void setup_spot_shadow(vec3 spot_position, vec3 spot_direction, float spo
 void render_spot_shadow(int shadow_map, vec3 spot_position, vec3 spot_direction, float spot_angle, float distance)
 {
 	glBindFramebuffer(GL_FRAMEBUFFER, fbo_shadow);
-	glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, shadow_map, 0);
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, shadow_map, 0);
 	glViewport(0, 0, shadow_size, shadow_size);
 	glClear(GL_DEPTH_BUFFER_BIT);
 	glEnable(GL_DEPTH_TEST);
@@ -85,7 +80,7 @@ static void setup_sun_shadow(vec3 sun_position, vec3 sun_direction, float width,
 void render_sun_shadow(int shadow_map, vec3 sun_position, vec3 sun_direction, float width, float depth)
 {
 	glBindFramebuffer(GL_FRAMEBUFFER, fbo_shadow);
-	glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, shadow_map, 0);
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, shadow_map, 0);
 	glViewport(0, 0, shadow_size, shadow_size);
 	glClear(GL_DEPTH_BUFFER_BIT);
 	glEnable(GL_DEPTH_TEST);
@@ -143,18 +138,14 @@ void render_setup(int w, int h)
 	glGenFramebuffers(1, &fbo_geometry);
 	glBindFramebuffer(GL_FRAMEBUFFER, fbo_geometry);
 
-	glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, tex_depth, 0);
-	glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + FRAG_NORMAL, GL_TEXTURE_2D, tex_normal, 0);
-	glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + FRAG_ALBEDO, GL_TEXTURE_2D, tex_albedo, 0);
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, tex_depth, 0);
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + FRAG_NORMAL, GL_TEXTURE_2D, tex_normal, 0);
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + FRAG_ALBEDO, GL_TEXTURE_2D, tex_albedo, 0);
 
 	glReadBuffer(GL_NONE);
 	glDrawBuffers(nelem(geometry_list), geometry_list);
 
-	status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
-	if (status != GL_FRAMEBUFFER_COMPLETE) {
-		fprintf(stderr, "cannot create geometry framebuffer (0x%X)\n", status);
-		exit(1);
-	}
+	gl_assert_framebuffer(GL_FRAMEBUFFER, "geometry");
 
 	/* For the light accumulation and forward passes */
 
@@ -163,17 +154,13 @@ void render_setup(int w, int h)
 	glGenFramebuffers(1, &fbo_forward);
 	glBindFramebuffer(GL_FRAMEBUFFER, fbo_forward);
 
-	glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, tex_depth, 0);
-	glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, tex_forward, 0);
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, tex_depth, 0);
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, tex_forward, 0);
 
 	glReadBuffer(GL_NONE);
 	glDrawBuffers(nelem(forward_list), forward_list);
 
-	status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
-	if (status != GL_FRAMEBUFFER_COMPLETE) {
-		fprintf(stderr, "cannot create forward framebuffer (0x%X)\n", status);
-		exit(1);
-	}
+	gl_assert_framebuffer(GL_FRAMEBUFFER, "deferred");
 
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }

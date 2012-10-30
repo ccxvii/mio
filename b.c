@@ -200,8 +200,8 @@ static void display(void)
 	mat_ortho(projection, 0, screenw, screenh, 0, -1, 1);
 	mat_identity(model_view);
 
-	render_blit(projection, screenw, screenh);
-	//render_debug_buffers(projection);
+	//render_blit(projection, screenw, screenh);
+	render_debug_buffers(projection);
 
 	icon_begin(projection);
 	icon_show(spot_shadow, 0, 0, 128, 128, 0, 0, 1, 1);
@@ -213,9 +213,7 @@ static void display(void)
 
 	glutSwapBuffers();
 
-	i = glGetError();
-	if (i)
-		fprintf(stderr, "opengl error %d\n", i);
+	gl_assert("swap buffers");
 }
 
 int main(int argc, char **argv)

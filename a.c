@@ -275,9 +275,7 @@ static void display(void)
 
 	glutSwapBuffers();
 
-	i = glGetError();
-	if (i)
-		fprintf(stderr, "opengl error %d\n", i);
+	gl_assert("swap buffers");
 }
 
 int main(int argc, char **argv)
