@@ -65,7 +65,6 @@ void draw_begin(float projection[16], float model_view[16])
 
 		glGenBuffers(1, &draw_vbo);
 		glBindBuffer(GL_ARRAY_BUFFER, draw_vbo);
-
 		glBufferData(GL_ARRAY_BUFFER, sizeof draw_buf, NULL, GL_STREAM_DRAW);
 
 		glEnableVertexAttribArray(ATT_POSITION);
@@ -86,6 +85,7 @@ void draw_begin(float projection[16], float model_view[16])
 static void draw_flush(void)
 {
 	if (draw_buf_len > 0) {
+		glBindBuffer(GL_ARRAY_BUFFER, draw_vbo);
 		glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof draw_buf[0] * draw_buf_len, draw_buf);
 		glDrawArrays(draw_kind, 0, draw_buf_len);
 		draw_buf_len = 0;

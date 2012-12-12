@@ -310,7 +310,6 @@ void icon_begin(float projection[16])
 
 		glGenBuffers(1, &icon_vbo);
 		glBindBuffer(GL_ARRAY_BUFFER, icon_vbo);
-
 		glBufferData(GL_ARRAY_BUFFER, sizeof icon_buf, NULL, GL_STREAM_DRAW);
 
 		glEnableVertexAttribArray(ATT_POSITION);
@@ -362,6 +361,7 @@ void icon_show(int texture,
 	add_vertex(x1, y0, s1, t0, icon_color);
 
 	glBindTexture(GL_TEXTURE_2D, texture);
+	glBindBuffer(GL_ARRAY_BUFFER, icon_vbo);
 	glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof icon_buf[0] * icon_buf_len, icon_buf);
 	glDrawArrays(GL_TRIANGLES, 0, icon_buf_len);
 }

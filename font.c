@@ -337,7 +337,6 @@ void text_begin(float projection[16])
 
 		glGenBuffers(1, &text_vbo);
 		glBindBuffer(GL_ARRAY_BUFFER, text_vbo);
-
 		glBufferData(GL_ARRAY_BUFFER, sizeof text_buf, NULL, GL_STREAM_DRAW);
 
 		glEnableVertexAttribArray(ATT_POSITION);
@@ -361,6 +360,7 @@ void text_begin(float projection[16])
 static void text_flush(void)
 {
 	if (text_buf_len > 0) {
+		glBindBuffer(GL_ARRAY_BUFFER, text_vbo);
 		glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof text_buf[0] * text_buf_len, text_buf);
 		glDrawArrays(GL_TRIANGLES, 0, text_buf_len);
 		text_buf_len = 0;
