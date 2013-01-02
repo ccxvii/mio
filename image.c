@@ -29,7 +29,8 @@ int make_texture(unsigned char *data, int w, int h, int n, int srgb)
 
 	glTexImage2D(GL_TEXTURE_2D, 0, intfmt, w, h, 0, fmt, GL_UNSIGNED_BYTE, data);
 
-	glGenerateMipmap(GL_TEXTURE_2D);
+	if (w > 1 || h > 1)
+		glGenerateMipmap(GL_TEXTURE_2D);
 
 	return texid;
 }
