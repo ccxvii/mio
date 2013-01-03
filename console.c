@@ -41,21 +41,18 @@ void console_printnl(const char *s)
 #ifdef USELUA
 static int ffi_print(lua_State *L)
 {
-	int i, n=lua_gettop(L);
+	int i, n = lua_gettop(L);
+	lua_getglobal(L, "tostring");
 	for (i=1; i<=n; i++) {
-		if (i > 1)
-			console_print(" ");
-		if (lua_isstring(L,i))
-			console_print(lua_tostring(L,i));
-		else if (lua_isnil(L,i))
-			console_print("nil");
-		else if (lua_isboolean(L,i))
-			console_print(lua_toboolean(L,i) ? "true" : "false");
-		else {
-			char buf[80];
-			sprintf(buf, "%s: %p", luaL_typename(L,i), lua_topointer(L,i));
-			console_print(buf);
-		}
+		const char *s;
+		lua_pushvalue(L, -1); /* tostring */
+		lua_pushvalue(L, i); /* value to print */
+		lua_call(L, 1, 1);
+		s = lua_tostring(L, -1); /* get result */
+		if (!s) return luaL_error(L, "'tostring' must return a string to 'print'");
+		if (i > 1) console_print(" ");
+		console_print(s);
+		lua_pop(L, 1); /* pop result */
 	}
 	console_printnl("");
 	return 0;
