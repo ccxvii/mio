@@ -39,7 +39,7 @@ void console_printnl(const char *s)
 }
 
 #ifdef USELUA
-static int print(lua_State *L)
+static int ffi_print(lua_State *L)
 {
 	int i, n=lua_gettop(L);
 	for (i=1; i<=n; i++) {
@@ -53,7 +53,7 @@ static int print(lua_State *L)
 			console_print(lua_toboolean(L,i) ? "true" : "false");
 		else {
 			char buf[80];
-			sprintf(buf, "%s:%p", luaL_typename(L,i), lua_topointer(L,i));
+			sprintf(buf, "%s: %p", luaL_typename(L,i), lua_topointer(L,i));
 			console_print(buf);
 		}
 	}
@@ -70,7 +70,7 @@ void console_init(void)
 	L = luaL_newstate();
 	luaL_openlibs(L);
 	lua_settop(L, 0);
-	lua_register(L, "print", print);
+	lua_register(L, "print", ffi_print);
 #endif
 
 	console_print(PS1);
@@ -86,7 +86,12 @@ void console_update(int key, int mod)
 	if (key >= 0x10000) return; // outside BMP
 
 	if (key == '\r') {
-		strlcpy(cmd, input, sizeof cmd);
+		if (input[0] == '=') {
+			strlcpy(cmd, "return ", sizeof cmd);
+			strlcat(cmd, input + 1, sizeof cmd);
+		} else {
+			strlcpy(cmd, input, sizeof cmd);
+		}
 		scrollup();
 
 #ifdef USELUA
@@ -97,6 +102,11 @@ void console_update(int key, int mod)
 			if (msg == NULL) msg = "(error object is not a string)";
 			console_printnl(msg);
 			lua_pop(L, 1);
+		}
+		if (lua_gettop(L) > 0) {
+			lua_getglobal(L, "print");
+			lua_insert(L, 1);
+			lua_pcall(L, lua_gettop(L)-1, 0, 0);
 		}
 #endif
 
