@@ -43,7 +43,7 @@ $(OUT)/%.o : %.c $(MIO_HDR)
 	$(CC_CMD) -I$(LUA_DIR)
 
 $(OUT)/%.o : $(LUA_DIR)/%.c
-	$(CC_CMD) -DLUA_COMPAT_ALL
+	$(CC_CMD)
 
 $(LUA_LIB) : $(LUA_OBJ)
 	$(AR_CMD)
