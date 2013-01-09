@@ -102,8 +102,6 @@ static unsigned int tex_forward = 0;
 
 void render_setup(int w, int h)
 {
-	int status;
-
 	fbo_w = w;
 	fbo_h = h;
 
@@ -682,11 +680,7 @@ void render_model(struct model *model, mat4 projection, mat4 model_view)
 	glBindVertexArray(model->vao);
 
 	for (i = 0; i < model->mesh_count; i++) {
-		glActiveTexture(GL_TEXTURE0);
-		glBindTexture(GL_TEXTURE_2D, model->mesh[i].diffuse);
-		glActiveTexture(GL_TEXTURE1);
-		glBindTexture(GL_TEXTURE_2D, model->mesh[i].specular);
-		glActiveTexture(GL_TEXTURE0);
+		glBindTexture(GL_TEXTURE_2D, model->mesh[i].material);
 		glDrawElements(GL_TRIANGLES, model->mesh[i].count, GL_UNSIGNED_SHORT, (void*)(model->mesh[i].first * 2));
 	}
 
@@ -747,7 +741,7 @@ void render_model_shadow(struct model *model)
 	glBindVertexArray(model->vao);
 
 	for (i = 0; i < model->mesh_count; i++) {
-		glBindTexture(GL_TEXTURE_2D, model->mesh[i].diffuse);
+		glBindTexture(GL_TEXTURE_2D, model->mesh[i].material);
 		glDrawElements(GL_TRIANGLES, model->mesh[i].count, GL_UNSIGNED_SHORT, (void*)(model->mesh[i].first * 2));
 	}
 

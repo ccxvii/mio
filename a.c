@@ -79,7 +79,7 @@ static void motion(int x, int y)
 		if (cam_yaw > 360) cam_yaw -= 360;
 	}
 	if (mousemiddle || mouseright) {
-		cam_dist -= dy * 0.01 * cam_dist;
+		cam_dist += dy * 0.01 * cam_dist;
 		if (cam_dist < 0.1) cam_dist = 0.1;
 		if (cam_dist > 100) cam_dist = 100;
 	}

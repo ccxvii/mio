@@ -370,11 +370,6 @@ void draw_model(struct model *model, mat4 projection, mat4 model_view)
 	if (!model)
 		return;
 
-	if (model->mesh[0].ghost) {
-		draw_model_ghost(model, projection, model_view);
-		return;
-	}
-
 	if (!static_prog) {
 		static_prog = compile_shader(static_vert_src, model_frag_src);
 		static_uni_projection = glGetUniformLocation(static_prog, "Projection");
@@ -392,11 +387,7 @@ void draw_model(struct model *model, mat4 projection, mat4 model_view)
 	glBindVertexArray(model->vao);
 
 	for (i = 0; i < model->mesh_count; i++) {
-		glActiveTexture(GL_TEXTURE0);
-		glBindTexture(GL_TEXTURE_2D, model->mesh[i].diffuse);
-		glActiveTexture(GL_TEXTURE1);
-		glBindTexture(GL_TEXTURE_2D, model->mesh[i].specular);
-		glActiveTexture(GL_TEXTURE0);
+		glBindTexture(GL_TEXTURE_2D, model->mesh[i].material);
 		glDrawElements(GL_TRIANGLES, model->mesh[i].count, GL_UNSIGNED_SHORT, (void*)(model->mesh[i].first * 2));
 	}
 
@@ -438,7 +429,7 @@ void draw_model_ghost(struct model *model, mat4 projection, mat4 model_view)
 	glBindVertexArray(model->vao);
 
 	for (i = 0; i < model->mesh_count; i++) {
-		glBindTexture(GL_TEXTURE_2D, model->mesh[i].diffuse);
+		glBindTexture(GL_TEXTURE_2D, model->mesh[i].material);
 		glDrawElements(GL_TRIANGLES, model->mesh[i].count, GL_UNSIGNED_SHORT, (void*)(model->mesh[i].first * 2));
 	}
 
@@ -483,11 +474,7 @@ void draw_model_with_pose(struct model *model, mat4 projection, mat4 model_view,
 	glBindVertexArray(model->vao);
 
 	for (i = 0; i < model->mesh_count; i++) {
-		glActiveTexture(GL_TEXTURE0);
-		glBindTexture(GL_TEXTURE_2D, model->mesh[i].diffuse);
-		glActiveTexture(GL_TEXTURE1);
-		glBindTexture(GL_TEXTURE_2D, model->mesh[i].specular);
-		glActiveTexture(GL_TEXTURE0);
+		glBindTexture(GL_TEXTURE_2D, model->mesh[i].material);
 		glDrawElements(GL_TRIANGLES, model->mesh[i].count, GL_UNSIGNED_SHORT, (void*)(model->mesh[i].first * 2));
 	}
 }

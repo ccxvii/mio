@@ -35,8 +35,6 @@ static int custom_format[10] = { 0 };
 static int custom_count[10] = { 0 };
 static char custom_name[10][80] = { { 0 } };
 
-static int tile_s, tile_t;
-
 static inline void push_float(struct floatarray *a, float v)
 {
 	if (a->len + 1 >= a->cap) {
@@ -74,8 +72,6 @@ static void add_position(float x, float y, float z)
 
 static void add_texcoord(float u, float v)
 {
-	if (u < 0 || u > 1) tile_s = 1;
-	if (v < 0 || v > 1) tile_t = 1;
 	push_float(&texcoord, u);
 	push_float(&texcoord, v);
 }
@@ -132,7 +128,7 @@ static void add_triangle(int a, int b, int c)
 	push_int(&element, a);
 }
 
-static int load_material(char *dirname, char *material, char *ext, int srgb)
+static int load_material(char *dirname, char *material)
 {
 	char filename[1024], *s;
 	s = strrchr(material, '+');
@@ -141,12 +137,12 @@ static int load_material(char *dirname, char *material, char *ext, int srgb)
 		strlcpy(filename, dirname, sizeof filename);
 		strlcat(filename, "/", sizeof filename);
 		strlcat(filename, s, sizeof filename);
-		strlcat(filename, ext, sizeof filename);
+		strlcat(filename, ".png", sizeof filename);
 	} else {
 		strlcpy(filename, s, sizeof filename);
-		strlcat(filename, ext, sizeof filename);
+		strlcat(filename, ".png", sizeof filename);
 	}
-	return load_texture(filename, srgb);
+	return load_texture(filename, 1);
 }
 
 static char *parsestring(char **stringp)
@@ -203,8 +199,7 @@ struct model *load_iqe_model_from_memory(char *filename, unsigned char *data, in
 	int mesh_count = 0;
 	int bone_count = 0;
 	int pose_count = 0;
-	int diffuse = 0;
-	int specular = 0;
+	int material = 0;
 	int fm = 0;
 	char *p, *s, *sp;
 	float x, y, z, w;
@@ -235,8 +230,6 @@ struct model *load_iqe_model_from_memory(char *filename, unsigned char *data, in
 		custom_count[i] = 0;
 		custom_name[i][0] = 0;
 	}
-
-	tile_s = tile_t = 0;
 
 	if (memcmp(data, IQE_MAGIC, strlen(IQE_MAGIC))) {
 		fprintf(stderr, "error: bad iqe magic: '%s'\n", filename);
@@ -373,32 +366,22 @@ struct model *load_iqe_model_from_memory(char *filename, unsigned char *data, in
 		}
 
 		else if (!strcmp(s, "mesh")) {
-			if (mesh) {
-				glBindTexture(GL_TEXTURE_2D, mesh->diffuse);
-				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, tile_s ? GL_REPEAT : GL_CLAMP_TO_EDGE);
-				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, tile_t ? GL_REPEAT : GL_CLAMP_TO_EDGE);
+			s = parsestring(&sp);
+			if (mesh)
 				mesh->count = element.len - mesh->first;
-				if (mesh->count == 0)
-					mesh_count--;
-			}
 			mesh = &meshbuf[mesh_count++];
-			mesh->diffuse = diffuse;
-			mesh->specular = specular;
+			strlcpy(mesh->name, s, sizeof mesh->name);
+			mesh->material = material;
 			mesh->first = element.len;
 			mesh->count = 0;
 			fm = position.len / 3;
-			tile_s = tile_t = 0;
 		}
 
 		else if (!strcmp(s, "material")) {
 			s = parsestring(&sp);
-			diffuse = load_material(dirname, s, ".png", 1);
-			specular = load_material(dirname, s, ".s.png", 0);
-			if (mesh) {
-				mesh->diffuse = diffuse;
-				mesh->specular = specular;
-				mesh->ghost = !!strstr(s, "ghost+");
-			}
+			material = load_material(dirname, s);
+			if (mesh)
+				mesh->material = material;
 		}
 
 		else if (!strcmp(s, "joint")) {
@@ -413,20 +396,12 @@ struct model *load_iqe_model_from_memory(char *filename, unsigned char *data, in
 		// TODO: animation, frame
 	}
 
-	if (mesh) {
-		glBindTexture(GL_TEXTURE_2D, mesh->diffuse);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, tile_s ? GL_REPEAT : GL_CLAMP_TO_EDGE);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, tile_t ? GL_REPEAT : GL_CLAMP_TO_EDGE);
+	if (mesh)
 		mesh->count = element.len - mesh->first;
-		if (mesh->count == 0)
-			mesh_count--;
-	}
 
 	if (mesh_count == 0) {
 		mesh = meshbuf;
-		mesh->diffuse = 0;
-		mesh->specular = 0;
-		mesh->ghost = 0;
+		mesh->material = 0;
 		mesh->first = 0;
 		mesh->count = element.len;
 		mesh_count = 1;

@@ -103,10 +103,9 @@ int compile_shader(const char *vert_src, const char *frag_src);
 #define MAXBONE 256
 
 struct mesh {
-	unsigned int diffuse;
-	unsigned int specular;
+	char name[32];
+	unsigned int material;
 	int first, count;
-	int ghost;
 };
 
 struct pose {
