@@ -27,6 +27,8 @@ LUA_SRC := \
 	lmathlib.c loslib.c lstrlib.c ltablib.c loadlib.c linit.c
 LUA_OBJ := $(addprefix $(OUT)/, $(LUA_SRC:%.c=%.o))
 LUA_LIB := $(OUT)/liblua.a
+LUA_CMD_OBJ := lua.c
+LUAC_CMD_OBJ := luac.c
 
 MIO_HDR := getopt.h iqm.h mio.h stb_truetype.h stb_image.c
 MIO_SRC := \
@@ -51,13 +53,19 @@ $(LUA_LIB) : $(LUA_OBJ)
 $(MIO_LIB) : $(MIO_OBJ)
 	$(AR_CMD)
 
+lua.exe : $(OUT)/lua.o $(LUA_LIB)
+	$(LINK_CMD)
+
+luac.exe : $(OUT)/luac.o $(LUA_LIB)
+	$(LINK_CMD)
+
 a.exe : $(OUT)/a.o $(MIO_LIB) $(LUA_LIB)
 	$(LINK_CMD)
 
 b.exe : $(OUT)/b.o $(MIO_LIB) $(LUA_LIB)
 	$(LINK_CMD)
 
-all: $(OUT) $(LUA_LIB) $(MIO_LIB) a.exe b.exe
+all: $(OUT) $(LUA_LIB) $(MIO_LIB) lua.exe luac.exe a.exe b.exe
 
 clean:
 	rm -rf $(OUT)
