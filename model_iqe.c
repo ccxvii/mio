@@ -29,6 +29,12 @@ static struct bytearray blendindex = { 0, 0, NULL };
 static struct bytearray blendweight = { 0, 0, NULL };
 static struct intarray element = { 0, 0, NULL };
 
+static struct bytearray customb[10] = { { 0 } };
+static struct floatarray customf[10] = { { 0 } };
+static int custom_format[10] = { 0 };
+static int custom_count[10] = { 0 };
+static char custom_name[10][80] = { { 0 } };
+
 static int tile_s, tile_t;
 
 static inline void push_float(struct floatarray *a, float v)
@@ -89,13 +95,32 @@ static void add_color(float r, float g, float b, float a)
 	push_byte(&color, a * 255);
 }
 
-static void add_blend(int idx[4], float wgt[4])
+static void add_blend(int a, int b, int c, int d, float x, float y, float z, float w)
 {
-	int i;
-	float total = wgt[0] + wgt[1] + wgt[2] + wgt[3];
-	for (i = 0; i < 4; i++) {
-		push_byte(&blendindex, idx[i]);
-		push_byte(&blendweight, wgt[i] / total * 255);
+	float total = x + y + z + w;
+	push_byte(&blendindex, a);
+	push_byte(&blendindex, b);
+	push_byte(&blendindex, c);
+	push_byte(&blendindex, d);
+	push_byte(&blendweight, x * 255 / total);
+	push_byte(&blendweight, y * 255 / total);
+	push_byte(&blendweight, z * 255 / total);
+	push_byte(&blendweight, w * 255 / total);
+}
+
+static void add_custom(int i, float x, float y, float z, float w)
+{
+	if (custom_format[i] == 'b') {
+		if (custom_count[i] > 0) push_byte(&customb[i], x * 255);
+		if (custom_count[i] > 1) push_byte(&customb[i], y * 255);
+		if (custom_count[i] > 2) push_byte(&customb[i], z * 255);
+		if (custom_count[i] > 3) push_byte(&customb[i], w * 255);
+	}
+	if (custom_format[i] == 'f') {
+		if (custom_count[i] > 0) push_float(&customf[i], x * 255);
+		if (custom_count[i] > 1) push_float(&customf[i], y * 255);
+		if (custom_count[i] > 2) push_float(&customf[i], z * 255);
+		if (custom_count[i] > 3) push_float(&customf[i], w * 255);
 	}
 }
 
@@ -182,6 +207,8 @@ struct model *load_iqe_model_from_memory(char *filename, unsigned char *data, in
 	int specular = 0;
 	int fm = 0;
 	char *p, *s, *sp;
+	float x, y, z, w;
+	int a, b, c, d;
 	int i;
 
 	strlcpy(dirname, filename, sizeof dirname);
@@ -201,6 +228,14 @@ struct model *load_iqe_model_from_memory(char *filename, unsigned char *data, in
 	blendweight.len = 0;
 	element.len = 0;
 
+	for (i = 0; i < 10; i++) {
+		customb[i].len = 0;
+		customf[i].len = 0;
+		custom_format[i] = 0;
+		custom_count[i] = 0;
+		custom_name[i][0] = 0;
+	}
+
 	tile_s = tile_t = 0;
 
 	if (memcmp(data, IQE_MAGIC, strlen(IQE_MAGIC))) {
@@ -219,56 +254,125 @@ struct model *load_iqe_model_from_memory(char *filename, unsigned char *data, in
 		s = parseword(&sp);
 		if (!s) {
 			continue;
-		} else if (!strcmp(s, "vp")) {
-			float x = parsefloat(&sp, 0);
-			float y = parsefloat(&sp, 0);
-			float z = parsefloat(&sp, 0);
-			bboxmin[0] = MIN(bboxmin[0], x); bboxmax[0] = MAX(bboxmax[0], x);
-			bboxmin[1] = MIN(bboxmin[1], y); bboxmax[1] = MAX(bboxmax[1], y);
-			bboxmin[2] = MIN(bboxmin[2], z); bboxmax[2] = MAX(bboxmax[2], z);
-			add_position(x, y, z);
-		} else if (!strcmp(s, "vt")) {
-			float x = parsefloat(&sp, 0);
-			float y = parsefloat(&sp, 0);
-			add_texcoord(x, y);
-		} else if (!strcmp(s, "vn")) {
-			float x = parsefloat(&sp, 0);
-			float y = parsefloat(&sp, 0);
-			float z = parsefloat(&sp, 0);
-			add_normal(x, y, z);
-		} else if (!strcmp(s, "vc")) {
-			float x = parsefloat(&sp, 0);
-			float y = parsefloat(&sp, 0);
-			float z = parsefloat(&sp, 0);
-			float w = parsefloat(&sp, 1);
-			add_color(x, y, z, w);
-		} else if (!strcmp(s, "vb")) {
-			int idx[4] = {0, 0, 0, 0};
-			float wgt[4] = {1, 0, 0, 0};
-			for (i = 0; i < 4; i++) {
-				idx[i] = parseint(&sp, 0);
-				wgt[i] = parsefloat(&sp, 0);
+		}
+
+		else if (s[0] == 'v' && s[1] != 0 && s[2] == 0) {
+			switch (s[1]) {
+			case 'p':
+				x = parsefloat(&sp, 0);
+				y = parsefloat(&sp, 0);
+				z = parsefloat(&sp, 0);
+				bboxmin[0] = MIN(bboxmin[0], x); bboxmax[0] = MAX(bboxmax[0], x);
+				bboxmin[1] = MIN(bboxmin[1], y); bboxmax[1] = MAX(bboxmax[1], y);
+				bboxmin[2] = MIN(bboxmin[2], z); bboxmax[2] = MAX(bboxmax[2], z);
+				add_position(x, y, z);
+				break;
+
+			case 'n':
+				x = parsefloat(&sp, 0);
+				y = parsefloat(&sp, 0);
+				z = parsefloat(&sp, 0);
+				add_normal(x, y, z);
+				break;
+
+			case 't':
+				x = parsefloat(&sp, 0);
+				y = parsefloat(&sp, 0);
+				add_texcoord(x, y);
+				break;
+
+			case 'c':
+				x = parsefloat(&sp, 0);
+				y = parsefloat(&sp, 0);
+				z = parsefloat(&sp, 0);
+				w = parsefloat(&sp, 1);
+				add_color(x, y, z, w);
+				break;
+
+			case 'b':
+				a = parseint(&sp, 0);
+				x = parsefloat(&sp, 1);
+				b = parseint(&sp, 0);
+				y = parsefloat(&sp, 0);
+				c = parseint(&sp, 0);
+				z = parsefloat(&sp, 0);
+				d = parseint(&sp, 0);
+				w = parsefloat(&sp, 0);
+				add_blend(a, b, c, d, x, y, z, w);
+				break;
+
+			case '0': case '1': case '2': case '3': case '4':
+			case '5': case '6': case '7': case '8': case '9':
+				x = parsefloat(&sp, 0);
+				y = parsefloat(&sp, 0);
+				z = parsefloat(&sp, 0);
+				w = parsefloat(&sp, 0);
+				add_custom(s[1] - '0', x, y, z, w);
+				break;
 			}
-			add_blend(idx, wgt);
-		} else if (!strcmp(s, "fm")) {
-			int x = parseint(&sp, 0);
-			int y = parseint(&sp, 0);
-			int z = parseint(&sp, -1);
-			while (z > -1) {
-				add_triangle(x+fm, y+fm, z+fm);
-				y = z;
-				z = parseint(&sp, -1);
+		}
+
+		else if (s[0] == 'f' && s[1] == 'm' && s[2] == 0) {
+			a = parseint(&sp, 0);
+			b = parseint(&sp, 0);
+			c = parseint(&sp, -1);
+			while (c > -1) {
+				add_triangle(a+fm, b+fm, c+fm);
+				b = c;
+				c = parseint(&sp, -1);
 			}
-		} else if (!strcmp(s, "fa")) {
-			int x = parseint(&sp, 0);
-			int y = parseint(&sp, 0);
-			int z = parseint(&sp, -1);
-			while (z > -1) {
-				add_triangle(x, y, z);
-				y = z;
-				z = parseint(&sp, -1);
+		}
+
+		else if (s[0] == 'f' && s[1] == 'a' && s[2] == 0) {
+			a = parseint(&sp, 0);
+			b = parseint(&sp, 0);
+			c = parseint(&sp, -1);
+			while (c > -1) {
+				add_triangle(a, b, c);
+				b = c;
+				c = parseint(&sp, -1);
 			}
-		} else if (!strcmp(s, "mesh")) {
+		}
+
+		else if (s[0] == 'p' && s[1] == 'q' && s[2] == 0) {
+			if (pose_count < MAXBONE) {
+				posebuf[pose_count].translate[0] = parsefloat(&sp, 0);
+				posebuf[pose_count].translate[1] = parsefloat(&sp, 0);
+				posebuf[pose_count].translate[2] = parsefloat(&sp, 0);
+				posebuf[pose_count].rotate[0] = parsefloat(&sp, 0);
+				posebuf[pose_count].rotate[1] = parsefloat(&sp, 0);
+				posebuf[pose_count].rotate[2] = parsefloat(&sp, 0);
+				posebuf[pose_count].rotate[3] = parsefloat(&sp, 1);
+				posebuf[pose_count].scale[0] = parsefloat(&sp, 1);
+				posebuf[pose_count].scale[1] = parsefloat(&sp, 1);
+				posebuf[pose_count].scale[2] = parsefloat(&sp, 1);
+				pose_count++;
+			}
+		}
+
+		// TODO: "pm", "pa"
+
+		else if (!strcmp(s, "vertexarray")) {
+			char *type = parsestring(&sp);
+			char *format = parsestring(&sp);
+			int count = parseint(&sp, 0);
+			char *name = parsestring(&sp);
+			if (strstr(type, "custom") == type) {
+				i = type[6] - '0';
+				if (i >= 0 && i <= 9) {
+					if (!strcmp(format, "ubyte"))
+						custom_format[i] = 'b';
+					else
+						custom_format[i] = 'f';
+					custom_count[i] = count;
+					if (custom_format[i] == 'b' && custom_count[i] == 3)
+						custom_count[i] = 4;
+					strlcpy(custom_name[i], name, sizeof custom_name[i]);
+				}
+			}
+		}
+
+		else if (!strcmp(s, "mesh")) {
 			if (mesh) {
 				glBindTexture(GL_TEXTURE_2D, mesh->diffuse);
 				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, tile_s ? GL_REPEAT : GL_CLAMP_TO_EDGE);
@@ -284,7 +388,9 @@ struct model *load_iqe_model_from_memory(char *filename, unsigned char *data, in
 			mesh->count = 0;
 			fm = position.len / 3;
 			tile_s = tile_t = 0;
-		} else if (!strcmp(s, "material")) {
+		}
+
+		else if (!strcmp(s, "material")) {
 			s = parsestring(&sp);
 			diffuse = load_material(dirname, s, ".png", 1);
 			specular = load_material(dirname, s, ".s.png", 0);
@@ -293,29 +399,18 @@ struct model *load_iqe_model_from_memory(char *filename, unsigned char *data, in
 				mesh->specular = specular;
 				mesh->ghost = !!strstr(s, "ghost+");
 			}
-		} else if (!strcmp(s, "joint")) {
+		}
+
+		else if (!strcmp(s, "joint")) {
 			if (bone_count < MAXBONE) {
 				char *name = parsestring(&sp);
 				strlcpy(bonename[bone_count], name, sizeof bonename[0]);
 				boneparent[bone_count] = parseint(&sp, -1);
 				bone_count++;
 			}
-		} else if (!strcmp(s, "pq")) {
-			if (pose_count < MAXBONE) {
-				posebuf[pose_count].translate[0] = parsefloat(&sp, 0);
-				posebuf[pose_count].translate[1] = parsefloat(&sp, 0);
-				posebuf[pose_count].translate[2] = parsefloat(&sp, 0);
-				posebuf[pose_count].rotate[0] = parsefloat(&sp, 0);
-				posebuf[pose_count].rotate[1] = parsefloat(&sp, 0);
-				posebuf[pose_count].rotate[2] = parsefloat(&sp, 0);
-				posebuf[pose_count].rotate[3] = parsefloat(&sp, 1);
-				posebuf[pose_count].scale[0] = parsefloat(&sp, 1);
-				posebuf[pose_count].scale[1] = parsefloat(&sp, 1);
-				posebuf[pose_count].scale[2] = parsefloat(&sp, 1);
-				pose_count++;
-			}
 		}
-		// TODO: "pm", "pa"
+
+		// TODO: animation, frame
 	}
 
 	if (mesh) {
