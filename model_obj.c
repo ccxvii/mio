@@ -279,6 +279,7 @@ struct model *load_obj_from_memory(char *filename, unsigned char *data, int len)
 	fprintf(stderr, "\t%d parts; %d vertices; %d triangles\n", part.len, vertex.len/8, element.len/3);
 
 	mesh = malloc(sizeof(struct mesh));
+	mesh->enabled = 1<<ATT_POSITION | 1<<ATT_NORMAL | 1<<ATT_TEXCOORD;
 	mesh->skel = NULL;
 	mesh->inv_bind_matrix = NULL;
 	mesh->count = part.len;

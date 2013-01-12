@@ -124,6 +124,7 @@ struct model *load_iqm_from_memory(char *filename, unsigned char *data, int len)
 
 	if (iqm->num_meshes) {
 		mesh = malloc(sizeof(struct mesh));
+		mesh->enabled = 0;
 
 		if (skel) {
 			mesh->skel = skel;
@@ -169,6 +170,7 @@ struct model *load_iqm_from_memory(char *filename, unsigned char *data, int len)
 				int format = enum_of_format(va->format);
 				int type = enum_of_type(va->type, text);
 				int normalize = va->type != IQM_BLENDINDEXES;
+				mesh->enabled |= 1<<type;
 				glBufferSubData(GL_ARRAY_BUFFER, total, current, data + va->offset);
 				glEnableVertexAttribArray(type);
 				glVertexAttribPointer(type, va->size, format, normalize, 0, (void*)total);

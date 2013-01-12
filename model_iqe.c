@@ -411,6 +411,7 @@ struct model *load_iqe_from_memory(char *filename, unsigned char *data, int len)
 
 	if (part.len) {
 		mesh = malloc(sizeof(struct mesh));
+		mesh->enabled = 1<<ATT_POSITION;
 		mesh->skel = skel;
 		mesh->inv_bind_matrix = NULL;
 		mesh->count = part.len;
@@ -448,30 +449,35 @@ struct model *load_iqe_from_memory(char *filename, unsigned char *data, int len)
 		total = vertexcount * 12;
 	
 		if (normal.len / 3 == vertexcount) {
+			mesh->enabled |= 1<<ATT_NORMAL;
 			glEnableVertexAttribArray(ATT_NORMAL);
 			glVertexAttribPointer(ATT_NORMAL, 3, GL_FLOAT, 0, 0, (void*)total);
 			glBufferSubData(GL_ARRAY_BUFFER, total, vertexcount * 12, normal.data);
 			total += vertexcount * 12;
 		}
 		if (texcoord.len / 2 == vertexcount) {
+			mesh->enabled |= 1<<ATT_TEXCOORD;
 			glEnableVertexAttribArray(ATT_TEXCOORD);
 			glVertexAttribPointer(ATT_TEXCOORD, 2, GL_FLOAT, 0, 0, (void*)total);
 			glBufferSubData(GL_ARRAY_BUFFER, total, vertexcount * 8, texcoord.data);
 			total += vertexcount * 8;
 		}
 		if (color.len / 4 == vertexcount) {
+			mesh->enabled |= 1<<ATT_COLOR;
 			glEnableVertexAttribArray(ATT_COLOR);
 			glVertexAttribPointer(ATT_COLOR, 4, GL_UNSIGNED_BYTE, GL_TRUE, 0, (void*)total);
 			glBufferSubData(GL_ARRAY_BUFFER, total, vertexcount * 4, color.data);
 			total += vertexcount * 4;
 		}
 		if (blendindex.len / 4 == vertexcount) {
+			mesh->enabled |= 1<<ATT_BLEND_INDEX;
 			glEnableVertexAttribArray(ATT_BLEND_INDEX);
 			glVertexAttribPointer(ATT_BLEND_INDEX, 4, GL_UNSIGNED_BYTE, GL_FALSE, 0, (void*)total);
 			glBufferSubData(GL_ARRAY_BUFFER, total, vertexcount * 4, blendindex.data);
 			total += vertexcount * 4;
 		}
 		if (blendweight.len / 4 == vertexcount) {
+			mesh->enabled |= 1<<ATT_BLEND_WEIGHT;
 			glEnableVertexAttribArray(ATT_BLEND_WEIGHT);
 			glVertexAttribPointer(ATT_BLEND_WEIGHT, 4, GL_UNSIGNED_BYTE, GL_TRUE, 0, (void*)total);
 			glBufferSubData(GL_ARRAY_BUFFER, total, vertexcount * 4, blendweight.data);

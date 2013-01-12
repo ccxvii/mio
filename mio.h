@@ -199,6 +199,7 @@ struct skel {
 
 struct mesh {
 	unsigned int vao, vbo, ibo;
+	int enabled;
 	int count;
 	struct part *part;
 	struct skel *skel;
