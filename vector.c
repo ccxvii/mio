@@ -680,3 +680,34 @@ void mat_decompose(const mat4 m, vec3 t, vec4 q, vec3 s)
 
 	quat_from_mat(q, mn);
 }
+
+void calc_mul_matrix(mat4 *skin_matrix, mat4 *abs_pose_matrix, mat4 *inv_bind_matrix, int count)
+{
+	int i;
+	for (i = 0; i < count; i++)
+		mat_mul44(skin_matrix[i], abs_pose_matrix[i], inv_bind_matrix[i]);
+}
+
+void calc_inv_matrix(mat4 *inv_bind_matrix, mat4 *abs_bind_matrix, int count)
+{
+	int i;
+	for (i = 0; i < count; i++)
+		mat_invert(inv_bind_matrix[i], abs_bind_matrix[i]);
+}
+
+void calc_abs_matrix(mat4 *abs_pose_matrix, mat4 *pose_matrix, int *parent, int count)
+{
+	int i;
+	for (i = 0; i < count; i++)
+		if (parent[i] >= 0)
+			mat_mul44(abs_pose_matrix[i], abs_pose_matrix[parent[i]], pose_matrix[i]);
+		else
+			mat_copy(abs_pose_matrix[i], pose_matrix[i]);
+}
+
+void calc_matrix_from_pose(mat4 *pose_matrix, struct pose *pose, int count)
+{
+	int i;
+	for (i = 0; i < count; i++)
+		mat_from_pose(pose_matrix[i], pose[i].position, pose[i].rotation, pose[i].scale);
+}

@@ -8,7 +8,7 @@ static int showconsole = 0;
 static struct font *droid_sans;
 static struct font *droid_sans_mono;
 
-static struct model *model;
+static struct mesh *mesh;
 
 static float cam_dist = 5;
 static float cam_yaw = 0;
@@ -151,24 +151,24 @@ static void display(void)
 
 	render_spot_shadow(spot_shadow, spot_position, spot_direction, spot_angle, spot_distance);
 	{
-		render_model_shadow(model);
+		render_mesh_shadow(mesh);
 	}
 
 #define SUN_W 10
 #define SUN_D 10
 
 	render_sun_shadow(sun_shadow, sky_position, sun_direction, SUN_W, SUN_D);
-	render_model_shadow(model);
+	render_mesh_shadow(mesh);
 
 	render_sun_shadow(moon_shadow, sky_position, moon_direction, SUN_W, SUN_D);
-	render_model_shadow(model);
+	render_mesh_shadow(mesh);
 
 	render_sun_shadow(fill_shadow, sky_position, fill_direction, SUN_W, SUN_D);
-	render_model_shadow(model);
+	render_mesh_shadow(mesh);
 
 	render_geometry_pass();
 	{
-		render_model(model, projection, model_view);
+		render_mesh(mesh, projection, model_view);
 	}
 
 	render_light_pass();
@@ -262,9 +262,9 @@ int main(int argc, char **argv)
 	console_init();
 
 	if (argc > 1)
-		model = load_model(argv[1]);
+		mesh = load_mesh(argv[1]);
 	else
-		model = load_model("untitled.iqe");
+		mesh = load_mesh("untitled.iqe");
 
 	glutMainLoop();
 	return 0;

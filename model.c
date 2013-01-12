@@ -1,9 +1,6 @@
 #include "mio.h"
 
-void draw_model_ghost(struct model *model, mat4 projection, mat4 model_view);
-
 static struct cache *model_cache = NULL;
-static struct cache *animation_cache = NULL;
 
 struct model *load_model(char *filename)
 {
@@ -22,9 +19,9 @@ struct model *load_model(char *filename)
 	}
 
 	model = NULL;
-	if (strstr(filename, ".iqm")) model = load_iqm_model_from_memory(filename, data, len);
-	if (strstr(filename, ".iqe")) model = load_iqe_model_from_memory(filename, data, len);
-	if (strstr(filename, ".obj")) model = load_obj_model_from_memory(filename, data, len);
+	if (strstr(filename, ".iqm")) model = load_iqm_from_memory(filename, data, len);
+	if (strstr(filename, ".iqe")) model = load_iqe_from_memory(filename, data, len);
+	if (strstr(filename, ".obj")) model = load_obj_from_memory(filename, data, len);
 	if (!model)
 		fprintf(stderr, "error: cannot load model: '%s'\n", filename);
 
@@ -34,263 +31,52 @@ struct model *load_model(char *filename)
 		model_cache = insert(model_cache, filename, model);
 
 	return model;
+
 }
 
-struct animation *load_animation(char *filename)
+struct skel *load_skel(char *filename)
 {
-	struct animation *anim;
-	unsigned char *data;
-	int len;
-	data = load_file(filename, &len);
-	if (!data) {
-		fprintf(stderr, "error: cannot load animation file: '%s'\n", filename);
-		return NULL;
-	}
-	anim = load_iqm_animation_from_memory(filename, data, len);
-	free(data);
-	return anim;
+	struct model *model = load_model(filename);
+	if (model)
+		return model->skel;
+	return NULL;
 }
 
-static const char *static_vert_src =
-	"uniform mat4 Projection;\n"
-	"uniform mat4 ModelView;\n"
-	"in vec4 att_Position;\n"
-	"in vec3 att_Normal;\n"
-	"in vec2 att_TexCoord;\n"
-	"out vec3 var_Position;\n"
-	"out vec3 var_Normal;\n"
-	"out vec2 var_TexCoord;\n"
-	"void main() {\n"
-	"	vec4 position = ModelView * att_Position;\n"
-	"	vec4 normal = ModelView * vec4(att_Normal, 0.0);\n"
-	"	gl_Position = Projection * position;\n"
-	"	var_Position = position.xyz;\n"
-	"	var_Normal = normal.xyz;\n"
-	"	var_TexCoord = att_TexCoord;\n"
-	"}\n"
-;
-
-static const char *bone_vert_src =
-	"uniform mat4 Projection;\n"
-	"uniform mat4 ModelView;\n"
-	"uniform mat4 BoneMatrix[80];\n"
-	"in vec4 att_Position;\n"
-	"in vec3 att_Normal;\n"
-	"in vec2 att_TexCoord;\n"
-	"in vec4 att_BlendIndex;\n"
-	"in vec4 att_BlendWeight;\n"
-	"out vec3 var_Position;\n"
-	"out vec3 var_Normal;\n"
-	"out vec2 var_TexCoord;\n"
-	"void main() {\n"
-	"	vec4 position = vec4(0);\n"
-	"	vec4 normal = vec4(0);\n"
-	"	vec4 index = att_BlendIndex;\n"
-	"	vec4 weight = att_BlendWeight;\n"
-	"	for (int i = 0; i < 4; i++) {\n"
-	"		mat4 m = BoneMatrix[int(index.x)];\n"
-	"		position += m * att_Position * weight.x;\n"
-	"		normal += m * vec4(att_Normal, 0) * weight.x;\n"
-	"		index = index.yzwx;\n"
-	"		weight = weight.yzwx;\n"
-	"	}\n"
-	"	position = ModelView * position;\n"
-	"	normal = ModelView * normal;\n"
-	"	gl_Position = Projection * position;\n"
-	"	var_Position = position.xyz;\n"
-	"	var_Normal = normal.xyz;\n"
-	"	var_TexCoord = att_TexCoord;\n"
-	"}\n"
-;
-
-static const char *model_frag_src =
-	"uniform sampler2D SamplerDiffuse;\n"
-	"uniform sampler2D SamplerSpecular;\n"
-	"in vec3 var_Position;\n"
-	"in vec3 var_Normal;\n"
-	"in vec2 var_TexCoord;\n"
-	"out vec4 frag_Color;\n"
-	"const vec3 LightDirection = vec3(-0.5773, 0.5773, 0.5773);\n"
-	"const vec3 LightAmbient = vec3(0.1);\n"
-	"const vec3 LightDiffuse = vec3(0.9);\n"
-	"const vec3 LightSpecular = vec3(1.0);\n"
-	"const float Shininess = 64.0;\n"
-	"void main() {\n"
-	"	vec4 albedo = texture(SamplerDiffuse, var_TexCoord);\n"
-	"	vec4 gloss = texture(SamplerSpecular, var_TexCoord);\n"
-	"	vec3 N = normalize(var_Normal);\n"
-	"	vec3 V = normalize(-var_Position);\n"
-	"	vec3 H = normalize(LightDirection + V);\n"
-	"	float diffuse = max(dot(N, LightDirection), 0.0);\n"
-	"	float specular = pow(max(dot(N, H), 0), Shininess);\n"
-	"	vec3 Ka = albedo.rgb * LightAmbient;\n"
-	"	vec3 Kd = albedo.rgb * LightDiffuse * diffuse;\n"
-	"	vec3 Ks = LightSpecular * specular * gloss.r;\n"
-	"	if (albedo.a < 0.2) discard;\n"
-	"	frag_Color = vec4(Ka + Kd + Ks, albedo.a);\n"
-	"}\n"
-;
-
-static const char *ghost_frag_src =
-	"uniform sampler2D SamplerDiffuse;\n"
-	"in vec2 var_TexCoord;\n"
-	"out vec4 frag_Color;\n"
-	"void main() {\n"
-	"	vec4 albedo = texture(SamplerDiffuse, var_TexCoord);\n"
-	"	if (albedo.a == 0.0) discard;\n"
-	"	frag_Color = vec4(albedo.rgb, 1);\n"
-	"}\n"
-;
-
-void calc_mul_matrix(mat4 *skin_matrix, mat4 *abs_pose_matrix, mat4 *inv_bind_matrix, int count)
+struct mesh *load_mesh(char *filename)
 {
+	struct model *model = load_model(filename);
+	if (model)
+		return model->mesh;
+	return NULL;
+}
+
+struct anim *load_anim(char *filename)
+{
+	struct model *model = load_model(filename);
+	if (model)
+		return model->anim;
+	return NULL;
+}
+
+/* TODO: clean up below */
+
+void extract_pose(struct pose *pose, struct anim *anim, int frame)
+{
+	float *s = anim->data + anim->channels * frame;
 	int i;
-	for (i = 0; i < count; i++)
-		mat_mul44(skin_matrix[i], abs_pose_matrix[i], inv_bind_matrix[i]);
-}
-
-void calc_inv_matrix(mat4 *inv_bind_matrix, mat4 *abs_bind_matrix, int count)
-{
-	int i;
-	for (i = 0; i < count; i++)
-		mat_invert(inv_bind_matrix[i], abs_bind_matrix[i]);
-}
-
-void calc_abs_matrix(mat4 *abs_pose_matrix, mat4 *pose_matrix, int *parent, int count)
-{
-	int i;
-	for (i = 0; i < count; i++)
-		if (parent[i] >= 0)
-			mat_mul44(abs_pose_matrix[i], abs_pose_matrix[parent[i]], pose_matrix[i]);
-		else
-			mat_copy(abs_pose_matrix[i], pose_matrix[i]);
-}
-
-void calc_matrix_from_pose(mat4 *pose_matrix, struct pose *pose, int count)
-{
-	int i;
-	for (i = 0; i < count; i++)
-		mat_from_pose(pose_matrix[i], pose[i].translate, pose[i].rotate, pose[i].scale);
-}
-
-static int findbone(char (*bone_name)[32], int count, char *name)
-{
-	int i;
-	for (i = 0; i < count; i++)
-		if (!strcmp(bone_name[i], name))
-			return i;
-	return -1;
-}
-
-void fix_anim_skel(struct pose *animpose, struct pose *skelpose, char (*animnames)[32], char (*skelnames)[32], int animcount, int skelcount)
-{
-	int i, k;
-	for (i = 0; i < skelcount; i++) {
-		k = findbone(animnames, animcount, skelnames[i]);
-		if (k >= 0) {
-			animpose[k] = skelpose[i];
-		}
-	}
-}
-
-// Model = ModelBind * inv(AnimBind) * Anim
-// Basis = inv(AnimBind) * Anim
-void apply_animation_delta(mat4 *out_matrix,
-		mat4 *dst_bind_matrix, char (*dst_names)[32], int dst_count,
-		mat4 *src_bind_matrix, char (*src_names)[32], int src_count,
-		mat4 *src_anim_matrix)
-{
-	mat4 basis, inv_src_bind_matrix;
-	int src, dst;
-	for (dst = 0; dst < dst_count; dst++) {
-		src = findbone(src_names, src_count, dst_names[dst]);
-		if (src < 0) {
-			mat_copy(out_matrix[dst], dst_bind_matrix[dst]);
-		} else {
-			mat_invert(inv_src_bind_matrix, src_bind_matrix[src]);
-			mat_mul44(basis, inv_src_bind_matrix, src_anim_matrix[src]);
-			mat_mul44(out_matrix[dst], dst_bind_matrix[dst], basis);
-		}
-	}
-}
-
-// Model = ModelBind * inv(AnimBind) * Anim
-// Basis = inv(AnimBind) * Anim
-void apply_animation_delta_q(struct pose *out_pose,
-		struct pose *dst_bind_pose, char (*dst_names)[32], int dst_count,
-		struct pose *src_bind_pose, char (*src_names)[32], int src_count,
-		struct pose *src_anim_pose)
-{
-	struct pose basis;
-	vec4 q;
-	int src, dst;
-	for (dst = 0; dst < dst_count; dst++) {
-		src = findbone(src_names, src_count, dst_names[dst]);
-		if (src < 0) {
-			out_pose[dst] = dst_bind_pose[dst];
-		} else {
-			// basis = inv(animbind) * anim
-			quat_conjugate(q, src_bind_pose[src].rotate);
-			quat_mul(basis.rotate, q, src_anim_pose[src].rotate);
-			vec_sub(basis.translate, src_anim_pose[src].translate, src_bind_pose[src].translate);
-			vec_div(basis.scale, src_anim_pose[src].scale, src_bind_pose[src].scale);
-
-			// out = bind * basis
-			vec_add(out_pose[dst].translate, dst_bind_pose[dst].translate, basis.translate);
-			quat_mul(out_pose[dst].rotate, dst_bind_pose[dst].rotate, basis.rotate);
-			vec_mul(out_pose[dst].scale, dst_bind_pose[dst].scale, basis.scale);
-		}
-	}
-}
-
-void apply_animation_rot(
-		struct pose *dst_pose, char (*dst_names)[32], int dst_count,
-		struct pose *src_pose, char (*src_names)[32], int src_count)
-{
-	int src, dst;
-	for (dst = 0; dst < dst_count; dst++) {
-		src = findbone(src_names, src_count, dst_names[dst]);
-		if (src >= 0) {
-			memcpy(dst_pose[dst].rotate, src_pose[src].rotate, 4*4);
-		}
-	}
-}
-
-void apply_animation(
-	struct pose *dst_pose, char (*dst_names)[32], int dst_count,
-	struct pose *src_pose, char (*src_names)[32], int src_count)
-{
-	int src, dst;
-	for (dst = 0; dst < dst_count; dst++) {
-		src = findbone(src_names, src_count, dst_names[dst]);
-		if (src >= 0) {
-			dst_pose[dst] = src_pose[src];
-		}
-	}
-}
-
-static const char *ryzom_bones[] = {
-	"bip01", "bip01_pelvis", "bip01_l_clavicle", "bip01_r_clavicle", "bip01_spine", "bip01_tail",
-	"bip02", "bip02_pelvis",
-};
-
-void apply_animation_ryzom(
-	struct pose *dst_pose, char (*dst_names)[32], int dst_count,
-	struct pose *src_pose, char (*src_names)[32], int src_count)
-{
-	int src, dst, i;
-	for (dst = 0; dst < dst_count; dst++) {
-		src = findbone(src_names, src_count, dst_names[dst]);
-		if (src >= 0) {
-			for (i = 0; i < nelem(ryzom_bones); i++) {
-				if (!strcmp(dst_names[dst], ryzom_bones[i])) {
-					dst_pose[dst] = src_pose[src];
-					goto next;
-				}
-			}
-			memcpy(dst_pose[dst].rotate, src_pose[src].rotate, 4*sizeof(float));
-		}
-next:;
+	for (i = 0; i < anim->skel->count; i++) {
+		int mask = anim->mask[i];
+		pose[i] = anim->pose[i];
+		if (mask & 0x01) pose[i].position[0] = *s++;
+		if (mask & 0x02) pose[i].position[1] = *s++;
+		if (mask & 0x04) pose[i].position[2] = *s++;
+		if (mask & 0x08) pose[i].rotation[0] = *s++;
+		if (mask & 0x10) pose[i].rotation[1] = *s++;
+		if (mask & 0x20) pose[i].rotation[2] = *s++;
+		if (mask & 0x40) pose[i].rotation[3] = *s++;
+		if (mask & 0x80) pose[i].scale[0] = *s++;
+		if (mask & 0x100) pose[i].scale[1] = *s++;
+		if (mask & 0x200) pose[i].scale[2] = *s++;
 	}
 }
 
@@ -303,38 +89,7 @@ static int haschildren(int *parent, int count, int x)
 	return 0;
 }
 
-void
-draw_skeleton_with_axis(mat4 *abs_pose_matrix, int *parent, int count)
-{
-	vec3 x = { 0.1, 0, 0 };
-	vec3 y = { 0, 0.1, 0 };
-	vec3 z = { 0, 0, 0.1 };
-	int i;
-	for (i = 0; i < count; i++) {
-		float *a = abs_pose_matrix[i];
-		if (parent[i] >= 0) {
-			float *b = abs_pose_matrix[parent[i]];
-			draw_set_color(0.3, 0.3, 0.3, 1);
-			draw_line(a[12], a[13], a[14], b[12], b[13], b[14]);
-		} else {
-			draw_set_color(1, 1, 0, 1);
-			draw_line(a[12], a[13], a[14], 0, 0, 0);
-		}
-		vec3 b;
-		mat_vec_mul(b, abs_pose_matrix[i], x);
-		draw_set_color(1, 0, 0, 1);
-		draw_line(a[12], a[13], a[14], b[0], b[1], b[2]);
-		mat_vec_mul(b, abs_pose_matrix[i], y);
-		draw_set_color(0, 1, 0, 1);
-		draw_line(a[12], a[13], a[14], b[0], b[1], b[2]);
-		mat_vec_mul(b, abs_pose_matrix[i], z);
-		draw_set_color(0, 0, 1, 1);
-		draw_line(a[12], a[13], a[14], b[0], b[1], b[2]);
-	}
-}
-
-void
-draw_skeleton(mat4 *abs_pose_matrix, int *parent, int count)
+void draw_armature(mat4 *abs_pose_matrix, int *parent, int count)
 {
 	vec3 x = { 0.1, 0, 0 };
 	int i;
@@ -342,139 +97,57 @@ draw_skeleton(mat4 *abs_pose_matrix, int *parent, int count)
 		float *a = abs_pose_matrix[i];
 		if (parent[i] >= 0) {
 			float *b = abs_pose_matrix[parent[i]];
-			draw_set_color(1, 1, 1, 1);
 			draw_line(a[12], a[13], a[14], b[12], b[13], b[14]);
 		} else {
-			draw_set_color(1, 1, 0, 1);
 			draw_line(a[12], a[13], a[14], 0, 0, 0);
 		}
 		if (!haschildren(parent, count, i)) {
 			vec3 b;
 			mat_vec_mul(b, abs_pose_matrix[i], x);
-			draw_set_color(1, 1, 0, 1);
 			draw_line(a[12], a[13], a[14], b[0], b[1], b[2]);
 		}
 	}
 }
 
-static int static_prog = 0;
-static int static_uni_projection;
-static int static_uni_model_view;
-static int static_uni_sampler_diffuse;
-static int static_uni_sampler_specular;
-
-void draw_model(struct model *model, mat4 projection, mat4 model_view)
+static int findbone(char (*bone_name)[32], int count, char *name)
 {
 	int i;
-
-	if (!model)
-		return;
-
-	if (!static_prog) {
-		static_prog = compile_shader(static_vert_src, model_frag_src);
-		static_uni_projection = glGetUniformLocation(static_prog, "Projection");
-		static_uni_model_view = glGetUniformLocation(static_prog, "ModelView");
-		static_uni_sampler_diffuse = glGetUniformLocation(static_prog, "SamplerDiffuse");
-		static_uni_sampler_specular = glGetUniformLocation(static_prog, "SamplerSpecular");
-	}
-
-	glUseProgram(static_prog);
-	glUniformMatrix4fv(static_uni_projection, 1, 0, projection);
-	glUniformMatrix4fv(static_uni_model_view, 1, 0, model_view);
-	glUniform1i(static_uni_sampler_diffuse, 0);
-	glUniform1i(static_uni_sampler_specular, 1);
-
-	glBindVertexArray(model->vao);
-
-	for (i = 0; i < model->mesh_count; i++) {
-		glBindTexture(GL_TEXTURE_2D, model->mesh[i].material);
-		glDrawElements(GL_TRIANGLES, model->mesh[i].count, GL_UNSIGNED_SHORT, (void*)(model->mesh[i].first * 2));
-	}
-
-	glBindVertexArray(0);
-	glUseProgram(0);
+	for (i = 0; i < count; i++)
+		if (!strcmp(bone_name[i], name))
+			return i;
+	return -1;
 }
 
-static int ghost_prog = 0;
-static int ghost_uni_projection;
-static int ghost_uni_model_view;
-static int ghost_uni_sampler_diffuse;
-static int ghost_uni_sampler_specular;
-
-void draw_model_ghost(struct model *model, mat4 projection, mat4 model_view)
+void apply_animation(struct pose *dst_pose, struct skel *dst, struct pose *src_pose, struct skel *src)
 {
-	int i;
-
-	if (!model)
-		return;
-
-	if (!ghost_prog) {
-		ghost_prog = compile_shader(static_vert_src, ghost_frag_src);
-		ghost_uni_projection = glGetUniformLocation(ghost_prog, "Projection");
-		ghost_uni_model_view = glGetUniformLocation(ghost_prog, "ModelView");
-		ghost_uni_sampler_diffuse = glGetUniformLocation(ghost_prog, "SamplerDiffuse");
-		ghost_uni_sampler_specular = glGetUniformLocation(ghost_prog, "SamplerSpecular");
+	int s, d;
+	for (d = 0; d < dst->count; d++) {
+		s = findbone(src->name, src->count, dst->name[d]);
+		if (s >= 0) {
+			dst_pose[d] = src_pose[s];
+		}
 	}
-
-	glUseProgram(ghost_prog);
-	glUniformMatrix4fv(ghost_uni_projection, 1, 0, projection);
-	glUniformMatrix4fv(ghost_uni_model_view, 1, 0, model_view);
-	glUniform1i(ghost_uni_sampler_diffuse, 0);
-	glUniform1i(ghost_uni_sampler_specular, 1);
-
-	glEnable(GL_BLEND);
-	glBlendFunc(GL_ONE, GL_ONE);
-	glDepthMask(GL_FALSE);
-
-	glBindVertexArray(model->vao);
-
-	for (i = 0; i < model->mesh_count; i++) {
-		glBindTexture(GL_TEXTURE_2D, model->mesh[i].material);
-		glDrawElements(GL_TRIANGLES, model->mesh[i].count, GL_UNSIGNED_SHORT, (void*)(model->mesh[i].first * 2));
-	}
-
-	glDisable(GL_BLEND);
-	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-	glDepthMask(GL_TRUE);
-
-	glBindVertexArray(0);
-	glUseProgram(0);
 }
 
-static int bone_prog = 0;
-static int bone_uni_projection;
-static int bone_uni_model_view;
-static int bone_uni_sampler_diffuse;
-static int bone_uni_sampler_specular;
-static int bone_uni_skin_matrix;
+static const char *ryzom_bones[] = {
+	"bip01", "bip01_pelvis", "bip01_l_clavicle", "bip01_r_clavicle", "bip01_spine", "bip01_tail",
+	"bip02", "bip02_pelvis",
+};
 
-void draw_model_with_pose(struct model *model, mat4 projection, mat4 model_view, mat4 *skin_matrix)
+void apply_animation_ryzom(struct pose *dst_pose, struct skel *dst, struct pose *src_pose, struct skel *src)
 {
-	int i;
-
-	if (!model)
-		return;
-
-	if (!bone_prog) {
-		bone_prog = compile_shader(bone_vert_src, model_frag_src);
-		bone_uni_projection = glGetUniformLocation(bone_prog, "Projection");
-		bone_uni_model_view = glGetUniformLocation(bone_prog, "ModelView");
-		bone_uni_sampler_diffuse = glGetUniformLocation(bone_prog, "SamplerDiffuse");
-		bone_uni_sampler_specular = glGetUniformLocation(bone_prog, "SamplerSpecular");
-		bone_uni_skin_matrix = glGetUniformLocation(bone_prog, "BoneMatrix");
-	}
-
-	glUseProgram(bone_prog);
-	glUniformMatrix4fv(bone_uni_projection, 1, 0, projection);
-	glUniformMatrix4fv(bone_uni_model_view, 1, 0, model_view);
-	glUniform1i(bone_uni_sampler_diffuse, 0);
-	glUniform1i(bone_uni_sampler_specular, 1);
-	glUniformMatrix4fv(bone_uni_skin_matrix, model->bone_count, 0, skin_matrix[0]);
-
-	glBindVertexArray(model->vao);
-
-	for (i = 0; i < model->mesh_count; i++) {
-		glBindTexture(GL_TEXTURE_2D, model->mesh[i].material);
-		glDrawElements(GL_TRIANGLES, model->mesh[i].count, GL_UNSIGNED_SHORT, (void*)(model->mesh[i].first * 2));
+	int s, d, i;
+	for (d = 0; d < dst->count; d++) {
+		s = findbone(src->name, src->count, dst->name[d]);
+		if (s >= 0) {
+			for (i = 0; i < nelem(ryzom_bones); i++) {
+				if (!strcmp(dst->name[d], ryzom_bones[i])) {
+					dst_pose[d] = src_pose[s];
+					goto next;
+				}
+			}
+			memcpy(dst_pose[d].rotation, src_pose[s].rotation, 4*sizeof(float));
+		}
+next:;
 	}
 }

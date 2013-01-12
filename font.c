@@ -272,12 +272,12 @@ static const char *text_vert_src =
 ;
 
 static const char *text_frag_src =
-	"uniform sampler2D Texture;\n"
+	"uniform sampler2D map_Color;\n"
 	"in vec2 var_TexCoord;\n"
 	"in vec4 var_Color;\n"
 	"out vec4 frag_Color;\n"
 	"void main() {\n"
-	"	float coverage = texture(Texture, var_TexCoord).r;\n"
+	"	float coverage = texture(map_Color, var_TexCoord).r;\n"
 	"	frag_Color = vec4(var_Color.rgb, var_Color.a * coverage);\n"
 	"}\n"
 ;
@@ -354,6 +354,7 @@ void text_begin(float projection[16])
 
 	glBindVertexArray(text_vao);
 
+	glActiveTexture(MAP_COLOR);
 	glBindTexture(GL_TEXTURE_2D, cache_tex);
 }
 

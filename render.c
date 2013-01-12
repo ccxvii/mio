@@ -182,25 +182,25 @@ void render_light_pass(void)
 	glBlendFunc(GL_ONE, GL_ONE);
 	glEnable(GL_BLEND);
 
-	glActiveTexture(GL_TEXTURE0);
+	glActiveTexture(MAP_DEPTH);
 	glBindTexture(GL_TEXTURE_2D, tex_depth);
-	glActiveTexture(GL_TEXTURE1);
+	glActiveTexture(MAP_NORMAL);
 	glBindTexture(GL_TEXTURE_2D, tex_normal);
-	glActiveTexture(GL_TEXTURE2);
+	glActiveTexture(MAP_COLOR);
 	glBindTexture(GL_TEXTURE_2D, tex_albedo);
-	glActiveTexture(GL_TEXTURE0);
 }
 
 /* Depth testing, no depth writing, additive blending, to light buffer */
 void render_forward_pass(void)
 {
-	glActiveTexture(GL_TEXTURE0);
+	glActiveTexture(MAP_SHADOW);
 	glBindTexture(GL_TEXTURE_2D, 0);
-	glActiveTexture(GL_TEXTURE1);
+	glActiveTexture(MAP_DEPTH);
 	glBindTexture(GL_TEXTURE_2D, 0);
-	glActiveTexture(GL_TEXTURE2);
+	glActiveTexture(MAP_NORMAL);
 	glBindTexture(GL_TEXTURE_2D, 0);
-	glActiveTexture(GL_TEXTURE0);
+	glActiveTexture(MAP_COLOR);
+	glBindTexture(GL_TEXTURE_2D, 0);
 
 	glDepthMask(GL_FALSE);
 	glEnable(GL_DEPTH_TEST);
@@ -252,17 +252,12 @@ static const char *quad_vert_src =
 	"}\n"
 ;
 
-static unsigned int quad_vao = 0;
-static unsigned int quad_vbo = 0;
-static float quad_vertex[] = {
-	-1, 1,
-	-1, -1,
-	1, 1,
-	1, -1,
-};
-
 static void draw_fullscreen_quad(void)
 {
+	static float quad_vertex[] = { -1, 1, -1, -1, 1, 1, 1, -1 };
+	static unsigned int quad_vao = 0;
+	static unsigned int quad_vbo = 0;
+
 	if (!quad_vao) {
 		glGenVertexArrays(1, &quad_vao);
 		glGenBuffers(1, &quad_vbo);
@@ -277,33 +272,32 @@ static void draw_fullscreen_quad(void)
 
 	glBindVertexArray(quad_vao);
 	glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
-	glBindVertexArray(0);
 }
 
 /* Sun light */
 
 static const char *sun_frag_src =
+	"uniform sampler2D map_Color;\n"
+	"uniform sampler2D map_Normal;\n"
+	"uniform sampler2D map_Depth;\n"
+	"uniform sampler2DShadow map_Shadow;\n"
 	"uniform vec2 Viewport;\n"
 	"uniform mat4 InverseProjection;\n"
 	"uniform mat4 ShadowMatrix;\n"
-	"uniform sampler2D DepthSampler;\n"
-	"uniform sampler2D NormalSampler;\n"
-	"uniform sampler2D AlbedoSampler;\n"
-	"uniform sampler2DShadow ShadowSampler;\n"
 	"uniform vec3 LightDirection;\n"
 	"uniform vec3 LightColor;\n"
 	"const float Shininess = 64.0;\n"
 	"out vec4 frag_Color;\n"
 	"void main() {\n"
 	"	vec2 texcoord = gl_FragCoord.xy / Viewport.xy;\n"
-	"	float depth = texture(DepthSampler, texcoord).x;\n"
+	"	float depth = texture(map_Depth, texcoord).x;\n"
 	"	vec4 pos_ndc = 2.0 * vec4(texcoord, depth, 1.0) - 1.0;\n"
 	"	vec4 pos_hom = InverseProjection * pos_ndc;\n"
 	"	vec3 position = pos_hom.xyz / pos_hom.w;\n"
-	"	vec3 normal = texture(NormalSampler, texcoord).xyz;\n"
-	"	vec4 albedo = texture(AlbedoSampler, texcoord);\n"
+	"	vec3 normal = texture(map_Normal, texcoord).xyz;\n"
+	"	vec4 albedo = texture(map_Color, texcoord);\n"
 	"	vec4 pos_shadow = ShadowMatrix * vec4(position, 1.0);\n"
-	"	float shadow = textureProj(ShadowSampler, pos_shadow);\n"
+	"	float shadow = textureProj(map_Shadow, pos_shadow);\n"
 	"	vec2 ps = pos_shadow.xy / pos_shadow.w;\n"
 	"	if (pos_shadow.w < 0 || ps.x < 0 || ps.x > 1 || ps.y < 0 || ps.y > 1) shadow = 1.0;\n"
 
@@ -317,21 +311,17 @@ static const char *sun_frag_src =
 	"}\n"
 ;
 
-static int sun_prog = 0;
-static int sun_uni_viewport;
-static int sun_uni_inverse_projection;
-static int sun_uni_projection;
-static int sun_uni_model_view;
-static int sun_uni_depth_sampler;
-static int sun_uni_normal_sampler;
-static int sun_uni_albedo_sampler;
-static int sun_uni_direction;
-static int sun_uni_color;
-static int sun_uni_shadow_sampler;
-static int sun_uni_shadow_matrix;
-
 void render_sun_light(int shadow_map, mat4 projection, mat4 model_view, vec3 sun_position, vec3 sun_direction, float width, float depth, vec3 color)
 {
+	static int sun_prog = 0;
+	static int uni_viewport;
+	static int uni_inverse_projection;
+	static int uni_projection;
+	static int uni_model_view;
+	static int uni_direction;
+	static int uni_color;
+	static int uni_shadow_matrix;
+
 	mat4 inverse_projection;
 	mat4 inverse_model_view;
 	vec2 viewport;
@@ -341,17 +331,13 @@ void render_sun_light(int shadow_map, mat4 projection, mat4 model_view, vec3 sun
 
 	if (!sun_prog) {
 		sun_prog = compile_shader(quad_vert_src, sun_frag_src);
-		sun_uni_viewport = glGetUniformLocation(sun_prog, "Viewport");
-		sun_uni_inverse_projection = glGetUniformLocation(sun_prog, "InverseProjection");
-		sun_uni_projection = glGetUniformLocation(sun_prog, "Projection");
-		sun_uni_model_view = glGetUniformLocation(sun_prog, "ModelView");
-		sun_uni_depth_sampler = glGetUniformLocation(sun_prog, "DepthSampler");
-		sun_uni_normal_sampler = glGetUniformLocation(sun_prog, "NormalSampler");
-		sun_uni_albedo_sampler = glGetUniformLocation(sun_prog, "AlbedoSampler");
-		sun_uni_shadow_sampler = glGetUniformLocation(sun_prog, "ShadowSampler");
-		sun_uni_shadow_matrix = glGetUniformLocation(sun_prog, "ShadowMatrix");
-		sun_uni_direction = glGetUniformLocation(sun_prog, "LightDirection");
-		sun_uni_color = glGetUniformLocation(sun_prog, "LightColor");
+		uni_viewport = glGetUniformLocation(sun_prog, "Viewport");
+		uni_inverse_projection = glGetUniformLocation(sun_prog, "InverseProjection");
+		uni_projection = glGetUniformLocation(sun_prog, "Projection");
+		uni_model_view = glGetUniformLocation(sun_prog, "ModelView");
+		uni_shadow_matrix = glGetUniformLocation(sun_prog, "ShadowMatrix");
+		uni_direction = glGetUniformLocation(sun_prog, "LightDirection");
+		uni_color = glGetUniformLocation(sun_prog, "LightColor");
 	}
 
 	mat_invert(inverse_projection, projection);
@@ -370,22 +356,17 @@ void render_sun_light(int shadow_map, mat4 projection, mat4 model_view, vec3 sun
 	mat_mul44(tmp2, tmp1, inverse_model_view);
 	mat_mul44(shadow_matrix, bias_matrix, tmp2);
 
-	glActiveTexture(GL_TEXTURE3);
+	glActiveTexture(MAP_SHADOW);
 	glBindTexture(GL_TEXTURE_2D, shadow_map);
-	glActiveTexture(GL_TEXTURE0);
 
 	glUseProgram(sun_prog);
-	glUniform2fv(sun_uni_viewport, 1, viewport);
-	glUniformMatrix4fv(sun_uni_inverse_projection, 1, 0, inverse_projection);
-	glUniformMatrix4fv(sun_uni_projection, 1, 0, projection);
-	glUniformMatrix4fv(sun_uni_model_view, 1, 0, model_view);
-	glUniformMatrix4fv(sun_uni_shadow_matrix, 1, 0, shadow_matrix);
-	glUniform1i(sun_uni_depth_sampler, 0);
-	glUniform1i(sun_uni_normal_sampler, 1);
-	glUniform1i(sun_uni_albedo_sampler, 2);
-	glUniform1i(sun_uni_shadow_sampler, 3);
-	glUniform3fv(sun_uni_direction, 1, direction);
-	glUniform3fv(sun_uni_color, 1, color);
+	glUniform2fv(uni_viewport, 1, viewport);
+	glUniformMatrix4fv(uni_inverse_projection, 1, 0, inverse_projection);
+	glUniformMatrix4fv(uni_projection, 1, 0, projection);
+	glUniformMatrix4fv(uni_model_view, 1, 0, model_view);
+	glUniformMatrix4fv(uni_shadow_matrix, 1, 0, shadow_matrix);
+	glUniform3fv(uni_direction, 1, direction);
+	glUniform3fv(uni_color, 1, color);
 
 	draw_fullscreen_quad();
 }
@@ -393,11 +374,11 @@ void render_sun_light(int shadow_map, mat4 projection, mat4 model_view, vec3 sun
 /* Point light */
 
 static const char *point_frag_src =
+	"uniform sampler2D map_Color;\n"
+	"uniform sampler2D map_Normal;\n"
+	"uniform sampler2D map_Depth;\n"
 	"uniform vec2 Viewport;\n"
 	"uniform mat4 InverseProjection;\n"
-	"uniform sampler2D DepthSampler;\n"
-	"uniform sampler2D NormalSampler;\n"
-	"uniform sampler2D AlbedoSampler;\n"
 	"uniform vec3 LightPosition;\n"
 	"uniform vec3 LightColor;\n"
 	"uniform float LightDistance;\n"
@@ -405,12 +386,12 @@ static const char *point_frag_src =
 	"out vec4 frag_Color;\n"
 	"void main() {\n"
 	"	vec2 texcoord = gl_FragCoord.xy / Viewport.xy;\n"
-	"	float depth = texture(DepthSampler, texcoord).x;\n"
+	"	float depth = texture(map_Depth, texcoord).x;\n"
 	"	vec4 pos_ndc = 2.0 * vec4(texcoord, depth, 1.0) - 1.0;\n"
 	"	vec4 pos_hom = InverseProjection * pos_ndc;\n"
 	"	vec3 position = pos_hom.xyz / pos_hom.w;\n"
-	"	vec3 normal = texture(NormalSampler, texcoord).xyz;\n"
-	"	vec4 albedo = texture(AlbedoSampler, texcoord);\n"
+	"	vec3 normal = texture(map_Normal, texcoord).xyz;\n"
+	"	vec4 albedo = texture(map_Color, texcoord);\n"
 
 	"	vec3 direction = LightPosition - position;\n"
 	"	float dist2 = dot(direction, direction);\n"
@@ -427,36 +408,30 @@ static const char *point_frag_src =
 	"}\n"
 ;
 
-static int point_prog = 0;
-static int point_uni_viewport;
-static int point_uni_inverse_projection;
-static int point_uni_projection;
-static int point_uni_model_view;
-static int point_uni_depth_sampler;
-static int point_uni_normal_sampler;
-static int point_uni_albedo_sampler;
-static int point_uni_position;
-static int point_uni_color;
-static int point_uni_distance;
-
 void render_point_light(mat4 projection, mat4 model_view, vec3 point_position, vec3 color, float distance)
 {
+	static int prog = 0;
+	static int uni_viewport;
+	static int uni_inverse_projection;
+	static int uni_projection;
+	static int uni_model_view;
+	static int uni_position;
+	static int uni_color;
+	static int uni_distance;
+
 	mat4 inverse_projection;
 	vec2 viewport;
 	vec3 position;
 
-	if (!point_prog) {
-		point_prog = compile_shader(quad_vert_src, point_frag_src);
-		point_uni_viewport = glGetUniformLocation(point_prog, "Viewport");
-		point_uni_inverse_projection = glGetUniformLocation(point_prog, "InverseProjection");
-		point_uni_projection = glGetUniformLocation(point_prog, "Projection");
-		point_uni_model_view = glGetUniformLocation(point_prog, "ModelView");
-		point_uni_depth_sampler = glGetUniformLocation(point_prog, "DepthSampler");
-		point_uni_normal_sampler = glGetUniformLocation(point_prog, "NormalSampler");
-		point_uni_albedo_sampler = glGetUniformLocation(point_prog, "AlbedoSampler");
-		point_uni_position = glGetUniformLocation(point_prog, "LightPosition");
-		point_uni_color = glGetUniformLocation(point_prog, "LightColor");
-		point_uni_distance = glGetUniformLocation(point_prog, "LightDistance");
+	if (!prog) {
+		prog = compile_shader(quad_vert_src, point_frag_src);
+		uni_viewport = glGetUniformLocation(prog, "Viewport");
+		uni_inverse_projection = glGetUniformLocation(prog, "InverseProjection");
+		uni_projection = glGetUniformLocation(prog, "Projection");
+		uni_model_view = glGetUniformLocation(prog, "ModelView");
+		uni_position = glGetUniformLocation(prog, "LightPosition");
+		uni_color = glGetUniformLocation(prog, "LightColor");
+		uni_distance = glGetUniformLocation(prog, "LightDistance");
 	}
 
 	mat_invert(inverse_projection, projection);
@@ -466,17 +441,14 @@ void render_point_light(mat4 projection, mat4 model_view, vec3 point_position, v
 
 	mat_vec_mul(position, model_view, point_position);
 
-	glUseProgram(point_prog);
-	glUniform2fv(point_uni_viewport, 1, viewport);
-	glUniformMatrix4fv(point_uni_inverse_projection, 1, 0, inverse_projection);
-	glUniformMatrix4fv(point_uni_projection, 1, 0, projection);
-	glUniformMatrix4fv(point_uni_model_view, 1, 0, model_view);
-	glUniform1i(point_uni_depth_sampler, 0);
-	glUniform1i(point_uni_normal_sampler, 1);
-	glUniform1i(point_uni_albedo_sampler, 2);
-	glUniform3fv(point_uni_position, 1, position);
-	glUniform3fv(point_uni_color, 1, color);
-	glUniform1f(point_uni_distance, distance);
+	glUseProgram(prog);
+	glUniform2fv(uni_viewport, 1, viewport);
+	glUniformMatrix4fv(uni_inverse_projection, 1, 0, inverse_projection);
+	glUniformMatrix4fv(uni_projection, 1, 0, projection);
+	glUniformMatrix4fv(uni_model_view, 1, 0, model_view);
+	glUniform3fv(uni_position, 1, position);
+	glUniform3fv(uni_color, 1, color);
+	glUniform1f(uni_distance, distance);
 
 	draw_fullscreen_quad();
 }
@@ -484,13 +456,13 @@ void render_point_light(mat4 projection, mat4 model_view, vec3 point_position, v
 /* Spot light */
 
 static const char *spot_frag_src =
+	"uniform sampler2D map_Color;\n"
+	"uniform sampler2D map_Normal;\n"
+	"uniform sampler2D map_Depth;\n"
+	"uniform sampler2DShadow map_Shadow;\n"
 	"uniform vec2 Viewport;\n"
 	"uniform mat4 InverseProjection;\n"
 	"uniform mat4 ShadowMatrix;\n"
-	"uniform sampler2D DepthSampler;\n"
-	"uniform sampler2D NormalSampler;\n"
-	"uniform sampler2D AlbedoSampler;\n"
-	"uniform sampler2DShadow ShadowSampler;\n"
 	"uniform vec3 LightPosition;\n"
 	"uniform vec3 LightDirection;\n"
 	"uniform float LightAngle;\n"
@@ -500,14 +472,14 @@ static const char *spot_frag_src =
 	"out vec4 frag_Color;\n"
 	"void main() {\n"
 	"	vec2 texcoord = gl_FragCoord.xy / Viewport.xy;\n"
-	"	float depth = texture(DepthSampler, texcoord).x;\n"
+	"	float depth = texture(map_Depth, texcoord).x;\n"
 	"	vec4 pos_ndc = 2.0 * vec4(texcoord, depth, 1.0) - 1.0;\n"
 	"	vec4 pos_hom = InverseProjection * pos_ndc;\n"
 	"	vec3 position = pos_hom.xyz / pos_hom.w;\n"
-	"	vec3 normal = texture(NormalSampler, texcoord).xyz;\n"
-	"	vec4 albedo = texture(AlbedoSampler, texcoord);\n"
+	"	vec3 normal = texture(map_Normal, texcoord).xyz;\n"
+	"	vec4 albedo = texture(map_Color, texcoord);\n"
 	"	vec4 pos_shadow = ShadowMatrix * vec4(position, 1.0);\n"
-	"	float shadow = textureProj(ShadowSampler, pos_shadow);\n"
+	"	float shadow = textureProj(map_Shadow, pos_shadow);\n"
 	"	vec2 ps = pos_shadow.xy / pos_shadow.w;\n"
 	"	if (pos_shadow.w < 0 || ps.x < 0 || ps.x > 1 || ps.y < 0 || ps.y > 1) shadow = 0.0;\n"
 
@@ -530,24 +502,20 @@ static const char *spot_frag_src =
 	"}\n"
 ;
 
-static int spot_prog = 0;
-static int spot_uni_viewport;
-static int spot_uni_inverse_projection;
-static int spot_uni_projection;
-static int spot_uni_model_view;
-static int spot_uni_depth_sampler;
-static int spot_uni_normal_sampler;
-static int spot_uni_albedo_sampler;
-static int spot_uni_shadow_sampler;
-static int spot_uni_shadow_matrix;
-static int spot_uni_position;
-static int spot_uni_direction;
-static int spot_uni_angle;
-static int spot_uni_color;
-static int spot_uni_distance;
-
 void render_spot_light(int shadow_map, mat4 projection, mat4 model_view, vec3 spot_position, vec3 spot_direction, float spot_angle, vec3 color, float distance)
 {
+	static int prog = 0;
+	static int uni_viewport;
+	static int uni_inverse_projection;
+	static int uni_projection;
+	static int uni_model_view;
+	static int uni_shadow_matrix;
+	static int uni_position;
+	static int uni_direction;
+	static int uni_angle;
+	static int uni_color;
+	static int uni_distance;
+
 	mat4 inverse_projection;
 	mat4 inverse_model_view;
 	vec2 viewport;
@@ -556,22 +524,18 @@ void render_spot_light(int shadow_map, mat4 projection, mat4 model_view, vec3 sp
 
 	setup_spot_shadow(spot_position, spot_direction, spot_angle, distance);
 
-	if (!spot_prog) {
-		spot_prog = compile_shader(quad_vert_src, spot_frag_src);
-		spot_uni_viewport = glGetUniformLocation(spot_prog, "Viewport");
-		spot_uni_inverse_projection = glGetUniformLocation(spot_prog, "InverseProjection");
-		spot_uni_projection = glGetUniformLocation(spot_prog, "Projection");
-		spot_uni_model_view = glGetUniformLocation(spot_prog, "ModelView");
-		spot_uni_shadow_matrix = glGetUniformLocation(spot_prog, "ShadowMatrix");
-		spot_uni_depth_sampler = glGetUniformLocation(spot_prog, "DepthSampler");
-		spot_uni_normal_sampler = glGetUniformLocation(spot_prog, "NormalSampler");
-		spot_uni_albedo_sampler = glGetUniformLocation(spot_prog, "AlbedoSampler");
-		spot_uni_shadow_sampler = glGetUniformLocation(spot_prog, "ShadowSampler");
-		spot_uni_position = glGetUniformLocation(spot_prog, "LightPosition");
-		spot_uni_direction = glGetUniformLocation(spot_prog, "LightDirection");
-		spot_uni_angle = glGetUniformLocation(spot_prog, "LightAngle");
-		spot_uni_color = glGetUniformLocation(spot_prog, "LightColor");
-		spot_uni_distance = glGetUniformLocation(spot_prog, "LightDistance");
+	if (!prog) {
+		prog = compile_shader(quad_vert_src, spot_frag_src);
+		uni_viewport = glGetUniformLocation(prog, "Viewport");
+		uni_inverse_projection = glGetUniformLocation(prog, "InverseProjection");
+		uni_projection = glGetUniformLocation(prog, "Projection");
+		uni_model_view = glGetUniformLocation(prog, "ModelView");
+		uni_shadow_matrix = glGetUniformLocation(prog, "ShadowMatrix");
+		uni_position = glGetUniformLocation(prog, "LightPosition");
+		uni_direction = glGetUniformLocation(prog, "LightDirection");
+		uni_angle = glGetUniformLocation(prog, "LightAngle");
+		uni_color = glGetUniformLocation(prog, "LightColor");
+		uni_distance = glGetUniformLocation(prog, "LightDistance");
 	}
 
 	mat_invert(inverse_projection, projection);
@@ -592,25 +556,20 @@ void render_spot_light(int shadow_map, mat4 projection, mat4 model_view, vec3 sp
 	mat_mul44(tmp2, tmp1, inverse_model_view);
 	mat_mul44(shadow_matrix, bias_matrix, tmp2);
 
-	glActiveTexture(GL_TEXTURE3);
+	glActiveTexture(MAP_SHADOW);
 	glBindTexture(GL_TEXTURE_2D, shadow_map);
-	glActiveTexture(GL_TEXTURE0);
 
-	glUseProgram(spot_prog);
-	glUniform2fv(spot_uni_viewport, 1, viewport);
-	glUniformMatrix4fv(spot_uni_inverse_projection, 1, 0, inverse_projection);
-	glUniformMatrix4fv(spot_uni_projection, 1, 0, projection);
-	glUniformMatrix4fv(spot_uni_model_view, 1, 0, model_view);
-	glUniformMatrix4fv(spot_uni_shadow_matrix, 1, 0, shadow_matrix);
-	glUniform1i(spot_uni_depth_sampler, 0);
-	glUniform1i(spot_uni_normal_sampler, 1);
-	glUniform1i(spot_uni_albedo_sampler, 2);
-	glUniform1i(spot_uni_shadow_sampler, 3);
-	glUniform3fv(spot_uni_position, 1, position);
-	glUniform3fv(spot_uni_direction, 1, direction);
-	glUniform3fv(spot_uni_color, 1, color);
-	glUniform1f(spot_uni_distance, distance);
-	glUniform1f(spot_uni_angle, cos(spot_angle * 0.5 * 3.14157 / 180.0));
+	glUseProgram(prog);
+	glUniform2fv(uni_viewport, 1, viewport);
+	glUniformMatrix4fv(uni_inverse_projection, 1, 0, inverse_projection);
+	glUniformMatrix4fv(uni_projection, 1, 0, projection);
+	glUniformMatrix4fv(uni_model_view, 1, 0, model_view);
+	glUniformMatrix4fv(uni_shadow_matrix, 1, 0, shadow_matrix);
+	glUniform3fv(uni_position, 1, position);
+	glUniform3fv(uni_direction, 1, direction);
+	glUniform3fv(uni_color, 1, color);
+	glUniform1f(uni_distance, distance);
+	glUniform1f(uni_angle, cos(spot_angle * 0.5 * 3.14157 / 180.0));
 
 	draw_fullscreen_quad();
 }
@@ -634,15 +593,15 @@ static const char *static_vert_src =
 ;
 
 static const char *static_frag_src =
-	"uniform sampler2D SamplerDiffuse;\n"
-	"uniform sampler2D SamplerSpecular;\n"
+	"uniform sampler2D map_Color;\n"
+	"uniform sampler2D map_Gloss;\n"
 	"in vec3 var_Normal;\n"
 	"in vec2 var_TexCoord;\n"
 	"out vec4 frag_Normal;\n"
 	"out vec4 frag_Albedo;\n"
 	"void main() {\n"
-	"	vec4 albedo = texture(SamplerDiffuse, var_TexCoord);\n"
-	"	vec4 gloss = texture(SamplerSpecular, var_TexCoord);\n"
+	"	vec4 albedo = texture(map_Color, var_TexCoord);\n"
+	"	vec4 gloss = texture(map_Gloss, var_TexCoord);\n"
 	"	vec3 normal = normalize(var_Normal);\n"
 	"	if (albedo.a < 0.2) discard;\n"
 	"	frag_Normal = vec4(normal.xyz, 0);\n"
@@ -650,42 +609,34 @@ static const char *static_frag_src =
 	"}\n"
 ;
 
-static int static_prog = 0;
-static int static_uni_projection;
-static int static_uni_model_view;
-static int static_uni_sampler_diffuse;
-static int static_uni_sampler_specular;
-
-void render_model(struct model *model, mat4 projection, mat4 model_view)
+void render_mesh(struct mesh *mesh, mat4 projection, mat4 model_view)
 {
+	static int prog = 0;
+	static int uni_projection;
+	static int uni_model_view;
+
 	int i;
 
-	if (!model)
+	if (!mesh)
 		return;
 
-	if (!static_prog) {
-		static_prog = compile_shader(static_vert_src, static_frag_src);
-		static_uni_projection = glGetUniformLocation(static_prog, "Projection");
-		static_uni_model_view = glGetUniformLocation(static_prog, "ModelView");
-		static_uni_sampler_diffuse = glGetUniformLocation(static_prog, "SamplerDiffuse");
-		static_uni_sampler_specular = glGetUniformLocation(static_prog, "SamplerSpecular");
+	if (!prog) {
+		prog = compile_shader(static_vert_src, static_frag_src);
+		uni_projection = glGetUniformLocation(prog, "Projection");
+		uni_model_view = glGetUniformLocation(prog, "ModelView");
 	}
 
-	glUseProgram(static_prog);
-	glUniformMatrix4fv(static_uni_projection, 1, 0, projection);
-	glUniformMatrix4fv(static_uni_model_view, 1, 0, model_view);
-	glUniform1i(static_uni_sampler_diffuse, 0);
-	glUniform1i(static_uni_sampler_specular, 1);
+	glUseProgram(prog);
+	glUniformMatrix4fv(uni_projection, 1, 0, projection);
+	glUniformMatrix4fv(uni_model_view, 1, 0, model_view);
 
-	glBindVertexArray(model->vao);
+	glBindVertexArray(mesh->vao);
 
-	for (i = 0; i < model->mesh_count; i++) {
-		glBindTexture(GL_TEXTURE_2D, model->mesh[i].material);
-		glDrawElements(GL_TRIANGLES, model->mesh[i].count, GL_UNSIGNED_SHORT, (void*)(model->mesh[i].first * 2));
+	for (i = 0; i < mesh->count; i++) {
+		glActiveTexture(MAP_COLOR);
+		glBindTexture(GL_TEXTURE_2D, mesh->part[i].material);
+		glDrawElements(GL_TRIANGLES, mesh->part[i].count, GL_UNSIGNED_SHORT, (void*)(mesh->part[i].first * 2));
 	}
-
-	glBindVertexArray(0);
-	glUseProgram(0);
 }
 
 static const char *shadow_vert_src =
@@ -701,31 +652,29 @@ static const char *shadow_vert_src =
 ;
 
 static const char *shadow_frag_src =
-	"uniform sampler2D SamplerDiffuse;\n"
+	"uniform sampler2D map_Color;\n"
 	"in vec2 var_TexCoord;\n"
 	"void main() {\n"
-	"	vec4 albedo = texture(SamplerDiffuse, var_TexCoord);\n"
+	"	vec4 albedo = texture(map_Color, var_TexCoord);\n"
 	"	if (albedo.a < 0.2) discard;\n"
 	"}\n"
 ;
 
-static int shadow_prog = 0;
-static int shadow_uni_projection;
-static int shadow_uni_model_view;
-static int shadow_uni_sampler_diffuse;
-
-void render_model_shadow(struct model *model)
+void render_mesh_shadow(struct mesh *mesh)
 {
+	static int prog = 0;
+	static int uni_projection;
+	static int uni_model_view;
+
 	int i;
 
-	if (!model)
+	if (!mesh)
 		return;
 
-	if (!shadow_prog) {
-		shadow_prog = compile_shader(shadow_vert_src, shadow_frag_src);
-		shadow_uni_projection = glGetUniformLocation(shadow_prog, "Projection");
-		shadow_uni_model_view = glGetUniformLocation(shadow_prog, "ModelView");
-		shadow_uni_sampler_diffuse = glGetUniformLocation(shadow_prog, "SamplerDiffuse");
+	if (!prog) {
+		prog = compile_shader(shadow_vert_src, shadow_frag_src);
+		uni_projection = glGetUniformLocation(prog, "Projection");
+		uni_model_view = glGetUniformLocation(prog, "ModelView");
 	}
 
 	glPolygonOffset(1.1, 4.0);
@@ -733,21 +682,134 @@ void render_model_shadow(struct model *model)
 
 	glCullFace(GL_FRONT);
 
-	glUseProgram(shadow_prog);
-	glUniformMatrix4fv(shadow_uni_projection, 1, 0, shadow_projection);
-	glUniformMatrix4fv(shadow_uni_model_view, 1, 0, shadow_model_view);
-	glUniform1i(shadow_uni_sampler_diffuse, 0);
+	glUseProgram(prog);
+	glUniformMatrix4fv(uni_projection, 1, 0, shadow_projection);
+	glUniformMatrix4fv(uni_model_view, 1, 0, shadow_model_view);
 
-	glBindVertexArray(model->vao);
+	glBindVertexArray(mesh->vao);
 
-	for (i = 0; i < model->mesh_count; i++) {
-		glBindTexture(GL_TEXTURE_2D, model->mesh[i].material);
-		glDrawElements(GL_TRIANGLES, model->mesh[i].count, GL_UNSIGNED_SHORT, (void*)(model->mesh[i].first * 2));
+	for (i = 0; i < mesh->count; i++) {
+		glActiveTexture(MAP_COLOR);
+		glBindTexture(GL_TEXTURE_2D, mesh->part[i].material);
+		glDrawElements(GL_TRIANGLES, mesh->part[i].count, GL_UNSIGNED_SHORT, (void*)(mesh->part[i].first * 2));
 	}
 
 	glCullFace(GL_BACK);
 	glDisable(GL_POLYGON_OFFSET_FILL);
+}
 
-	glBindVertexArray(0);
-	glUseProgram(0);
+/* old crap */
+
+static const char *bone_vert_src =
+	"uniform mat4 Projection;\n"
+	"uniform mat4 ModelView;\n"
+	"uniform mat4 BoneMatrix[80];\n"
+	"in vec4 att_Position;\n"
+	"in vec3 att_Normal;\n"
+	"in vec2 att_TexCoord;\n"
+	"in vec4 att_BlendIndex;\n"
+	"in vec4 att_BlendWeight;\n"
+	"out vec3 var_Normal;\n"
+	"out vec2 var_TexCoord;\n"
+	"void main() {\n"
+	"	vec4 position = vec4(0);\n"
+	"	vec4 normal = vec4(0);\n"
+	"	vec4 index = att_BlendIndex;\n"
+	"	vec4 weight = att_BlendWeight;\n"
+	"	for (int i = 0; i < 4; i++) {\n"
+	"		mat4 m = BoneMatrix[int(index.x)];\n"
+	"		position += m * att_Position * weight.x;\n"
+	"		normal += m * vec4(att_Normal, 0) * weight.x;\n"
+	"		index = index.yzwx;\n"
+	"		weight = weight.yzwx;\n"
+	"	}\n"
+	"	position = ModelView * position;\n"
+	"	normal = ModelView * normal;\n"
+	"	gl_Position = Projection * position;\n"
+	"	var_Normal = normal.xyz;\n"
+	"	var_TexCoord = att_TexCoord;\n"
+	"}\n"
+;
+
+static const char *model_frag_src =
+	"uniform sampler2D map_Color;\n"
+	"in vec3 var_Position;\n"
+	"in vec3 var_Normal;\n"
+	"in vec2 var_TexCoord;\n"
+	"out vec4 frag_Color;\n"
+	"const vec3 LightDirection = vec3(-0.5773, 0.5773, 0.5773);\n"
+	"const vec3 LightAmbient = vec3(0.1);\n"
+	"const vec3 LightDiffuse = vec3(0.9);\n"
+	"void main() {\n"
+	"	vec4 albedo = texture(map_Color, var_TexCoord);\n"
+	"	vec3 N = normalize(var_Normal);\n"
+	"	float diffuse = max(dot(N, LightDirection), 0.0);\n"
+	"	vec3 Ka = albedo.rgb * LightAmbient;\n"
+	"	vec3 Kd = albedo.rgb * LightDiffuse * diffuse;\n"
+	"	if (albedo.a < 0.2) discard;\n"
+	"	frag_Color = vec4(Ka + Kd, albedo.a);\n"
+	"}\n"
+;
+
+void draw_model(struct mesh *mesh, mat4 projection, mat4 model_view)
+{
+	static int prog = 0;
+	static int uni_projection;
+	static int uni_model_view;
+
+	int i;
+
+	if (!mesh)
+		return;
+
+	if (!prog) {
+		prog = compile_shader(static_vert_src, model_frag_src);
+		uni_projection = glGetUniformLocation(prog, "Projection");
+		uni_model_view = glGetUniformLocation(prog, "ModelView");
+	}
+
+	glUseProgram(prog);
+	glUniformMatrix4fv(uni_projection, 1, 0, projection);
+	glUniformMatrix4fv(uni_model_view, 1, 0, model_view);
+
+	glBindVertexArray(mesh->vao);
+
+	for (i = 0; i < mesh->count; i++) {
+		glActiveTexture(MAP_COLOR);
+		glBindTexture(GL_TEXTURE_2D, mesh->part[i].material);
+		glDrawElements(GL_TRIANGLES, mesh->part[i].count, GL_UNSIGNED_SHORT, (void*)(mesh->part[i].first * 2));
+	}
+}
+
+void draw_model_with_pose(struct mesh *mesh, mat4 projection, mat4 model_view, mat4 *skin_matrix)
+{
+	static int prog = 0;
+	static int uni_projection;
+	static int uni_model_view;
+	static int uni_skin_matrix;
+
+	int i;
+
+	if (!mesh)
+		return;
+
+	if (!prog) {
+		prog = compile_shader(bone_vert_src, model_frag_src);
+		uni_projection = glGetUniformLocation(prog, "Projection");
+		uni_model_view = glGetUniformLocation(prog, "ModelView");
+		uni_skin_matrix = glGetUniformLocation(prog, "BoneMatrix");
+	}
+
+	glUseProgram(prog);
+	glUniformMatrix4fv(uni_projection, 1, 0, projection);
+	glUniformMatrix4fv(uni_model_view, 1, 0, model_view);
+	glUniformMatrix4fv(uni_skin_matrix, mesh->skel->count, 0, skin_matrix[0]);
+
+	glBindVertexArray(mesh->vao);
+
+	for (i = 0; i < mesh->count; i++) {
+		glActiveTexture(MAP_COLOR);
+		glBindTexture(GL_TEXTURE_2D, mesh->part[i].material);
+		glDrawElements(GL_TRIANGLES, mesh->part[i].count, GL_UNSIGNED_SHORT, (void*)(mesh->part[i].first * 2));
+	}
 }

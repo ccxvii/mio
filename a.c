@@ -21,8 +21,8 @@ static float animtick = 0;
 static struct font *droid_sans;
 static struct font *droid_sans_mono;
 
-static struct animation *animation = NULL;
-static struct model *model[200] = {0};
+static struct anim *animation = NULL;
+static struct mesh *model[200] = {0};
 static int model_count = 0;
 
 mat4 skin_matrix[MAXBONE];
@@ -153,16 +153,16 @@ static void display(void)
 			animtick = animtick + (timediff / 1000.0f) * animspeed;
 			glutPostRedisplay();
 		}
-		if (animation->frame_count > 1) {
-			while (animtick < 0) animtick += animation->frame_count;
-			while (animtick >= animation->frame_count) animtick -= animation->frame_count;
+		if (animation->frames > 1) {
+			while (animtick < 0) animtick += animation->frames;
+			while (animtick >= animation->frames) animtick -= animation->frames;
 		} else {
 			animtick = 0;
 		}
 
 		extract_pose(animbuf, animation, (int)animtick);
-		calc_matrix_from_pose(anim_matrix, animbuf, animation->bone_count);
-		calc_abs_matrix(abs_anim_matrix, anim_matrix, animation->parent, animation->bone_count);
+		calc_matrix_from_pose(anim_matrix, animbuf, animation->skel->count);
+		calc_abs_matrix(abs_anim_matrix, anim_matrix, animation->skel->parent, animation->skel->count);
 	}
 
 	glViewport(0, 0, screenw, screenh);
@@ -199,23 +199,24 @@ static void display(void)
 
 	if (animation) {
 		for (i = 0; i < model_count; i++) {
-			memcpy(posebuf, model[i]->bind_pose, sizeof posebuf);
+			memcpy(posebuf, model[i]->skel->pose, sizeof posebuf);
 			if (ryzom)
-				apply_animation_ryzom(posebuf, model[i]->bone_name, model[i]->bone_count,
-					animbuf, animation->bone_name, animation->bone_count);
+				apply_animation_ryzom(posebuf, model[i]->skel, animbuf, animation->skel);
 			else
-				apply_animation(posebuf, model[i]->bone_name, model[i]->bone_count,
-					animbuf, animation->bone_name, animation->bone_count);
-			calc_matrix_from_pose(pose_matrix, posebuf, model[i]->bone_count);
-			calc_abs_matrix(abs_pose_matrix, pose_matrix, model[i]->parent, model[i]->bone_count);
-			calc_mul_matrix(skin_matrix, abs_pose_matrix, model[i]->inv_bind_matrix, model[i]->bone_count);
+				apply_animation(posebuf, model[i]->skel, animbuf, animation->skel);
+			calc_matrix_from_pose(pose_matrix, posebuf, model[i]->skel->count);
+			calc_abs_matrix(abs_pose_matrix, pose_matrix, model[i]->skel->parent, model[i]->skel->count);
+			calc_mul_matrix(skin_matrix, abs_pose_matrix, model[i]->inv_bind_matrix, model[i]->skel->count);
 			draw_model_with_pose(model[i], projection, model_view, skin_matrix);
 		}
 	} else {
+		if (model[0] && model[0]->skel) {
+			calc_matrix_from_pose(pose_matrix, model[0]->skel->pose, model[0]->skel->count);
+			calc_abs_matrix(abs_pose_matrix, pose_matrix, model[0]->skel->parent, model[0]->skel->count);
+		}
 		for (i = 0; i < model_count; i++) {
 			draw_model(model[i], projection, model_view);
 		}
-		glutPostRedisplay();
 	}
 
 	glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
@@ -224,15 +225,13 @@ static void display(void)
 
 	glDisable(GL_DEPTH_TEST);
 
-	if (showskeleton && animation) {
-		draw_begin(projection, model_view);
-		draw_skeleton_with_axis(abs_pose_matrix, model[0]->parent, model[0]->bone_count);
-		draw_end();
-
-		mat_translate(model_view, 1, 0, 0);
-		draw_begin(projection, model_view);
-		draw_skeleton_with_axis(abs_anim_matrix, animation->parent, animation->bone_count);
-		draw_end();
+	if (showskeleton) {
+		if (model[0] && (animation || model[0]->skel)) {
+			draw_begin(projection, model_view);
+			draw_set_color(1, 1, 1, 1);
+			draw_armature(abs_pose_matrix, model[0]->skel->parent, model[0]->skel->count);
+			draw_end();
+		}
 	}
 
 	mat_ortho(projection, 0, screenw, screenh, 0, -1, 1);
@@ -246,14 +245,14 @@ static void display(void)
 		int k;
 		for (k = 0; k < model_count; k++) {
 			int nelem = 0;
-			for (i = 0; i < model[k]->mesh_count; i++)
-				nelem += model[k]->mesh[i].count;
-			sprintf(buf, "%d meshes, %d bones, %d triangles.", model[k]->mesh_count, model[k]->bone_count, nelem/3);
+			for (i = 0; i < model[k]->count; i++)
+				nelem += model[k]->part[i].count;
+			sprintf(buf, "%d meshes, %d bones, %d triangles.", model[k]->count, model[k]->skel && model[k]->skel->count, nelem/3);
 			text_show(8, screenh-32-20*k, buf);
 		}
 
 		if (animation) {
-			sprintf(buf, "frame %03d / %03d (%d fps)", (int)animtick+1, animation->frame_count, animspeed);
+			sprintf(buf, "frame %03d / %03d (%d fps)", (int)animtick+1, animation->frames, animspeed);
 			text_show(8, screenh-12, buf);
 		}
 	}
@@ -306,7 +305,6 @@ int main(int argc, char **argv)
 	glEnable(GL_FRAMEBUFFER_SRGB);
 	glEnable(GL_MULTISAMPLE);
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-	//glDepthFunc(GL_LEQUAL);
 	glEnable(GL_CULL_FACE);
 
 	register_directory("data/");
@@ -322,9 +320,9 @@ int main(int argc, char **argv)
 		exit(1);
 
 	if (argc > 2)
-		animation = load_animation(argv[--argc]);
+		animation = load_anim(argv[--argc]);
 	for (i = 1; i < argc; i++)
-		model[model_count++] = load_model(argv[i]);
+		model[model_count++] = load_mesh(argv[i]);
 
 	console_init();
 

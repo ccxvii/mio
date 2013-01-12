@@ -8,18 +8,29 @@ static void error(char *filename, char *msg)
 	fprintf(stderr, "error: %s: '%s'\n", msg, filename);
 }
 
-static int use_vertex_array(int format)
+static int enum_of_type(int type, char *text)
 {
-	switch (format) {
-	case IQM_POSITION: return 1;
-	case IQM_TEXCOORD: return 1;
-	case IQM_NORMAL: return 1;
-	case IQM_TANGENT: return 0;
-	case IQM_BLENDINDEXES: return 1;
-	case IQM_BLENDWEIGHTS: return 1;
-	case IQM_COLOR: return 0;
+	switch (type) {
+	case IQM_POSITION: return ATT_POSITION;
+	case IQM_TEXCOORD: return ATT_TEXCOORD;
+	case IQM_NORMAL: return ATT_NORMAL;
+	case IQM_TANGENT: return ATT_TANGENT;
+	case IQM_BLENDINDEXES: return ATT_BLEND_INDEX;
+	case IQM_BLENDWEIGHTS: return ATT_BLEND_WEIGHT;
+	case IQM_COLOR: return ATT_COLOR;
 	}
-	return 0;
+	if (type >= IQM_CUSTOM) {
+		text = text + type - IQM_CUSTOM;
+		if (!strcmp(text, "lightmap")) return ATT_LIGHTMAP;
+		if (!strcmp(text, "wind")) return ATT_WIND;
+		if (!strcmp(text, "splat")) return ATT_SPLAT;
+	}
+	return -1;
+}
+
+static int use_vertex_array(int type, char *text)
+{
+	return enum_of_type(type, text) >= 0;
 }
 
 static int size_of_format(int format)
@@ -65,185 +76,161 @@ static void flip_triangles(unsigned short *dst, unsigned int *src, int count)
 	}
 }
 
-static int load_iqm_material(char *dir, char *name)
-{
-	char filename[1024], *s;
-	s = strrchr(name, '+');
-	if (s) s++; else s = name;
-	if (dir[0]) {
-		strlcpy(filename, dir, sizeof filename);
-		strlcat(filename, "/", sizeof filename);
-		strlcat(filename, s, sizeof filename);
-		strlcat(filename, ".png", sizeof filename);
-	} else {
-		strlcpy(filename, s, sizeof filename);
-		strlcat(filename, ".png", sizeof filename);
-	}
-	return load_texture(filename, 1);
-}
+static mat4 loc_bind_matrix[MAXBONE];
+static mat4 abs_bind_matrix[MAXBONE];
 
-struct model *load_iqm_model_from_memory(char *filename, unsigned char *data, int len)
+struct model *load_iqm_from_memory(char *filename, unsigned char *data, int len)
 {
-	struct iqmheader *iqm = (void*) data;
-	char *text = (void*) &data[iqm->ofs_text];
-	struct iqmmesh *iqmmesh = (void*) &data[iqm->ofs_meshes];
-	struct iqmvertexarray *vertexarrays = (void*) &data[iqm->ofs_vertexarrays];
-	struct iqmjoint *joints = (void*) &data[iqm->ofs_joints];
-	int i, total;
+	struct iqmheader *iqm = (void*)data;
+	struct iqmvertexarray *vertexarrays = (void*)(data + iqm->ofs_vertexarrays);
+	struct iqmmesh *iqmesh = (void*)(data + iqm->ofs_meshes);
+	struct iqmjoint *iqjoint = (void*)(data + iqm->ofs_joints);
+	struct iqmpose *iqpose = (void*)(data + iqm->ofs_poses);
+	struct iqmanim *iqanim = (void*)(data + iqm->ofs_anims);
+	char *text = (void*)(data + iqm->ofs_text);
+	unsigned short *frames = (void*)(data + iqm->ofs_frames);
+	struct skel *skel = NULL;
+	struct mesh *mesh = NULL;
+	struct anim *anim_head = NULL;
+	int i, f, k, total;
+
 	char *p;
 	char dir[256];
-
 	strlcpy(dir, filename, sizeof dir);
 	p = strrchr(dir, '/');
 	if (!p) p = strrchr(dir, '\\');
 	if (p) p[0] = 0; else strlcpy(dir, "", sizeof dir);
+
+	assert(sizeof(int) == 4);
 
 	if (memcmp(iqm->magic, IQM_MAGIC, 16)) { error(filename, "bad iqm magic"); return NULL; }
 	if (iqm->version != IQM_VERSION) { error(filename, "bad iqm version"); return NULL; }
 	if (iqm->filesize > len) { error(filename, "bad iqm file size"); return NULL; }
 	if (iqm->num_vertexes > 0xffff) { error(filename, "too many vertices in iqm"); return NULL; }
 	if (iqm->num_joints > MAXBONE) { error(filename, "too many bones in iqm"); return NULL; }
+	if (iqm->num_anims && iqm->num_poses != iqm->num_joints) { error(filename, "bad joint/pose data"); return NULL; }
 
-	struct model *model = malloc(sizeof *model);
-	model->mesh_count = iqm->num_meshes;
-	model->bone_count = iqm->num_joints;
-
-	model->mesh = malloc(model->mesh_count * sizeof *model->mesh);
-
-	for (i = 0; i < model->mesh_count; i++) {
-		char *material = text + iqmmesh[i].material;
-		strlcpy(model->mesh[i].name, text + iqmmesh[i].name, sizeof model->mesh[0].name);
-		model->mesh[i].material = load_iqm_material(dir, material);
-		model->mesh[i].first = iqmmesh[i].first_triangle * 3;
-		model->mesh[i].count = iqmmesh[i].num_triangles * 3;
-	}
-
-	for (i = 0; i < model->bone_count; i++) {
-		strlcpy(model->bone_name[i], text + joints[i].name, sizeof model->bone_name[0]);
-		model->parent[i] = joints[i].parent;
-		memcpy(model->bind_pose[i].translate, joints[i].translate, 3*sizeof(float));
-		memcpy(model->bind_pose[i].rotate, joints[i].rotate, 4*sizeof(float));
-		memcpy(model->bind_pose[i].scale, joints[i].scale, 3*sizeof(float));
-	}
-
-	calc_matrix_from_pose(model->bind_matrix, model->bind_pose, model->bone_count);
-	calc_abs_matrix(model->abs_bind_matrix, model->bind_matrix, model->parent, model->bone_count);
-	calc_inv_matrix(model->inv_bind_matrix, model->abs_bind_matrix, model->bone_count);
-
-	glGenVertexArrays(1, &model->vao);
-	glGenBuffers(1, &model->vbo);
-	glGenBuffers(1, &model->ibo);
-
-	glBindVertexArray(model->vao);
-	glBindBuffer(GL_ARRAY_BUFFER, model->vbo);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, model->ibo);
-
-	total = 0;
-	for (i = 0; i < iqm->num_vertexarrays; i++) {
-		struct iqmvertexarray *va = vertexarrays + i;
-		if (use_vertex_array(va->type)) {
-			total += size_of_format(va->format) * va->size * iqm->num_vertexes;
+	if (iqm->num_joints) {
+		skel = malloc(sizeof(struct skel));
+		skel->count = iqm->num_joints;
+		for (i = 0; i < iqm->num_joints; i++) {
+			strlcpy(skel->name[i], text + iqjoint[i].name, sizeof skel->name[0]);
+			skel->parent[i] = iqjoint[i].parent;
+			memcpy(skel->pose[i].position, iqjoint[i].translate, 3 * sizeof(float));
+			memcpy(skel->pose[i].rotation, iqjoint[i].rotate, 4 * sizeof(float));
+			memcpy(skel->pose[i].scale, iqjoint[i].scale, 3 * sizeof(float));
 		}
 	}
 
-	glBufferData(GL_ARRAY_BUFFER, total, NULL, GL_STATIC_DRAW);
+	if (iqm->num_meshes) {
+		mesh = malloc(sizeof(struct mesh));
 
-	total = 0;
-	for (i = 0; i < iqm->num_vertexarrays; i++) {
-		struct iqmvertexarray *va = vertexarrays + i;
-		if (use_vertex_array(va->type)) {
-			int current = size_of_format(va->format) * va->size * iqm->num_vertexes;
-			int format = enum_of_format(va->format);
-			int normalize = va->type != IQM_BLENDINDEXES;
-			glBufferSubData(GL_ARRAY_BUFFER, total, current, &data[va->offset]);
-			glEnableVertexAttribArray(va->type);
-			glVertexAttribPointer(va->type, va->size, format, normalize, 0, (void*)total);
-			total += current;
+		if (skel) {
+			mesh->skel = skel;
+			mesh->inv_bind_matrix = malloc(sizeof(mat4) * skel->count);
+			calc_matrix_from_pose(loc_bind_matrix, skel->pose, skel->count);
+			calc_abs_matrix(abs_bind_matrix, loc_bind_matrix, skel->parent, skel->count);
+			calc_inv_matrix(mesh->inv_bind_matrix, abs_bind_matrix, skel->count);
+		} else {
+			mesh->skel = NULL;
+			mesh->inv_bind_matrix = NULL;
 		}
+
+		mesh->count = iqm->num_meshes;
+		mesh->part = malloc(iqm->num_meshes * sizeof(struct part));
+		for (i = 0; i < iqm->num_meshes; i++) {
+			mesh->part[i].material = load_material(dir, text + iqmesh[i].material);
+			mesh->part[i].first = iqmesh[i].first_triangle * 3;
+			mesh->part[i].count = iqmesh[i].num_triangles * 3;
+		}
+
+		glGenVertexArrays(1, &mesh->vao);
+		glGenBuffers(1, &mesh->vbo);
+		glGenBuffers(1, &mesh->ibo);
+
+		glBindVertexArray(mesh->vao);
+		glBindBuffer(GL_ARRAY_BUFFER, mesh->vbo);
+		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mesh->ibo);
+
+		total = 0;
+		for (i = 0; i < iqm->num_vertexarrays; i++) {
+			struct iqmvertexarray *va = vertexarrays + i;
+			if (use_vertex_array(va->type, text))
+				total += size_of_format(va->format) * va->size * iqm->num_vertexes;
+		}
+
+		glBufferData(GL_ARRAY_BUFFER, total, NULL, GL_STATIC_DRAW);
+
+		total = 0;
+		for (i = 0; i < iqm->num_vertexarrays; i++) {
+			struct iqmvertexarray *va = vertexarrays + i;
+			if (use_vertex_array(va->type, text)) {
+				int current = size_of_format(va->format) * va->size * iqm->num_vertexes;
+				int format = enum_of_format(va->format);
+				int type = enum_of_type(va->type, text);
+				int normalize = va->type != IQM_BLENDINDEXES;
+				glBufferSubData(GL_ARRAY_BUFFER, total, current, data + va->offset);
+				glEnableVertexAttribArray(type);
+				glVertexAttribPointer(type, va->size, format, normalize, 0, (void*)total);
+				total += current;
+			}
+		}
+
+		unsigned short *triangles = malloc(iqm->num_triangles * 3 * 2);
+		flip_triangles(triangles, (void*)&data[iqm->ofs_triangles], iqm->num_triangles);
+		glBufferData(GL_ELEMENT_ARRAY_BUFFER, iqm->num_triangles * 3 * 2, triangles, GL_STATIC_DRAW);
+		free(triangles);
 	}
 
-	unsigned short *triangles = malloc(iqm->num_triangles * 3*2);
-	flip_triangles(triangles, (void*)&data[iqm->ofs_triangles], iqm->num_triangles);
-	glBufferData(GL_ELEMENT_ARRAY_BUFFER, iqm->num_triangles * 3*2, triangles, GL_STATIC_DRAW);
-	free(triangles);
+	for (k = 0; k < iqm->num_anims; k++) {
+		struct anim *anim = malloc(sizeof(struct anim));
+		strlcpy(anim->name, text + iqanim[k].name, sizeof anim->name);
+		anim->skel = skel;
+		anim->frames = iqanim[k].num_frames;
+		anim->channels = iqm->num_framechannels;
+		anim->data = malloc(iqanim[k].num_frames * iqm->num_framechannels * sizeof(float));
 
+		for (i = 0; i < iqm->num_joints; i++) {
+			anim->mask[i] = iqpose[i].mask;
+			anim->pose[i].position[0] = iqpose[i].channeloffset[0];
+			anim->pose[i].position[1] = iqpose[i].channeloffset[1];
+			anim->pose[i].position[2] = iqpose[i].channeloffset[2];
+			anim->pose[i].rotation[0] = iqpose[i].channeloffset[3];
+			anim->pose[i].rotation[1] = iqpose[i].channeloffset[4];
+			anim->pose[i].rotation[2] = iqpose[i].channeloffset[5];
+			anim->pose[i].rotation[3] = iqpose[i].channeloffset[6];
+			anim->pose[i].scale[0] = iqpose[i].channeloffset[7];
+			anim->pose[i].scale[1] = iqpose[i].channeloffset[8];
+			anim->pose[i].scale[2] = iqpose[i].channeloffset[9];
+		}
+
+		unsigned short *src = frames + iqanim[k].first_frame * iqm->num_framechannels;
+		float *dst = anim->data;
+		for (f = 0; f < iqanim[k].num_frames; f++) {
+			for (i = 0; i < iqm->num_joints; i++) {
+				unsigned int mask = iqpose[i].mask;
+				float *offset = iqpose[i].channeloffset;
+				float *scale = iqpose[i].channelscale;
+				if (mask & 0x01) *dst++ = offset[0] + *src++ * scale[0];
+				if (mask & 0x02) *dst++ = offset[1] + *src++ * scale[1];
+				if (mask & 0x04) *dst++ = offset[2] + *src++ * scale[2];
+				if (mask & 0x08) *dst++ = offset[3] + *src++ * scale[3];
+				if (mask & 0x10) *dst++ = offset[4] + *src++ * scale[4];
+				if (mask & 0x20) *dst++ = offset[5] + *src++ * scale[5];
+				if (mask & 0x40) *dst++ = offset[6] + *src++ * scale[6];
+				if (mask & 0x80) *dst++ = offset[7] + *src++ * scale[7];
+				if (mask & 0x100) *dst++ = offset[8] + *src++ * scale[8];
+				if (mask & 0x200) *dst++ = offset[9] + *src++ * scale[9];
+			}
+		}
+
+		anim->next = anim_head;
+		anim_head = anim;
+	}
+
+	struct model *model = malloc(sizeof(struct model));
+	model->skel = skel;
+	model->mesh = mesh;
+	model->anim = anim_head;
 	return model;
-}
-
-void extract_pose(struct pose *pose, struct animation *anim, int frame)
-{
-	if (frame < 0) frame = 0;
-	if (frame >= anim->frame_count) frame = anim->frame_count - 1;
-	memcpy(pose, anim->frame + anim->bone_count * frame, sizeof(struct pose) * anim->bone_count);
-}
-
-struct animation *load_iqm_animation_from_memory(char *filename, unsigned char *data, int len)
-{
-	struct iqmheader *iqm = (void*) data;
-	char *text = (void*) &data[iqm->ofs_text];
-	struct iqmjoint *iqmjoint = (void*) &data[iqm->ofs_joints];
-	struct iqmpose *iqmpose = (void*) &data[iqm->ofs_poses];
-	struct iqmanim *iqmanim = (void*) &data[iqm->ofs_anims];
-	struct pose *pose;
-	unsigned short *s;
-	int i, k;
-
-	fprintf(stderr, "loading iqm animation '%s'\n", filename);
-
-	if (memcmp(iqm->magic, IQM_MAGIC, 16)) { error(filename, "bad iqm magic"); return NULL; }
-	if (iqm->version != IQM_VERSION) { error(filename, "bad iqm version"); return NULL; }
-	if (iqm->filesize > len) { error(filename, "bad iqm file size"); return NULL; }
-	if (iqm->num_joints > MAXBONE) { error(filename, "too many bones in iqm"); return NULL; }
-	if (iqm->num_joints < iqm->num_poses) { error(filename, "bad joint/pose data"); return NULL; }
-
-	if (iqm->num_anims == 0)
-		return NULL;
-
-	fprintf(stderr, "\t%d bones; %d channels; %d animations; %d frames\n",
-		iqm->num_joints, iqm->num_framechannels, iqm->num_anims, iqm->num_frames);
-
-	struct animation *anim = malloc(sizeof *anim);
-	anim->bone_count = iqm->num_joints;
-	anim->frame_count = iqmanim->num_frames;
-	anim->flags = iqmanim->flags;
-
-	anim->frame = malloc(anim->frame_count * anim->bone_count * sizeof(struct pose));
-
-	for (i = 0; i < anim->bone_count; i++) {
-		strlcpy(anim->bone_name[i], text + iqmjoint[i].name, sizeof anim->bone_name[0]);
-		anim->parent[i] = iqmpose[i].parent;
-		memcpy(&anim->bind_pose[i], iqmjoint[i].translate, 10*sizeof(float));
-	}
-
-	calc_matrix_from_pose(anim->bind_matrix, anim->bind_pose, anim->bone_count);
-	//calc_inv_matrix(anim->inv_loc_bind_matrix, anim->bind_matrix, anim->bone_count);
-	calc_abs_matrix(anim->abs_bind_matrix, anim->bind_matrix, anim->parent, anim->bone_count);
-
-	s = (void*) &data[iqm->ofs_frames];
-	for (k = 0; k < anim->frame_count; k++) {
-		pose = anim->frame + anim->bone_count * k;
-		for (i = 0; i < anim->bone_count; i++) {
-			float *offset = iqmpose[i].channeloffset;
-			float *scale = iqmpose[i].channelscale;
-			unsigned int mask = iqmpose[i].mask;
-			pose[i].translate[0] = (mask & 0x01) ? offset[0] + *s++ * scale[0] : offset[0];
-			pose[i].translate[1] = (mask & 0x02) ? offset[1] + *s++ * scale[1] : offset[1];
-			pose[i].translate[2] = (mask & 0x04) ? offset[2] + *s++ * scale[2] : offset[2];
-			pose[i].rotate[0] = (mask & 0x08) ? offset[3] + *s++ * scale[3] : offset[3];
-			pose[i].rotate[1] = (mask & 0x10) ? offset[4] + *s++ * scale[4] : offset[4];
-			pose[i].rotate[2] = (mask & 0x20) ? offset[5] + *s++ * scale[5] : offset[5];
-			pose[i].rotate[3] = (mask & 0x40) ? offset[6] + *s++ * scale[6] : offset[6];
-			pose[i].scale[0] = (mask & 0x80) ? offset[7] + *s++ * scale[7] : offset[7];
-			pose[i].scale[1] = (mask & 0x100) ? offset[8] + *s++ * scale[8] : offset[8];
-			pose[i].scale[2] = (mask & 0x200) ? offset[9] + *s++ * scale[9] : offset[9];
-		}
-	}
-
-	// TODO: recalc anim pose as delta from skeleton / bind pose here
-
-	// HACK: looping animations, last and first frame
-	if (anim->frame_count > 1)
-		anim->frame_count--;
-
-	return anim;
 }

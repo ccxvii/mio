@@ -1,8 +1,6 @@
 #include "mio.h"
 
 #define SEP " \t\r\n"
-#define MAXMESH 256
-#define MAXNAME 80
 
 struct floatarray {
 	int len, cap;
@@ -14,21 +12,18 @@ struct intarray {
 	unsigned short *data;
 };
 
-static struct {
-	char name[MAXNAME];
-	int texture;
-	int tile_s, tile_t;
-} material[MAXMESH];
-
-static int material_count = 0;
-static int material_current = 0;
+struct partarray {
+	int len, cap;
+	struct part *data;
+};
 
 // temp buffers are global so we can reuse them between models
 static struct floatarray position = { 0, 0, NULL };
-static struct floatarray texcoord = { 0, 0, NULL };
 static struct floatarray normal = { 0, 0, NULL };
+static struct floatarray texcoord = { 0, 0, NULL };
 static struct floatarray vertex = { 0, 0, NULL };
 static struct intarray element = { 0, 0, NULL };
+static struct partarray part = { 0, 0, NULL };
 
 static inline void push_float(struct floatarray *a, float v)
 {
@@ -47,6 +42,18 @@ static inline void push_int(struct intarray *a, int v)
 		a->data = realloc(a->data, a->cap * sizeof(*a->data));
 	}
 	a->data[a->len++] = v;
+}
+
+static inline void push_part(struct partarray *a, int first, int last, int material)
+{
+	if (a->len + 1 >= a->cap) {
+		a->cap = 600 + a->cap * 2;
+		a->data = realloc(a->data, a->cap * sizeof(*a->data));
+	}
+	a->data[a->len].first = first;
+	a->data[a->len].count = last - first;
+	a->data[a->len].material = material;
+	a->len++;
 }
 
 static void add_position(float x, float y, float z)
@@ -91,8 +98,6 @@ static int add_vertex(int pi, int ti, int ni)
 	v[5] = ni >= 0 && ni < normal.len ? normal.data[ni * 3 + 0] : 0;
 	v[6] = ni >= 0 && ni < normal.len ? normal.data[ni * 3 + 1] : 0;
 	v[7] = ni >= 0 && ni < normal.len ? normal.data[ni * 3 + 2] : 1;
-	if (v[3] < 0 || v[3] > 1) material[material_current].tile_s = 1;
-	if (v[4] < 0 || v[4] > 1) material[material_current].tile_t = 1;
 	return add_vertex_imp(v);
 }
 
@@ -106,23 +111,34 @@ static void add_triangle(
 	push_int(&element, add_vertex(vp2, vt2, vn2));
 }
 
-static void load_material(char *dirname, char *mtllib)
+static char *abspath(char *path, const char *dirname, const char *filename, int maxpath)
 {
-	char filename[1024];
+	if (dirname[0]) {
+		strlcpy(path, dirname, maxpath);
+		strlcat(path, "/", maxpath);
+		strlcat(path, filename, maxpath);
+	} else {
+		strlcpy(path, filename, maxpath);
+	}
+	return path;
+}
+
+static int mtl_count = 0;
+
+static struct {
+	char name[80];
+	int material;
+} mtl_map[256];
+
+static void mtllib(char *dirname, char *filename)
+{
+	char path[1024];
 	char *line, *next;
 	unsigned char *data;
 	int len;
 	char *s;
 
-	if (dirname[0]) {
-		strlcpy(filename, dirname, sizeof filename);
-		strlcat(filename, "/", sizeof filename);
-		strlcat(filename, mtllib, sizeof filename);
-	} else {
-		strlcpy(filename, mtllib, sizeof filename);
-	}
-
-	data = load_file(filename, &len);
+	data = load_file(abspath(path, dirname, filename, sizeof path), &len);
 	if (!data) {
 		fprintf(stderr, "cannot load material library: '%s'\n", filename);
 		return;
@@ -141,23 +157,14 @@ static void load_material(char *dirname, char *mtllib)
 		} else if (!strcmp(s, "newmtl")) {
 			s = strtok(NULL, SEP);
 			if (s) {
-				strlcpy(material[material_count].name, s, MAXNAME);
-				material[material_count].texture = 0;
-				material[material_count].tile_s = 0;
-				material[material_count].tile_t = 0;
-				material_count++;
+				strlcpy(mtl_map[mtl_count].name, s, sizeof mtl_map[0].name);
+				mtl_map[mtl_count].material = 0;
+				mtl_count++;
 			}
 		} else if (!strcmp(s, "map_Kd")) {
 			s = strtok(NULL, SEP);
-			if (s && material_count > 0) {
-				if (dirname[0]) {
-					strlcpy(filename, dirname, sizeof filename);
-					strlcat(filename, "/", sizeof filename);
-					strlcat(filename, s, sizeof filename);
-				} else {
-					strlcpy(filename, s, sizeof filename);
-				}
-				material[material_count-1].texture = load_texture(filename, 1);
+			if (s && mtl_count > 0) {
+				mtl_map[mtl_count-1].material = load_texture(abspath(path, dirname, filename, sizeof path), 1);
 			}
 		}
 	}
@@ -165,20 +172,16 @@ static void load_material(char *dirname, char *mtllib)
 	free(data);
 }
 
-int set_material(char *matname)
+int usemtl(char *matname)
 {
 	int i;
-	for (i = 0; i < material_count; i++) {
-		if (!strcmp(material[i].name, matname)) {
-			material_current = i;
-			return material[i].texture;
-		}
-	}
-	material_current = i;
+	for (i = 0; i < mtl_count; i++)
+		if (!strcmp(mtl_map[i].name, matname))
+			return mtl_map[i].material;
 	return 0;
 }
 
-static void splitfv(char *buf, int *vpp, int *vtp, int *vnp)
+static void splitfv(char *buf, int *vpp, int *vnp, int *vtp)
 {
 	char tmp[200], *p, *vp, *vt, *vn;
 	strlcpy(tmp, buf, sizeof tmp);
@@ -191,15 +194,14 @@ static void splitfv(char *buf, int *vpp, int *vtp, int *vnp)
 	*vnp = vn && vn[0] ? atoi(vn) - 1 : 0;
 }
 
-struct model *load_obj_model_from_memory(char *filename, unsigned char *data, int len)
+struct model *load_obj_from_memory(char *filename, unsigned char *data, int len)
 {
 	char dirname[1024];
-	char *line, *next;
+	char *line, *next, *p, *s;
 	struct model *model;
-	struct mesh meshbuf[MAXMESH], *mesh = NULL;
-	int mesh_count = 0;
+	struct mesh *mesh;
 	int fvp[20], fvt[20], fvn[20];
-	char *p, *s;
+	int first, material;
 	int i, n;
 
 	fprintf(stderr, "loading obj model '%s'\n", filename);
@@ -210,11 +212,15 @@ struct model *load_obj_model_from_memory(char *filename, unsigned char *data, in
 	if (p) *p = 0;
 	else strlcpy(dirname, "", sizeof dirname);
 
-	material_count = 0;
+	mtl_count = 0;
 	position.len = 0;
 	texcoord.len = 0;
 	normal.len = 0;
 	element.len = 0;
+	part.len = 0;
+
+	first = 0;
+	material = 0;
 
 	data[len-1] = 0; /* over-write final newline to zero-terminate */
 
@@ -245,87 +251,62 @@ struct model *load_obj_model_from_memory(char *filename, unsigned char *data, in
 			s = strtok(NULL, SEP);
 			while (s) {
 				if (*s) {
-					splitfv(s, fvp+n, fvt+n, fvn+n);
+					splitfv(s, fvp+n, fvn+n, fvt+n);
 					n++;
 				}
 				s = strtok(NULL, SEP);
 			}
 			for (i = 1; i < n - 1; i++) {
-				add_triangle(fvp[0], fvt[0], fvn[0],
-					fvp[i], fvt[i], fvn[i],
-					fvp[i+1], fvt[i+1], fvn[i+1]);
+				add_triangle(fvp[0], fvn[0], fvt[0],
+					fvp[i], fvn[i], fvt[i],
+					fvp[i+1], fvn[i+1], fvt[i+1]);
 			}
 		} else if (!strcmp(s, "mtllib")) {
 			s = strtok(NULL, SEP);
-			load_material(dirname, s);
+			mtllib(dirname, s);
 		} else if (!strcmp(s, "usemtl")) {
+			if (element.len > first)
+				push_part(&part, first, element.len, material);
 			s = strtok(NULL, SEP);
-			if (mesh) {
-				mesh->count = element.len - mesh->first;
-				if (mesh->count == 0)
-					mesh_count--;
-			}
-			mesh = &meshbuf[mesh_count++];
-			mesh->material = s ? set_material(s) : 0;
-			mesh->first = element.len;
-			mesh->count = 0;
+			material = usemtl(s);
+			first = element.len;
 		}
 	}
 
-	if (mesh) {
-		mesh->count = element.len - mesh->first;
-		if (mesh->count == 0)
-			mesh_count--;
-	}
+	if (element.len > first)
+		push_part(&part, first, element.len, material);
 
-	if (mesh_count == 0) {
-		mesh = meshbuf;
-		mesh->material = 0;
-		mesh->first = 0;
-		mesh->count = element.len;
-		mesh_count = 1;
-	}
+	fprintf(stderr, "\t%d parts; %d vertices; %d triangles\n", part.len, vertex.len/8, element.len/3);
 
-	fprintf(stderr, "\t%d meshes; %d vertices; %d triangles\n", mesh_count, vertex.len/8, element.len/3);
+	mesh = malloc(sizeof(struct mesh));
+	mesh->skel = NULL;
+	mesh->inv_bind_matrix = NULL;
+	mesh->count = part.len;
+	mesh->part = malloc(part.len * sizeof(struct part));
+	memcpy(mesh->part, part.data, part.len * sizeof(struct part));
 
-	for (i = 0; i < material_count; i++) {
-		glBindTexture(GL_TEXTURE_2D, material[i].texture);
-		if (material[i].tile_s)
-			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-		else
-			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-		if (material[i].tile_t)
-			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-		else
-			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-	}
-	glBindTexture(GL_TEXTURE_2D, 0);
+	glGenVertexArrays(1, &mesh->vao);
+	glGenBuffers(1, &mesh->vbo);
+	glGenBuffers(1, &mesh->ibo);
 
-	model = malloc(sizeof *model);
-	memset(model, 0, sizeof *model);
-
-	model->mesh_count = mesh_count;
-	model->mesh = malloc(mesh_count * sizeof(struct mesh));
-	memcpy(model->mesh, meshbuf, mesh_count * sizeof(struct mesh));
-
-	glGenVertexArrays(1, &model->vao);
-	glGenBuffers(1, &model->vbo);
-	glGenBuffers(1, &model->ibo);
-
-	glBindVertexArray(model->vao);
-	glBindBuffer(GL_ARRAY_BUFFER, model->vbo);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, model->ibo);
+	glBindVertexArray(mesh->vao);
+	glBindBuffer(GL_ARRAY_BUFFER, mesh->vbo);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mesh->ibo);
 
 	glBufferData(GL_ARRAY_BUFFER, vertex.len * 4, vertex.data, GL_STATIC_DRAW);
 
 	glEnableVertexAttribArray(ATT_POSITION);
-	glEnableVertexAttribArray(ATT_TEXCOORD);
 	glEnableVertexAttribArray(ATT_NORMAL);
+	glEnableVertexAttribArray(ATT_TEXCOORD);
 	glVertexAttribPointer(ATT_POSITION, 3, GL_FLOAT, 0, 32, (void*)0);
-	glVertexAttribPointer(ATT_TEXCOORD, 2, GL_FLOAT, 0, 32, (void*)12);
 	glVertexAttribPointer(ATT_NORMAL, 3, GL_FLOAT, 0, 32, (void*)20);
+	glVertexAttribPointer(ATT_TEXCOORD, 2, GL_FLOAT, 0, 32, (void*)12);
 
 	glBufferData(GL_ELEMENT_ARRAY_BUFFER, element.len * 2, element.data, GL_STATIC_DRAW);
 
+	model = malloc(sizeof *model);
+	model->skel = NULL;
+	model->mesh = mesh;
+	model->anim = NULL;
 	return model;
 }

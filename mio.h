@@ -56,10 +56,20 @@ int xstrlcat(char *dst, const char *src, int siz);
 #define SRGB(r,g,b) SLUM(r),SLUM(g),SLUM(b)
 #define SRGBA(r,g,b,a) SRGB(r,g,b),(a)
 
-typedef float vec2[2];
-typedef float vec3[3];
-typedef float vec4[4];
-typedef float mat4[16];
+/* matrix math utils */
+
+#include "vector.h"
+
+struct pose {
+	vec3 position;
+	vec4 rotation;
+	vec3 scale;
+};
+
+void calc_mul_matrix(mat4 *skin_matrix, mat4 *abs_pose_matrix, mat4 *inv_bind_matrix, int count);
+void calc_inv_matrix(mat4 *inv_bind_matrix, mat4 *abs_bind_matrix, int count);
+void calc_abs_matrix(mat4 *abs_pose_matrix, mat4 *pose_matrix, int *parent, int count);
+void calc_matrix_from_pose(mat4 *pose_matrix, struct pose *pose, int count);
 
 /* archive data file loading */
 
@@ -74,115 +84,6 @@ struct cache;
 void *lookup(struct cache *cache, char *key);
 struct cache *insert(struct cache *cache, char *key, void *value);
 void print_cache(struct cache *cache);
-
-/* shaders */
-
-enum {
-	ATT_POSITION,
-	ATT_TEXCOORD,
-	ATT_NORMAL,
-	ATT_TANGENT,
-	ATT_BLEND_INDEX,
-	ATT_BLEND_WEIGHT,
-	ATT_COLOR,
-};
-
-enum {
-	FRAG_COLOR = 0
-};
-
-enum {
-	FRAG_NORMAL = 0,
-	FRAG_ALBEDO = 1,
-};
-
-int compile_shader(const char *vert_src, const char *frag_src);
-
-/* models and animations */
-
-#define MAXBONE 256
-
-struct mesh {
-	char name[32];
-	unsigned int material;
-	int first, count;
-};
-
-struct pose {
-	vec3 translate;
-	vec4 rotate;
-	vec3 scale;
-};
-
-struct model {
-	unsigned int vao, vbo, ibo;
-	int mesh_count, bone_count;
-	struct mesh *mesh;
-
-	vec3 center;
-	float radius;
-
-	char bone_name[MAXBONE][32];
-	int parent[MAXBONE];
-	struct pose bind_pose[MAXBONE];
-	mat4 bind_matrix[MAXBONE];
-	mat4 abs_bind_matrix[MAXBONE];
-	mat4 inv_bind_matrix[MAXBONE];
-};
-
-struct animation {
-	char name[80];
-	int bone_count, frame_count;
-	int flags;
-	struct pose *frame;
-
-	char bone_name[MAXBONE][32];
-	int parent[MAXBONE];
-	struct pose bind_pose[MAXBONE];
-	mat4 bind_matrix[MAXBONE];
-	mat4 abs_bind_matrix[MAXBONE];
-	mat4 inv_loc_bind_matrix[MAXBONE];
-};
-
-struct model *load_obj_model_from_memory(char *filename, unsigned char *data, int len);
-struct model *load_iqe_model_from_memory(char *filename, unsigned char *data, int len);
-struct model *load_iqm_model_from_memory(char *filename, unsigned char *data, int len);
-struct animation *load_iqm_animation_from_memory(char *filename, unsigned char *data, int len);
-
-struct model *load_model(char *filename);
-struct animation *load_animation(char *filename);
-
-void draw_model(struct model *model, mat4 projection, mat4 model_view);
-void draw_model_with_wind(struct model *model, mat4 projection, mat4 model_view, float phase);
-void draw_model_with_pose(struct model *model, mat4 projection, mat4 model_view, mat4 *skin_matrix);
-
-void calc_mul_matrix(mat4 *skin_matrix, mat4 *abs_pose_matrix, mat4 *inv_bind_matrix, int count);
-void calc_inv_matrix(mat4 *inv_bind_matrix, mat4 *abs_bind_matrix, int count);
-void calc_abs_matrix(mat4 *abs_pose_matrix, mat4 *pose_matrix, int *parent, int count);
-void calc_matrix_from_pose(mat4 *pose_matrix, struct pose *pose, int count);
-
-void draw_skeleton(mat4 *abs_pose_matrix, int *parent, int count);
-void draw_skeleton_with_axis(mat4 *abs_pose_matrix, int *parent, int count);
-
-void apply_animation(
-		struct pose *dst_pose, char (*dst_names)[32], int dst_count,
-		struct pose *src_pose, char (*src_names)[32], int src_count);
-
-void apply_animation_rot(
-		struct pose *dst_pose, char (*dst_names)[32], int dst_count,
-		struct pose *src_pose, char (*src_names)[32], int src_count);
-
-void apply_animation_delta_q(struct pose *out_pose,
-		struct pose *dst_bind_pose, char (*dst_names)[32], int dst_count,
-		struct pose *src_bind_pose, char (*src_names)[32], int src_count,
-		struct pose *src_pose);
-
-void apply_animation_delta(mat4 *out_mat,
-		mat4 *dst_bind_mat, char (*dst_names)[32], int dst_count,
-		mat4 *src_bind_mat, char (*src_names)[32], int src_count,
-		mat4 *src_mat);
-
-void extract_pose(struct pose *pose, struct animation *anim, int frame);
 
 /* texture loader based on stb_image */
 
@@ -231,8 +132,6 @@ void draw_quad(float x0, float y0, float z0,
 	float x2, float y2, float z2,
 	float x3, float y3, float z3);
 
-void draw_skeleton(mat4 *abs_pose_matrix, int *parent, int count);
-
 /* console */
 
 void console_init(void);
@@ -241,12 +140,155 @@ void console_print(const char *s);
 void console_printnl(const char *s);
 void console_draw(mat4 projection, struct font *font, float size);
 
+/* shaders */
+
+enum {
+	ATT_POSITION,
+	ATT_NORMAL,
+	ATT_TANGENT,
+	ATT_TEXCOORD,
+	ATT_COLOR,
+	ATT_BLEND_INDEX,
+	ATT_BLEND_WEIGHT,
+	ATT_LIGHTMAP,
+	ATT_SPLAT,
+	ATT_WIND,
+};
+
+enum {
+	FRAG_COLOR = 0,
+	FRAG_NORMAL = 0,
+	FRAG_ALBEDO = 1,
+};
+
+enum {
+	MAP_COLOR = GL_TEXTURE0,
+	MAP_GLOSS,
+	MAP_NORMAL,
+	MAP_SHADOW,
+	MAP_DEPTH,
+};
+
+int compile_shader(const char *vert_src, const char *frag_src);
+
+/* materials */
+
+int load_material(char *dirname, char *material);
+
+/* models and animations */
+
+#define MAXBONE 256
+
+struct model {
+	struct skel *skel;
+	struct mesh *mesh;
+	struct anim *anim;
+};
+
+struct part {
+	unsigned int material;
+	int first, count;
+};
+
+struct skel {
+	int count;
+	char name[MAXBONE][32];
+	int parent[MAXBONE];
+	struct pose pose[MAXBONE];
+};
+
+struct mesh {
+	unsigned int vao, vbo, ibo;
+	int count;
+	struct part *part;
+	struct skel *skel;
+	mat4 *inv_bind_matrix;
+};
+
+struct anim {
+	char name[32];
+	int frames, channels;
+	struct skel *skel;
+	float *data;
+	struct anim *next;
+	int mask[MAXBONE];
+	struct pose pose[MAXBONE];
+};
+
+struct model *load_iqe_from_memory(char *filename, unsigned char *data, int len);
+struct model *load_iqm_from_memory(char *filename, unsigned char *data, int len);
+struct model *load_obj_from_memory(char *filename, unsigned char *data, int len);
+struct model *load_model(char *filename);
+
+struct skel *load_skel(char *filename);
+struct mesh *load_mesh(char *filename);
+struct anim *load_anim(char *filename);
+
+void extract_pose(struct pose *pose, struct anim *anim, int frame);
+void apply_animation(struct pose *dst_pose, struct skel *dst, struct pose *src_pose, struct skel *src);
+void apply_animation_ryzom(struct pose *dst_pose, struct skel *dst, struct pose *src_pose, struct skel *src);
+void draw_armature(mat4 *abs_pose_matrix, int *parent, int count);
+void draw_model(struct mesh *mesh, mat4 projection, mat4 model_view);
+void draw_model_with_pose(struct mesh *mesh, mat4 projection, mat4 model_view, mat4 *skin_matrix);
+
+/* scene graph */
+
+struct armature
+{
+	struct armature *next, *prev;
+	struct armature *parent_amt;
+	int parent_bone;
+
+	mat4 transform;
+	vec3 color;
+
+	struct skel *skel;
+	struct anim *anim;
+	float time;
+};
+
+struct object
+{
+	struct object *next, *prev;
+	struct armature *parent_amt;
+	int parent_bone;
+	unsigned char parent_map[256];
+
+	struct mesh *mesh;
+	mat4 transform;
+	vec3 color;
+};
+
+struct light
+{
+	struct light *next, *prev;
+	struct armature *parent_amt;
+	int parent_bone;
+
+	int type;
+	vec3 position;
+	vec4 rotation;
+	float energy;
+	vec3 color;
+	float distance;
+	float spot_angle;
+	float spot_blend;
+	int use_sphere;
+	int use_square;
+};
+
+struct scene
+{
+	struct armature *armatures;
+	struct object *objects;
+	struct light *lights;
+};
+
 /* deferred shading */
 
 int alloc_shadow_map(void);
 void render_spot_shadow(int map, vec3 spot_position, vec3 spot_direction, float spot_angle, float distance);
 void render_sun_shadow(int map, vec3 sun_position, vec3 sun_direction, float width, float depth);
-void render_model_shadow(struct model *model);
 
 void render_setup(int w, int h);
 
@@ -258,62 +300,9 @@ void render_finish(void);
 void render_sun_light(int shadow_map, mat4 projection, mat4 model_view, vec3 sun_position, vec3 sun_direction, float w, float d, vec3 color);
 void render_point_light(mat4 projection, mat4 model_view, vec3 point_position, vec3 color, float distance);
 void render_spot_light(int map, mat4 projection, mat4 model_view, vec3 spot_position, vec3 spot_direction, float angle, vec3 color, float distance);
-void render_model(struct model *model, mat4 projection, mat4 model_view);
+
+void render_mesh_shadow(struct mesh *mesh);
+void render_mesh(struct mesh *mesh, mat4 projection, mat4 model_view);
 
 void render_blit(float projection[16], int w, int h);
 void render_debug_buffers(float projection[16]);
-
-/* 4x4 column major matrices, vectors and quaternions */
-
-void mat_identity(mat4 m);
-void mat_copy(mat4 p, const mat4 m);
-void mat_mix(mat4 m, const mat4 a, const mat4 b, float v);
-void mat_mul(mat4 m, const mat4 a, const mat4 b);
-void mat_mul44(mat4 m, const mat4 a, const mat4 b);
-void mat_frustum(mat4 m, float left, float right, float bottom, float top, float n, float f);
-void mat_perspective(mat4 m, float fov, float aspect, float near, float far);
-void mat_look(mat4 m, const vec3 origin, const vec3 forward, const vec3 up);
-void mat_look_at(mat4 m, const vec3 eye, const vec3 center, const vec3 up);
-void mat_ortho(mat4 m, float left, float right, float bottom, float top, float n, float f);
-void mat_scale(mat4 m, float x, float y, float z);
-void mat_rotate_x(mat4 m, float angle);
-void mat_rotate_y(mat4 m, float angle);
-void mat_rotate_z(mat4 m, float angle);
-void mat_translate(mat4 m, float x, float y, float z);
-void mat_transpose(mat4 to, const mat4 from);
-void mat_invert(mat4 out, const mat4 m);
-
-void mat_vec_mul(vec3 p, const mat4 m, const vec3 v);
-void mat_vec_mul_n(vec3 p, const mat4 m, const vec3 v);
-void mat_vec_mul_t(vec3 p, const mat4 m, const vec3 v);
-void vec_scale(vec3 p, const vec3 v, float s);
-void vec_add(vec3 p, const vec3 a, const vec3 b);
-void vec_sub(vec3 p, const vec3 a, const vec3 b);
-void vec_mul(vec3 p, const vec3 a, const vec3 b);
-void vec_div(vec3 p, const vec3 a, const vec3 b);
-void vec_lerp(vec3 p, const vec3 a, const vec3 b, float t);
-void vec_average(vec3 p, const vec3 a, const vec3 b);
-void vec_cross(vec3 p, const vec3 a, const vec3 b);
-float vec_dot(const vec3 a, const vec3 b);
-float vec_length(const vec3 a);
-float vec_dist2(const vec3 a, const vec3 b);
-float vec_dist(const vec3 a, const vec3 b);
-void vec_normalize(vec3 v, const vec3 a);
-void vec_face_normal(vec3 n, const vec3 p0, const vec3 p1, const vec3 p2);
-void vec_negate(vec3 p, const vec3 a);
-void vec_invert(vec3 p, const vec3 a);
-void vec_yup_to_zup(vec3 v);
-
-float quat_dot(const vec4 a, const vec4 b);
-void quat_invert(vec4 out, const vec4 q);
-void quat_conjugate(vec4 out, const vec4 q);
-void quat_mul(vec4 q, const vec4 a, const vec4 b);
-void quat_normalize(vec4 q, const vec4 a);
-void quat_lerp(vec4 p, const vec4 a, const vec4 b, float t);
-void quat_lerp_normalize(vec4 p, const vec4 a, const vec4 b, float t);
-void quat_lerp_neighbor_normalize(vec4 p, const vec4 a, const vec4 b, float t);
-void mat_from_quat(mat4 m, const vec4 q);
-void mat_from_pose(mat4 m, const vec3 t, const vec4 q, const vec3 s);
-void quat_from_mat(vec4 q, const mat4 m);
-int mat_is_negative(const mat4 m);
-void mat_decompose(const mat4 m, vec3 t, vec4 q, vec3 s);

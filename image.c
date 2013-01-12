@@ -361,6 +361,7 @@ void icon_show(int texture,
 	add_vertex(x1, y1, s1, t1, icon_color);
 	add_vertex(x1, y0, s1, t0, icon_color);
 
+	glActiveTexture(MAP_COLOR);
 	glBindTexture(GL_TEXTURE_2D, texture);
 	glBindBuffer(GL_ARRAY_BUFFER, icon_vbo);
 	glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof icon_buf[0] * icon_buf_len, icon_buf);

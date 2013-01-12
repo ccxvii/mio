@@ -33,7 +33,8 @@ LUAC_CMD_OBJ := luac.c
 MIO_HDR := getopt.h iqm.h mio.h stb_truetype.h stb_image.c
 MIO_SRC := \
 	cache.c console.c draw.c font.c gl3w.c image.c \
-	model.c model_iqe.c model_iqm.c model_obj.c render.c \
+	model.c model_obj.c model_iqe.c model_iqm.c \
+	material.c scene.c render.c \
 	rune.c shader.c strlcpy.c vector.c zip.c
 MIO_OBJ := $(addprefix $(OUT)/, $(MIO_SRC:%.c=%.o))
 MIO_LIB := $(OUT)/libmio.a

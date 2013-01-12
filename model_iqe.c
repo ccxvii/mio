@@ -3,7 +3,6 @@
 #include <ctype.h>
 
 #define IQE_MAGIC "# Inter-Quake Export"
-#define MAXMESH 256
 
 struct floatarray {
 	int len, cap;
@@ -20,7 +19,12 @@ struct bytearray {
 	unsigned char *data;
 };
 
-// temp buffers are global so we can reuse them between models
+struct partarray {
+	int len, cap;
+	struct part *data;
+};
+
+// temp buffers are global so we can reuse them between meshs
 static struct floatarray position = { 0, 0, NULL };
 static struct floatarray normal = { 0, 0, NULL };
 static struct floatarray texcoord = { 0, 0, NULL };
@@ -28,6 +32,7 @@ static struct bytearray color = { 0, 0, NULL };
 static struct bytearray blendindex = { 0, 0, NULL };
 static struct bytearray blendweight = { 0, 0, NULL };
 static struct intarray element = { 0, 0, NULL };
+static struct partarray part = { 0, 0, NULL };
 
 static struct bytearray customb[10] = { { 0 } };
 static struct floatarray customf[10] = { { 0 } };
@@ -61,6 +66,18 @@ static inline void push_byte(struct bytearray *a, int v)
 		a->data = realloc(a->data, a->cap * sizeof(*a->data));
 	}
 	a->data[a->len++] = v;
+}
+
+static inline void push_part(struct partarray *a, int first, int last, int material)
+{
+	if (a->len + 1 >= a->cap) {
+		a->cap = 600 + a->cap * 2;
+		a->data = realloc(a->data, a->cap * sizeof(*a->data));
+	}
+	a->data[a->len].first = first;
+	a->data[a->len].count = last - first;
+	a->data[a->len].material = material;
+	a->len++;
 }
 
 static void add_position(float x, float y, float z)
@@ -128,23 +145,6 @@ static void add_triangle(int a, int b, int c)
 	push_int(&element, a);
 }
 
-static int load_material(char *dirname, char *material)
-{
-	char filename[1024], *s;
-	s = strrchr(material, '+');
-	if (s) s++; else s = material;
-	if (dirname[0]) {
-		strlcpy(filename, dirname, sizeof filename);
-		strlcat(filename, "/", sizeof filename);
-		strlcat(filename, s, sizeof filename);
-		strlcat(filename, ".png", sizeof filename);
-	} else {
-		strlcpy(filename, s, sizeof filename);
-		strlcat(filename, ".png", sizeof filename);
-	}
-	return load_texture(filename, 1);
-}
-
 static char *parsestring(char **stringp)
 {
 	char *start, *end, *s = *stringp;
@@ -186,24 +186,26 @@ static inline int parseint(char **stringp, int def)
 	return *s ? atoi(s) : def;
 }
 
-struct model *load_iqe_model_from_memory(char *filename, unsigned char *data, int len)
+static mat4 loc_bind_matrix[MAXBONE];
+static mat4 abs_bind_matrix[MAXBONE];
+
+struct model *load_iqe_from_memory(char *filename, unsigned char *data, int len)
 {
 	char dirname[1024];
-	char *line, *next;
-	float bboxmin[3], bboxmax[3], dx, dy, dz;
+	char *line, *next, *p, *s, *sp;
 	struct model *model;
-	struct mesh meshbuf[MAXMESH], *mesh = NULL;
-	char bonename[MAXBONE][32];
-	int boneparent[MAXBONE];
-	struct pose posebuf[MAXBONE];
-	int mesh_count = 0;
+	struct skel *skel;
+	struct mesh *mesh;
+	struct anim *anim;
+	char bone_name[MAXBONE][32];
+	int bone_parent[MAXBONE];
+	struct pose bind_pose[MAXBONE];
+	struct pose *pose;
 	int bone_count = 0;
 	int pose_count = 0;
 	int material = 0;
+	int first = 0;
 	int fm = 0;
-	char *p, *s, *sp;
-	float x, y, z, w;
-	int a, b, c, d;
 	int i;
 
 	strlcpy(dirname, filename, sizeof dirname);
@@ -212,8 +214,10 @@ struct model *load_iqe_model_from_memory(char *filename, unsigned char *data, in
 	if (p) *p = 0;
 	else strlcpy(dirname, "", sizeof dirname);
 
-	bboxmin[0] = bboxmin[1] = bboxmin[2] = 1e10;
-	bboxmax[0] = bboxmax[1] = bboxmax[2] = -1e10;
+	if (memcmp(data, IQE_MAGIC, strlen(IQE_MAGIC))) {
+		fprintf(stderr, "error: bad iqe magic: '%s'\n", filename);
+		return NULL;
+	}
 
 	position.len = 0;
 	texcoord.len = 0;
@@ -222,6 +226,7 @@ struct model *load_iqe_model_from_memory(char *filename, unsigned char *data, in
 	blendindex.len = 0;
 	blendweight.len = 0;
 	element.len = 0;
+	part.len = 0;
 
 	for (i = 0; i < 10; i++) {
 		customb[i].len = 0;
@@ -231,14 +236,14 @@ struct model *load_iqe_model_from_memory(char *filename, unsigned char *data, in
 		custom_name[i][0] = 0;
 	}
 
-	if (memcmp(data, IQE_MAGIC, strlen(IQE_MAGIC))) {
-		fprintf(stderr, "error: bad iqe magic: '%s'\n", filename);
-		return NULL;
-	}
+	pose = bind_pose;
 
 	data[len-1] = 0; /* over-write final newline to zero-terminate */
 
 	for (line = (char*)data; line; line = next) {
+		float x, y, z, w;
+		int a, b, c, d;
+
 		next = strchr(line, '\n');
 		if (next)
 			*next++ = 0;
@@ -255,9 +260,6 @@ struct model *load_iqe_model_from_memory(char *filename, unsigned char *data, in
 				x = parsefloat(&sp, 0);
 				y = parsefloat(&sp, 0);
 				z = parsefloat(&sp, 0);
-				bboxmin[0] = MIN(bboxmin[0], x); bboxmax[0] = MAX(bboxmax[0], x);
-				bboxmin[1] = MIN(bboxmin[1], y); bboxmax[1] = MAX(bboxmax[1], y);
-				bboxmin[2] = MIN(bboxmin[2], z); bboxmax[2] = MAX(bboxmax[2], z);
 				add_position(x, y, z);
 				break;
 
@@ -329,16 +331,16 @@ struct model *load_iqe_model_from_memory(char *filename, unsigned char *data, in
 
 		else if (s[0] == 'p' && s[1] == 'q' && s[2] == 0) {
 			if (pose_count < MAXBONE) {
-				posebuf[pose_count].translate[0] = parsefloat(&sp, 0);
-				posebuf[pose_count].translate[1] = parsefloat(&sp, 0);
-				posebuf[pose_count].translate[2] = parsefloat(&sp, 0);
-				posebuf[pose_count].rotate[0] = parsefloat(&sp, 0);
-				posebuf[pose_count].rotate[1] = parsefloat(&sp, 0);
-				posebuf[pose_count].rotate[2] = parsefloat(&sp, 0);
-				posebuf[pose_count].rotate[3] = parsefloat(&sp, 1);
-				posebuf[pose_count].scale[0] = parsefloat(&sp, 1);
-				posebuf[pose_count].scale[1] = parsefloat(&sp, 1);
-				posebuf[pose_count].scale[2] = parsefloat(&sp, 1);
+				pose[pose_count].position[0] = parsefloat(&sp, 0);
+				pose[pose_count].position[1] = parsefloat(&sp, 0);
+				pose[pose_count].position[2] = parsefloat(&sp, 0);
+				pose[pose_count].rotation[0] = parsefloat(&sp, 0);
+				pose[pose_count].rotation[1] = parsefloat(&sp, 0);
+				pose[pose_count].rotation[2] = parsefloat(&sp, 0);
+				pose[pose_count].rotation[3] = parsefloat(&sp, 1);
+				pose[pose_count].scale[0] = parsefloat(&sp, 1);
+				pose[pose_count].scale[1] = parsefloat(&sp, 1);
+				pose[pose_count].scale[2] = parsefloat(&sp, 1);
 				pose_count++;
 			}
 		}
@@ -367,28 +369,22 @@ struct model *load_iqe_model_from_memory(char *filename, unsigned char *data, in
 
 		else if (!strcmp(s, "mesh")) {
 			s = parsestring(&sp);
-			if (mesh)
-				mesh->count = element.len - mesh->first;
-			mesh = &meshbuf[mesh_count++];
-			strlcpy(mesh->name, s, sizeof mesh->name);
-			mesh->material = material;
-			mesh->first = element.len;
-			mesh->count = 0;
+			if (element.len > first)
+				push_part(&part, first, element.len, material);
+			first = element.len;
 			fm = position.len / 3;
 		}
 
 		else if (!strcmp(s, "material")) {
 			s = parsestring(&sp);
 			material = load_material(dirname, s);
-			if (mesh)
-				mesh->material = material;
 		}
 
 		else if (!strcmp(s, "joint")) {
 			if (bone_count < MAXBONE) {
 				char *name = parsestring(&sp);
-				strlcpy(bonename[bone_count], name, sizeof bonename[0]);
-				boneparent[bone_count] = parseint(&sp, -1);
+				strlcpy(bone_name[bone_count], name, sizeof bone_name[0]);
+				bone_parent[bone_count] = parseint(&sp, -1);
 				bone_count++;
 			}
 		}
@@ -396,99 +392,98 @@ struct model *load_iqe_model_from_memory(char *filename, unsigned char *data, in
 		// TODO: animation, frame
 	}
 
-	if (mesh)
-		mesh->count = element.len - mesh->first;
+	if (element.len > first)
+		push_part(&part, first, element.len, material);
 
-	if (mesh_count == 0) {
-		mesh = meshbuf;
-		mesh->material = 0;
-		mesh->first = 0;
-		mesh->count = element.len;
-		mesh_count = 1;
+	skel = NULL;
+	mesh = NULL;
+	anim = NULL;
+
+	if (bone_count > 0 && pose_count >= bone_count) {
+		skel = malloc(sizeof(struct skel));
+		skel->count = bone_count;
+		for (i = 0; i < bone_count; i++) {
+			strlcpy(skel->name[i], bone_name[i], sizeof skel->name[0]);
+			skel->parent[i] = bone_parent[i];
+			skel->pose[i] = bind_pose[i];
+		}
+	}
+
+	if (part.len) {
+		mesh = malloc(sizeof(struct mesh));
+		mesh->skel = skel;
+		mesh->inv_bind_matrix = NULL;
+		mesh->count = part.len;
+		mesh->part = malloc(part.len * sizeof(struct part));
+		memcpy(mesh->part, part.data, part.len * sizeof(struct part));
+
+		if (skel) {
+			mesh->inv_bind_matrix = malloc(sizeof(mat4) * skel->count);
+			calc_matrix_from_pose(loc_bind_matrix, skel->pose, skel->count);
+			calc_abs_matrix(abs_bind_matrix, loc_bind_matrix, skel->parent, skel->count);
+			calc_inv_matrix(mesh->inv_bind_matrix, abs_bind_matrix, skel->count);
+		}
+
+		int vertexcount = position.len / 3;
+		int total = 12;
+		if (normal.len / 3 == vertexcount) total += 12;
+		if (texcoord.len / 2 == vertexcount) total += 8;
+		if (color.len / 4 == vertexcount) total += 4;
+		if (blendindex.len / 4 == vertexcount) total += 4;
+		if (blendweight.len / 4 == vertexcount) total += 4;
+
+		glGenVertexArrays(1, &mesh->vao);
+		glGenBuffers(1, &mesh->vbo);
+		glGenBuffers(1, &mesh->ibo);
+
+		glBindVertexArray(mesh->vao);
+		glBindBuffer(GL_ARRAY_BUFFER, mesh->vbo);
+		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mesh->ibo);
+
+		glBufferData(GL_ARRAY_BUFFER, vertexcount * total * 4, NULL, GL_STATIC_DRAW);
+
+		glEnableVertexAttribArray(ATT_POSITION);
+		glVertexAttribPointer(ATT_POSITION, 3, GL_FLOAT, 0, 0, (void*)0);
+		glBufferSubData(GL_ARRAY_BUFFER, 0, vertexcount * 12, position.data);
+		total = vertexcount * 12;
+	
+		if (normal.len / 3 == vertexcount) {
+			glEnableVertexAttribArray(ATT_NORMAL);
+			glVertexAttribPointer(ATT_NORMAL, 3, GL_FLOAT, 0, 0, (void*)total);
+			glBufferSubData(GL_ARRAY_BUFFER, total, vertexcount * 12, normal.data);
+			total += vertexcount * 12;
+		}
+		if (texcoord.len / 2 == vertexcount) {
+			glEnableVertexAttribArray(ATT_TEXCOORD);
+			glVertexAttribPointer(ATT_TEXCOORD, 2, GL_FLOAT, 0, 0, (void*)total);
+			glBufferSubData(GL_ARRAY_BUFFER, total, vertexcount * 8, texcoord.data);
+			total += vertexcount * 8;
+		}
+		if (color.len / 4 == vertexcount) {
+			glEnableVertexAttribArray(ATT_COLOR);
+			glVertexAttribPointer(ATT_COLOR, 4, GL_UNSIGNED_BYTE, GL_TRUE, 0, (void*)total);
+			glBufferSubData(GL_ARRAY_BUFFER, total, vertexcount * 4, color.data);
+			total += vertexcount * 4;
+		}
+		if (blendindex.len / 4 == vertexcount) {
+			glEnableVertexAttribArray(ATT_BLEND_INDEX);
+			glVertexAttribPointer(ATT_BLEND_INDEX, 4, GL_UNSIGNED_BYTE, GL_FALSE, 0, (void*)total);
+			glBufferSubData(GL_ARRAY_BUFFER, total, vertexcount * 4, blendindex.data);
+			total += vertexcount * 4;
+		}
+		if (blendweight.len / 4 == vertexcount) {
+			glEnableVertexAttribArray(ATT_BLEND_WEIGHT);
+			glVertexAttribPointer(ATT_BLEND_WEIGHT, 4, GL_UNSIGNED_BYTE, GL_TRUE, 0, (void*)total);
+			glBufferSubData(GL_ARRAY_BUFFER, total, vertexcount * 4, blendweight.data);
+			total += vertexcount * 4;
+		}
+	
+		glBufferData(GL_ELEMENT_ARRAY_BUFFER, element.len * 2, element.data, GL_STATIC_DRAW);
 	}
 
 	model = malloc(sizeof *model);
-	memset(model, 0, sizeof *model);
-
-	model->mesh_count = mesh_count;
-	model->mesh = malloc(mesh_count * sizeof(struct mesh));
-	memcpy(model->mesh, meshbuf, mesh_count * sizeof(struct mesh));
-
-	int vertexcount = position.len / 3;
-	int total = 12;
-	if (normal.len / 3 == vertexcount) total += 12;
-	if (texcoord.len / 2 == vertexcount) total += 8;
-	if (color.len / 4 == vertexcount) total += 4;
-	if (blendindex.len / 4 == vertexcount) total += 4;
-	if (blendweight.len / 4 == vertexcount) total += 4;
-
-	glGenVertexArrays(1, &model->vao);
-	glGenBuffers(1, &model->vbo);
-	glGenBuffers(1, &model->ibo);
-
-	glBindVertexArray(model->vao);
-	glBindBuffer(GL_ARRAY_BUFFER, model->vbo);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, model->ibo);
-
-	glBufferData(GL_ARRAY_BUFFER, vertexcount * total * 4, NULL, GL_STATIC_DRAW);
-
-	glEnableVertexAttribArray(ATT_POSITION);
-	glVertexAttribPointer(ATT_POSITION, 3, GL_FLOAT, 0, 0, (void*)0);
-	glBufferSubData(GL_ARRAY_BUFFER, 0, vertexcount * 12, position.data);
-	total = vertexcount * 12;
-
-	if (normal.len / 3 == vertexcount) {
-		glEnableVertexAttribArray(ATT_NORMAL);
-		glVertexAttribPointer(ATT_NORMAL, 3, GL_FLOAT, 0, 0, (void*)total);
-		glBufferSubData(GL_ARRAY_BUFFER, total, vertexcount * 12, normal.data);
-		total += vertexcount * 12;
-	}
-	if (texcoord.len / 2 == vertexcount) {
-		glEnableVertexAttribArray(ATT_TEXCOORD);
-		glVertexAttribPointer(ATT_TEXCOORD, 2, GL_FLOAT, 0, 0, (void*)total);
-		glBufferSubData(GL_ARRAY_BUFFER, total, vertexcount * 8, texcoord.data);
-		total += vertexcount * 8;
-	}
-	if (color.len / 4 == vertexcount) {
-		glEnableVertexAttribArray(ATT_COLOR);
-		glVertexAttribPointer(ATT_COLOR, 4, GL_UNSIGNED_BYTE, GL_TRUE, 0, (void*)total);
-		glBufferSubData(GL_ARRAY_BUFFER, total, vertexcount * 4, color.data);
-		total += vertexcount * 4;
-	}
-	if (blendindex.len / 4 == vertexcount) {
-		glEnableVertexAttribArray(ATT_BLEND_INDEX);
-		glVertexAttribPointer(ATT_BLEND_INDEX, 4, GL_UNSIGNED_BYTE, GL_FALSE, 0, (void*)total);
-		glBufferSubData(GL_ARRAY_BUFFER, total, vertexcount * 4, blendindex.data);
-		total += vertexcount * 4;
-	}
-	if (blendweight.len / 4 == vertexcount) {
-		glEnableVertexAttribArray(ATT_BLEND_WEIGHT);
-		glVertexAttribPointer(ATT_BLEND_WEIGHT, 4, GL_UNSIGNED_BYTE, GL_TRUE, 0, (void*)total);
-		glBufferSubData(GL_ARRAY_BUFFER, total, vertexcount * 4, blendweight.data);
-		total += vertexcount * 4;
-	}
-
-	glBufferData(GL_ELEMENT_ARRAY_BUFFER, element.len * 2, element.data, GL_STATIC_DRAW);
-
-	if (bone_count > 0 && pose_count >= bone_count) {
-		model->bone_count = bone_count;
-		memcpy(model->bone_name, bonename, sizeof bonename); // XXX careful of size
-		memcpy(model->parent, boneparent, sizeof boneparent);
-		memcpy(model->bind_pose, posebuf, sizeof posebuf);
-		calc_matrix_from_pose(model->bind_matrix, model->bind_pose, model->bone_count);
-		calc_abs_matrix(model->abs_bind_matrix, model->bind_matrix, model->parent, model->bone_count);
-		calc_inv_matrix(model->inv_bind_matrix, model->abs_bind_matrix, model->bone_count);
-	}
-
-	model->center[0] = (bboxmin[0] + bboxmax[0]) / 2;
-	model->center[1] = (bboxmin[1] + bboxmax[1]) / 2;
-	model->center[2] = (bboxmin[2] + bboxmax[2]) / 2;
-
-	dx = MAX(model->center[0] - bboxmin[0], bboxmax[0] - model->center[0]);
-	dy = MAX(model->center[1] - bboxmin[1], bboxmax[1] - model->center[1]);
-	dz = MAX(model->center[2] - bboxmin[2], bboxmax[2] - model->center[2]);
-
-	model->radius = sqrtf(dx*dx + dy*dy + dz*dz);
-
+	model->skel = skel;
+	model->mesh = mesh;
+	model->anim = NULL;
 	return model;
 }

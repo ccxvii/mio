@@ -1,10 +1,10 @@
---
 -- strict.lua
--- checks uses of undeclared global variables
+--
+-- Check uses of undeclared global variables.
+--
 -- All global variables must be 'declared' through a regular assignment
 -- (even assigning nil will do) in a main chunk before being used
 -- anywhere or assigned to inside a function.
---
 
 local getinfo, error, rawset, rawget = debug.getinfo, error, rawset, rawget
 
@@ -38,4 +38,3 @@ mt.__index = function (t, n)
 	end
 	return rawget(t, n)
 end
-
