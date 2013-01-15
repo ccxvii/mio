@@ -145,6 +145,124 @@ static void add_triangle(int a, int b, int c)
 	push_int(&element, a);
 }
 
+struct rawframe {
+	struct rawframe *next;
+	struct pose pose[MAXBONE];
+};
+
+struct rawanim {
+	char name[80];
+	struct rawframe *first, *last;
+	struct rawanim *next;
+};
+
+static struct pose *new_raw_frame(struct rawanim *anim)
+{
+	struct rawframe *frame = malloc(sizeof(struct rawframe));
+	frame->next = NULL;
+	if (!anim->first)
+		anim->first = anim->last = frame;
+	else {
+		anim->last->next = frame;
+		anim->last = frame;
+	}
+	return frame->pose;
+}
+
+static struct rawanim *new_raw_anim(struct rawanim *head, char *name)
+{
+	struct rawanim *anim = malloc(sizeof(struct rawanim));
+	strlcpy(anim->name, name, sizeof anim->name);
+	anim->first = anim->last = NULL;
+	anim->next = head;
+	return anim;
+}
+
+#define POSCMP(x,y) fabsf(x - y) > 0.0001
+#define ROTCMP(x,y) fabsf(x - y) > 0.0001
+#define SCLCMP(x,y) fabsf(x - y) > 0.001
+
+static int make_mask(struct pose *a, struct pose *b)
+{
+	int m = 0;
+	if (POSCMP(a->position[0], b->position[0])) m |= 0x01;
+	if (POSCMP(a->position[1], b->position[1])) m |= 0x02;
+	if (POSCMP(a->position[2], b->position[2])) m |= 0x04;
+	if (ROTCMP(a->rotation[0], b->rotation[0])) m |= 0x08;
+	if (ROTCMP(a->rotation[1], b->rotation[1])) m |= 0x10;
+	if (ROTCMP(a->rotation[2], b->rotation[2])) m |= 0x20;
+	if (ROTCMP(a->rotation[3], b->rotation[3])) m |= 0x40;
+	if (SCLCMP(a->scale[0], b->scale[0])) m |= 0x80;
+	if (SCLCMP(a->scale[1], b->scale[1])) m |= 0x100;
+	if (SCLCMP(a->scale[2], b->scale[2])) m |= 0x200;
+	return m;
+}
+
+static int count_mask(int mask)
+{
+	int n = 0;
+	if (mask & 0x01) n++;
+	if (mask & 0x02) n++;
+	if (mask & 0x04) n++;
+	if (mask & 0x08) n++;
+	if (mask & 0x10) n++;
+	if (mask & 0x20) n++;
+	if (mask & 0x40) n++;
+	if (mask & 0x80) n++;
+	if (mask & 0x100) n++;
+	if (mask & 0x200) n++;
+	return n;
+}
+
+static struct anim *make_anim(struct anim *head, struct skel *skel, struct rawanim *raw)
+{
+	struct anim *anim;
+	struct rawframe *frame;
+	float *out;
+	int i;
+
+	anim = malloc(sizeof(struct anim));
+	strlcpy(anim->name, raw->name, sizeof anim->name);
+	anim->skel = skel;
+	anim->next = head;
+
+	for (i = 0; i < skel->count; i++) {
+		anim->pose[i] = raw->first->pose[i];
+		anim->mask[i] = 0;
+	}
+
+	anim->frames = 0;
+	for (frame = raw->first; frame; frame = frame->next) {
+		anim->frames++;
+		for (i = 0; i < skel->count; i++)
+			anim->mask[i] |= make_mask(anim->pose + i, frame->pose + i);
+	}
+
+	anim->channels = 0;
+	for (i = 0; i < skel->count; i++)
+		anim->channels += count_mask(anim->mask[i]);
+
+	anim->data = out = malloc(sizeof(float) * anim->frames * anim->channels);
+	for (frame = raw->first; frame; frame = frame->next) {
+		for (i = 0; i < skel->count; i++) {
+			int mask = anim->mask[i];
+			struct pose *p = frame->pose + i;
+			if (mask & 0x01) *out++ = p->position[0];
+			if (mask & 0x02) *out++ = p->position[1];
+			if (mask & 0x04) *out++ = p->position[2];
+			if (mask & 0x08) *out++ = p->rotation[0];
+			if (mask & 0x10) *out++ = p->rotation[1];
+			if (mask & 0x20) *out++ = p->rotation[2];
+			if (mask & 0x40) *out++ = p->rotation[3];
+			if (mask & 0x80) *out++ = p->scale[0];
+			if (mask & 0x100) *out++ = p->scale[1];
+			if (mask & 0x200) *out++ = p->scale[2];
+		}
+	}
+
+	return anim;
+}
+
 static char *parsestring(char **stringp)
 {
 	char *start, *end, *s = *stringp;
@@ -193,14 +311,9 @@ struct model *load_iqe_from_memory(char *filename, unsigned char *data, int len)
 {
 	char dirname[1024];
 	char *line, *next, *p, *s, *sp;
-	struct model *model;
-	struct skel *skel;
-	struct mesh *mesh;
-	struct anim *anim;
 	char bone_name[MAXBONE][32];
 	int bone_parent[MAXBONE];
 	struct pose bind_pose[MAXBONE];
-	struct pose *pose;
 	int bone_count = 0;
 	int pose_count = 0;
 	int material = 0;
@@ -236,7 +349,8 @@ struct model *load_iqe_from_memory(char *filename, unsigned char *data, int len)
 		custom_name[i][0] = 0;
 	}
 
-	pose = bind_pose;
+	struct pose *pose = bind_pose;
+	struct rawanim *rawanim = NULL;
 
 	data[len-1] = 0; /* over-write final newline to zero-terminate */
 
@@ -389,17 +503,25 @@ struct model *load_iqe_from_memory(char *filename, unsigned char *data, int len)
 			}
 		}
 
-		// TODO: animation, frame
+		else if (!strcmp(s, "animation")) {
+			s = parsestring(&sp);
+			rawanim = new_raw_anim(rawanim, s);
+		}
+
+		else if (!strcmp(s, "frame")) {
+			pose = new_raw_frame(rawanim);
+			pose_count = 0;
+		}
 	}
 
 	if (element.len > first)
 		push_part(&part, first, element.len, material);
 
-	skel = NULL;
-	mesh = NULL;
-	anim = NULL;
+	struct skel *skel = NULL;
+	struct mesh *mesh = NULL;
+	struct anim *anim = NULL;
 
-	if (bone_count > 0 && pose_count >= bone_count) {
+	if (bone_count > 0) {
 		skel = malloc(sizeof(struct skel));
 		skel->count = bone_count;
 		for (i = 0; i < bone_count; i++) {
@@ -487,9 +609,22 @@ struct model *load_iqe_from_memory(char *filename, unsigned char *data, int len)
 		glBufferData(GL_ELEMENT_ARRAY_BUFFER, element.len * 2, element.data, GL_STATIC_DRAW);
 	}
 
-	model = malloc(sizeof *model);
+	while (rawanim) {
+		anim = make_anim(anim, skel, rawanim);
+		struct rawframe *frame = rawanim->first;
+		while (frame) {
+			struct rawframe *nextframe = frame->next;
+			free(frame);
+			frame = nextframe;
+		}
+		struct rawanim *nextanim = rawanim->next;
+		free(rawanim);
+		rawanim = nextanim;
+	}
+
+	struct model *model = malloc(sizeof *model);
 	model->skel = skel;
 	model->mesh = mesh;
-	model->anim = NULL;
+	model->anim = anim;
 	return model;
 }
