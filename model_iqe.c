@@ -4,6 +4,11 @@
 
 #define IQE_MAGIC "# Inter-Quake Export"
 
+#define TAG_DOUBLESIDED "twosided+"
+#define TAG_NORMAL_GRASS "grass+"
+#define TAG_NORMAL_TREE "tree+"
+#define TAG_NORMAL_KEEP "normal+"
+
 struct floatarray {
 	int len, cap;
 	float *data;
@@ -68,8 +73,31 @@ static inline void push_byte(struct bytearray *a, int v)
 	a->data[a->len++] = v;
 }
 
+static inline void dup_float(struct floatarray *a, int i, int size)
+{
+	if (a->len > i * size) {
+		int k;
+		for (k = 0; k < size; k++)
+			push_float(a, a->data[i*size+k]);
+	}
+}
+
+static inline void dup_byte(struct bytearray *a, int i, int size)
+{
+	if (a->len > i * size) {
+		int k;
+		for (k = 0; k < size; k++)
+			push_byte(a, a->data[i*size+k]);
+	}
+}
+
 static inline void push_part(struct partarray *a, int first, int last, int material)
 {
+	/* merge parts if they share materials */
+	if (a->len > 0 && a->data[a->len-1].material == material) {
+		a->data[a->len-1].count += last - first;
+		return;
+	}
 	if (a->len + 1 >= a->cap) {
 		a->cap = 600 + a->cap * 2;
 		a->data = realloc(a->data, a->cap * sizeof(*a->data));
@@ -87,17 +115,17 @@ static void add_position(float x, float y, float z)
 	push_float(&position, z);
 }
 
-static void add_texcoord(float u, float v)
-{
-	push_float(&texcoord, u);
-	push_float(&texcoord, v);
-}
-
 static void add_normal(float x, float y, float z)
 {
 	push_float(&normal, x);
 	push_float(&normal, y);
 	push_float(&normal, z);
+}
+
+static void add_texcoord(float u, float v)
+{
+	push_float(&texcoord, u);
+	push_float(&texcoord, v);
 }
 
 static void add_color(float r, float g, float b, float a)
@@ -134,6 +162,23 @@ static void add_custom(int i, float x, float y, float z, float w)
 		if (custom_count[i] > 1) push_float(&customf[i], y * 255);
 		if (custom_count[i] > 2) push_float(&customf[i], z * 255);
 		if (custom_count[i] > 3) push_float(&customf[i], w * 255);
+	}
+}
+
+static void dup_vert(int k)
+{
+	int i;
+	dup_float(&position, k, 3);
+	dup_float(&normal, k, 3);
+	dup_float(&texcoord, k, 2);
+	dup_byte(&color, k, 4);
+	dup_byte(&blendindex, k, 4);
+	dup_byte(&blendweight, k, 4);
+	for (i = 0; i < 10; i++) {
+		if (custom_format[i] == 'b')
+			dup_byte(&customb[i], k, custom_count[i]);
+		if (custom_format[i] == 'f')
+			dup_float(&customf[i], k, custom_count[i]);
 	}
 }
 
@@ -263,6 +308,56 @@ static struct anim *make_anim(struct anim *head, struct skel *skel, struct rawan
 	return anim;
 }
 
+static void process_tags(char *tags, int v0, int v1, int f0, int f1)
+{
+	int i;
+
+	if (strstr(tags, TAG_NORMAL_GRASS)) {
+		for (i = v0; i < v1; i++) {
+			normal.data[i*3] = 0;
+			normal.data[i*3+1] = 0;
+			normal.data[i*3+2] = 1;
+		}
+		if (strstr(tags, TAG_DOUBLESIDED)) {
+			for (i = f0; i < f1; i += 3)
+				add_triangle(element.data[i], element.data[i+1], element.data[i+2]);
+		}
+	}
+
+	else if (strstr(tags, TAG_NORMAL_TREE)) {
+		vec3 c = {0, 0, 0};
+		for (i = v0; i < v1; i++)
+			vec_add(c, c, position.data + i * 3);
+		vec_div_s(c, c, v1 - v0);
+		for (i = v0; i < v1; i++) {
+			vec3 p;
+			vec_sub(p, position.data + i * 3, c);
+			vec_normalize(normal.data + i * 3, p);
+		}
+		if (strstr(tags, TAG_DOUBLESIDED)) {
+			for (i = f0; i < f1; i += 3)
+				add_triangle(element.data[i], element.data[i+1], element.data[i+2]);
+		}
+	}
+
+	else if (strstr(tags, TAG_NORMAL_KEEP)) {
+		if (strstr(tags, TAG_DOUBLESIDED)) {
+			for (i = f0; i < f1; i += 3)
+				add_triangle(element.data[i], element.data[i+1], element.data[i+2]);
+		}
+	}
+
+	else if (strstr(tags, TAG_DOUBLESIDED)) {
+		int n = v1 - v0;
+		for (i = v0; i < v1; i++) {
+			dup_vert(i);
+			vec_scale(normal.data + (i + n) * 3, normal.data + (i + n) * 3, -1);
+		}
+		for (i = f0; i < f1; i += 3)
+			add_triangle(element.data[i] + n, element.data[i+1] + n, element.data[i+2] + n);
+	}
+}
+
 static char *parsestring(char **stringp)
 {
 	char *start, *end, *s = *stringp;
@@ -311,6 +406,7 @@ struct model *load_iqe_from_memory(char *filename, unsigned char *data, int len)
 {
 	char dirname[1024];
 	char *line, *next, *p, *s, *sp;
+	char tags[80];
 	char bone_name[MAXBONE][32];
 	int bone_parent[MAXBONE];
 	struct pose bind_pose[MAXBONE];
@@ -483,14 +579,17 @@ struct model *load_iqe_from_memory(char *filename, unsigned char *data, int len)
 
 		else if (!strcmp(s, "mesh")) {
 			s = parsestring(&sp);
-			if (element.len > first)
+			if (element.len > first) {
+				process_tags(tags, fm, position.len / 3, first, element.len);
 				push_part(&part, first, element.len, material);
+			}
 			first = element.len;
 			fm = position.len / 3;
 		}
 
 		else if (!strcmp(s, "material")) {
 			s = parsestring(&sp);
+			strlcpy(tags, s, sizeof tags);
 			material = load_material(dirname, s);
 		}
 
@@ -514,8 +613,10 @@ struct model *load_iqe_from_memory(char *filename, unsigned char *data, int len)
 		}
 	}
 
-	if (element.len > first)
+	if (element.len > first) {
+		process_tags(tags, fm, position.len / 3, first, element.len);
 		push_part(&part, first, element.len, material);
+	}
 
 	struct skel *skel = NULL;
 	struct mesh *mesh = NULL;

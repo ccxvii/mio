@@ -31,6 +31,7 @@ void vec_add(vec3 p, const vec3 a, const vec3 b);
 void vec_sub(vec3 p, const vec3 a, const vec3 b);
 void vec_mul(vec3 p, const vec3 a, const vec3 b);
 void vec_div(vec3 p, const vec3 a, const vec3 b);
+void vec_div_s(vec3 p, const vec3 a, float b);
 void vec_lerp(vec3 p, const vec3 a, const vec3 b, float t);
 void vec_average(vec3 p, const vec3 a, const vec3 b);
 void vec_cross(vec3 p, const vec3 a, const vec3 b);
