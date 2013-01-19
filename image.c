@@ -270,12 +270,14 @@ static const char *icon_vert_src =
 ;
 
 static const char *icon_frag_src =
-	"uniform sampler2D Texture;\n"
+	"uniform sampler2D map_Color;\n"
 	"in vec2 var_TexCoord;\n"
 	"in vec4 var_Color;\n"
 	"out vec4 frag_Color;\n"
 	"void main() {\n"
-	"	frag_Color = var_Color * texture(Texture, var_TexCoord);\n"
+	"	vec4 color = texture(map_Color, var_TexCoord);\n"
+	"	color.rgb *= color.a; /* pre-multiply input texture */\n"
+	"	frag_Color = color * var_Color;\n"
 	"}\n"
 ;
 

@@ -179,7 +179,6 @@ void render_light_pass(void)
 	glBindFramebuffer(GL_FRAMEBUFFER, fbo_forward);
 	glClear(GL_COLOR_BUFFER_BIT);
 	glDisable(GL_DEPTH_TEST);
-	glBlendFunc(GL_ONE, GL_ONE);
 	glEnable(GL_BLEND);
 
 	glActiveTexture(MAP_DEPTH);
@@ -212,7 +211,6 @@ void render_finish(void)
 	glDepthMask(GL_TRUE);
 	glDisable(GL_DEPTH_TEST);
 	glDisable(GL_BLEND);
-	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 
@@ -307,7 +305,7 @@ static const char *sun_frag_src =
 	"	vec3 H = normalize(LightDirection + V);\n"
 	"	float specular = pow(max(dot(normal, H), 0.0), Shininess);\n"
 
-	"	frag_Color = vec4((albedo.rgb * diffuse + albedo.a * specular) * shadow * LightColor, 1.0);\n"
+	"	frag_Color = vec4((albedo.rgb * diffuse + albedo.a * specular) * shadow * LightColor, 0);\n"
 	"}\n"
 ;
 
@@ -404,7 +402,7 @@ static const char *point_frag_src =
 	"	vec3 H = normalize(L + V);\n"
 	"	float specular = pow(max(dot(normal, H), 0.0), Shininess) * falloff;\n"
 
-	"	frag_Color = vec4((albedo.rgb * diffuse + albedo.a * specular) * LightColor, 1.0);\n"
+	"	frag_Color = vec4((albedo.rgb * diffuse + albedo.a * specular) * LightColor, 0);\n"
 	"}\n"
 ;
 
@@ -498,7 +496,7 @@ static const char *spot_frag_src =
 	"	vec3 H = normalize(L + V);\n"
 	"	float specular = pow(max(dot(normal, H), 0.0), Shininess) * falloff;\n"
 
-	"	frag_Color = vec4((albedo.rgb * diffuse + albedo.a * specular) * shadow * LightColor, 1.0);\n"
+	"	frag_Color = vec4((albedo.rgb * diffuse + albedo.a * specular) * shadow * LightColor, 0);\n"
 	"}\n"
 ;
 

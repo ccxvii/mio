@@ -278,7 +278,7 @@ static const char *text_frag_src =
 	"out vec4 frag_Color;\n"
 	"void main() {\n"
 	"	float coverage = texture(map_Color, var_TexCoord).r;\n"
-	"	frag_Color = vec4(var_Color.rgb, var_Color.a * coverage);\n"
+	"	frag_Color = var_Color * coverage;\n"
 	"}\n"
 ;
 

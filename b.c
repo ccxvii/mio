@@ -242,7 +242,7 @@ int main(int argc, char **argv)
 	glutSpecialFunc(special);
 
 	glEnable(GL_FRAMEBUFFER_SRGB);
-	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
 	glEnable(GL_CULL_FACE);
 
 	render_setup(screenw, screenh);
