@@ -3,7 +3,7 @@
 int load_material(char *dirname, char *material)
 {
 	char filename[1024], *s;
-	s = strrchr(material, '+');
+	s = strrchr(material, ';');
 	if (s) s++; else s = material;
 	if (dirname[0]) {
 		strlcpy(filename, dirname, sizeof filename);

@@ -4,10 +4,11 @@
 
 #define IQE_MAGIC "# Inter-Quake Export"
 
-#define TAG_DOUBLESIDED "twosided+"
-#define TAG_NORMAL_GRASS "grass+"
-#define TAG_NORMAL_TREE "tree+"
-#define TAG_NORMAL_KEEP "normal+"
+#define TAG_DOUBLESIDED "doublesided"
+#define TAG_SINGLESIDED "singlesided"
+#define TAG_RADIAL_BASE "radial=base"
+#define TAG_RADIAL_CENTER "radial=center"
+#define TAG_RADIAL_EQ "radial="
 
 struct floatarray {
 	int len, cap;
@@ -310,51 +311,72 @@ static struct anim *make_anim(struct anim *head, struct skel *skel, struct rawan
 
 static void process_tags(char *tags, int v0, int v1, int f0, int f1)
 {
-	int i;
+	vec3 c[8];
+	int i, k, n = 0, singlesided = 0, doublesided = 0;
+	char *s;
 
-	if (strstr(tags, TAG_NORMAL_GRASS)) {
+	s = strsep(&tags, ";");
+	while (s) {
+		if (!strcmp(s, TAG_SINGLESIDED))
+			singlesided = 1;
+		else if (!strcmp(s, TAG_DOUBLESIDED))
+			doublesided = 1;
+		else if (!strcmp(s, TAG_RADIAL_BASE)) {
+			float z = 0;
+			vec_init(c[n], 0, 0, 0);
+			for (i = v0; i < v1; i++) {
+				vec_add(c[n], c[n], position.data + i * 3);
+				z = MIN(z, position.data[i*3+2]);
+			}
+			vec_div_s(c[n], c[n], v1 - v0);
+			c[n][2] = z;
+			n++;
+		}
+		else if (!strcmp(s, TAG_RADIAL_CENTER)) {
+			vec_init(c[n], 0, 0, 0);
+			for (i = v0; i < v1; i++)
+				vec_add(c[n], c[n], position.data + i * 3);
+			vec_div_s(c[n], c[n], v1 - v0);
+			n++;
+		}
+		else if (strstr(s, TAG_RADIAL_EQ) == s) {
+			sscanf(s + strlen(TAG_RADIAL_EQ), "%g,%g,%g", c[n], c[n]+1, c[n]+2);
+			n++;
+		}
+		s = strsep(&tags, ";");
+	}
+
+	if (n > 0) {
 		for (i = v0; i < v1; i++) {
-			normal.data[i*3] = 0;
-			normal.data[i*3+1] = 0;
-			normal.data[i*3+2] = 1;
-		}
-		if (strstr(tags, TAG_DOUBLESIDED)) {
-			for (i = f0; i < f1; i += 3)
-				add_triangle(element.data[i], element.data[i+1], element.data[i+2]);
-		}
-	}
-
-	else if (strstr(tags, TAG_NORMAL_TREE)) {
-		vec3 c = {0, 0, 0};
-		for (i = v0; i < v1; i++)
-			vec_add(c, c, position.data + i * 3);
-		vec_div_s(c, c, v1 - v0);
-		for (i = v0; i < v1; i++) {
-			vec3 p;
-			vec_sub(p, position.data + i * 3, c);
-			vec_normalize(normal.data + i * 3, p);
-		}
-		if (strstr(tags, TAG_DOUBLESIDED)) {
-			for (i = f0; i < f1; i += 3)
-				add_triangle(element.data[i], element.data[i+1], element.data[i+2]);
+			float *pos = position.data + i * 3;
+			float *nor = normal.data + i * 3;
+			float *nearest = c[0];
+			float nearest_dist = vec_dist2(c[0], pos);
+			for (k = 1; k < n; k++) {
+				float dist = vec_dist2(c[k], pos);
+				if (dist < nearest_dist) {
+					nearest_dist = dist;
+					nearest = c[k];
+				}
+			}
+			vec_sub(nor, pos, nearest);
+			vec_normalize(nor, nor);
 		}
 	}
 
-	else if (strstr(tags, TAG_NORMAL_KEEP)) {
-		if (strstr(tags, TAG_DOUBLESIDED)) {
-			for (i = f0; i < f1; i += 3)
-				add_triangle(element.data[i], element.data[i+1], element.data[i+2]);
-		}
-	}
-
-	else if (strstr(tags, TAG_DOUBLESIDED)) {
-		int n = v1 - v0;
+	if (doublesided) {
+		n = v1 - v0;
 		for (i = v0; i < v1; i++) {
 			dup_vert(i);
 			vec_scale(normal.data + (i + n) * 3, normal.data + (i + n) * 3, -1);
 		}
 		for (i = f0; i < f1; i += 3)
 			add_triangle(element.data[i] + n, element.data[i+1] + n, element.data[i+2] + n);
+	}
+
+	if (singlesided) {
+		for (i = f0; i < f1; i += 3)
+			add_triangle(element.data[i], element.data[i+1], element.data[i+2]);
 	}
 }
 
@@ -406,7 +428,7 @@ struct model *load_iqe_from_memory(char *filename, unsigned char *data, int len)
 {
 	char dirname[1024];
 	char *line, *next, *p, *s, *sp;
-	char tags[80];
+	char tags[500];
 	char bone_name[MAXBONE][32];
 	int bone_parent[MAXBONE];
 	struct pose bind_pose[MAXBONE];
@@ -670,7 +692,7 @@ struct model *load_iqe_from_memory(char *filename, unsigned char *data, int len)
 		glVertexAttribPointer(ATT_POSITION, 3, GL_FLOAT, 0, 0, (void*)0);
 		glBufferSubData(GL_ARRAY_BUFFER, 0, vertexcount * 12, position.data);
 		total = vertexcount * 12;
-	
+
 		if (normal.len / 3 == vertexcount) {
 			mesh->enabled |= 1<<ATT_NORMAL;
 			glEnableVertexAttribArray(ATT_NORMAL);
@@ -706,7 +728,7 @@ struct model *load_iqe_from_memory(char *filename, unsigned char *data, int len)
 			glBufferSubData(GL_ARRAY_BUFFER, total, vertexcount * 4, blendweight.data);
 			total += vertexcount * 4;
 		}
-	
+
 		glBufferData(GL_ELEMENT_ARRAY_BUFFER, element.len * 2, element.data, GL_STATIC_DRAW);
 	}
 

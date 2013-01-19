@@ -26,6 +26,7 @@ void mat_invert(mat4 out, const mat4 m);
 void mat_vec_mul(vec3 p, const mat4 m, const vec3 v);
 void mat_vec_mul_n(vec3 p, const mat4 m, const vec3 v);
 void mat_vec_mul_t(vec3 p, const mat4 m, const vec3 v);
+void vec_init(vec3 p, float x, float y, float z);
 void vec_scale(vec3 p, const vec3 v, float s);
 void vec_add(vec3 p, const vec3 a, const vec3 b);
 void vec_sub(vec3 p, const vec3 a, const vec3 b);
@@ -45,6 +46,7 @@ void vec_negate(vec3 p, const vec3 a);
 void vec_invert(vec3 p, const vec3 a);
 void vec_yup_to_zup(vec3 v);
 
+void quat_init(vec4 p, float x, float y, float z, float w);
 float quat_dot(const vec4 a, const vec4 b);
 void quat_invert(vec4 out, const vec4 q);
 void quat_conjugate(vec4 out, const vec4 q);

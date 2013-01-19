@@ -314,6 +314,13 @@ void mat_vec_mul_t(vec3 p, const mat4 m, const vec3 v)
 	p[2] = v[0] * m[8] + v[1] * m[9] + v[2] * m[10];
 }
 
+void vec_init(vec3 p, float x, float y, float z)
+{
+	p[0] = x;
+	p[1] = y;
+	p[2] = z;
+}
+
 void vec_scale(vec3 p, const vec3 v, float s)
 {
 	p[0] = v[0] * s;
@@ -441,6 +448,14 @@ void vec_yup_to_zup(vec3 v)
 	float z = v[2];
 	v[2] = v[1];
 	v[1] = -z;
+}
+
+void quat_init(vec4 p, float x, float y, float z, float w)
+{
+	p[0] = x;
+	p[1] = y;
+	p[2] = z;
+	p[3] = w;
 }
 
 float quat_dot(const vec4 a, const vec4 b)
