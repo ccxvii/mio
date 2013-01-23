@@ -4,28 +4,23 @@
  * Line and rect drawing.
  */
 
-static int draw_prog = 0;
-static int draw_uni_projection = -1;
-static int draw_uni_model_view = -1;
-
 static const char *draw_vert_src =
-	"uniform mat4 Projection;\n"
-	"uniform mat4 ModelView;\n"
-	"in vec3 att_Position;\n"
-	"in vec4 att_Color;\n"
-	"out vec4 var_Color;\n"
+	"uniform mat4 clip_from_view;\n"
+	"uniform mat4 view_from_world;\n"
+	"in vec4 att_position;\n"
+	"in vec4 att_color;\n"
+	"out vec4 var_color;\n"
 	"void main() {\n"
-	"	vec4 position = ModelView * vec4(att_Position, 1.0);\n"
-	"	gl_Position = Projection * position;\n"
-	"	var_Color = att_Color;\n"
+	"	gl_Position = clip_from_view * view_from_world * att_position;\n"
+	"	var_color = att_color;\n"
 	"}\n"
 ;
 
 static const char *draw_frag_src =
-	"in vec4 var_Color;\n"
-	"out vec4 frag_Color;\n"
+	"in vec4 var_color;\n"
+	"out vec4 frag_color;\n"
 	"void main() {\n"
-	"	frag_Color = var_Color;\n"
+	"	frag_color = var_color;\n"
 	"}\n"
 ;
 
@@ -51,12 +46,16 @@ void draw_set_color(float r, float g, float b, float a)
 	draw_color[3] = a;
 }
 
-void draw_begin(float projection[16], float model_view[16])
+void draw_begin(mat4 clip_from_view, mat4 view_from_world)
 {
+	static int draw_prog = 0;
+	static int draw_uni_clip_from_view = -1;
+	static int draw_uni_view_from_world = -1;
+
 	if (!draw_prog) {
 		draw_prog = compile_shader(draw_vert_src, draw_frag_src);
-		draw_uni_projection = glGetUniformLocation(draw_prog, "Projection");
-		draw_uni_model_view = glGetUniformLocation(draw_prog, "ModelView");
+		draw_uni_clip_from_view = glGetUniformLocation(draw_prog, "clip_from_view");
+		draw_uni_view_from_world = glGetUniformLocation(draw_prog, "view_from_world");
 	}
 
 	if (!draw_vao) {
@@ -76,8 +75,8 @@ void draw_begin(float projection[16], float model_view[16])
 	glEnable(GL_BLEND);
 
 	glUseProgram(draw_prog);
-	glUniformMatrix4fv(draw_uni_projection, 1, 0, projection);
-	glUniformMatrix4fv(draw_uni_model_view, 1, 0, model_view);
+	glUniformMatrix4fv(draw_uni_clip_from_view, 1, 0, clip_from_view);
+	glUniformMatrix4fv(draw_uni_view_from_world, 1, 0, view_from_world);
 
 	glBindVertexArray(draw_vao);
 }

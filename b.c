@@ -201,15 +201,15 @@ static void display(void)
 	mat_identity(model_view);
 
 	//render_blit(projection, screenw, screenh);
-	render_debug_buffers(projection);
+	render_debug_buffers(projection, model_view);
 
-	icon_begin(projection);
+	icon_begin(projection, model_view);
 	icon_show(spot_shadow, 0, 0, 128, 128, 0, 0, 1, 1);
 	icon_show(sun_shadow, 128, 0, 256, 128, 0, 0, 1, 1);
 	icon_end();
 
 	if (showconsole)
-		console_draw(projection, droid_sans_mono, 15);
+		console_draw(projection, model_view, droid_sans_mono, 15);
 
 	glutSwapBuffers();
 
@@ -248,6 +248,7 @@ int main(int argc, char **argv)
 	render_setup(screenw, screenh);
 
 	register_directory("data/");
+	register_directory("data/textures/");
 	register_archive("data/shapes.zip");
 	register_archive("data/textures.zip");
 

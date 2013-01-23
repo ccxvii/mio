@@ -252,32 +252,30 @@ int load_texture_array(char *filename, int srgb, int *d)
  * Icon drawing.
  */
 
-static int icon_prog = 0;
-static int icon_uni_projection = -1;
-
 static const char *icon_vert_src =
-	"uniform mat4 Projection;\n"
-	"in vec2 att_Position;\n"
-	"in vec2 att_TexCoord;\n"
-	"in vec4 att_Color;\n"
-	"out vec2 var_TexCoord;\n"
-	"out vec4 var_Color;\n"
+	"uniform mat4 clip_from_view;\n"
+	"uniform mat4 view_from_world;\n"
+	"in vec4 att_position;\n"
+	"in vec2 att_texcoord;\n"
+	"in vec4 att_color;\n"
+	"out vec2 var_texcoord;\n"
+	"out vec4 var_color;\n"
 	"void main() {\n"
-	"	gl_Position = Projection * vec4(att_Position, 0.0, 1.0);\n"
-	"	var_TexCoord = att_TexCoord;\n"
-	"	var_Color = att_Color;\n"
+	"	gl_Position = clip_from_view * view_from_world * att_position;\n"
+	"	var_texcoord = att_texcoord;\n"
+	"	var_color = att_color;\n"
 	"}\n"
 ;
 
 static const char *icon_frag_src =
-	"uniform sampler2D map_Color;\n"
-	"in vec2 var_TexCoord;\n"
-	"in vec4 var_Color;\n"
-	"out vec4 frag_Color;\n"
+	"uniform sampler2D map_color;\n"
+	"in vec2 var_texcoord;\n"
+	"in vec4 var_color;\n"
+	"out vec4 frag_color;\n"
 	"void main() {\n"
-	"	vec4 color = texture(map_Color, var_TexCoord);\n"
+	"	vec4 color = texture(map_color, var_texcoord);\n"
 	"	color.rgb *= color.a; /* pre-multiply input texture */\n"
-	"	frag_Color = color * var_Color;\n"
+	"	frag_color = color * var_color;\n"
 	"}\n"
 ;
 
@@ -300,11 +298,16 @@ void icon_set_color(float r, float g, float b, float a)
 	icon_color[3] = a;
 }
 
-void icon_begin(float projection[16])
+void icon_begin(mat4 clip_from_view, mat4 view_from_world)
 {
+	static int icon_prog = 0;
+	static int icon_uni_clip_from_view = -1;
+	static int icon_uni_view_from_world = -1;
+
 	if (!icon_prog) {
 		icon_prog = compile_shader(icon_vert_src, icon_frag_src);
-		icon_uni_projection = glGetUniformLocation(icon_prog, "Projection");
+		icon_uni_clip_from_view = glGetUniformLocation(icon_prog, "clip_from_view");
+		icon_uni_view_from_world = glGetUniformLocation(icon_prog, "view_from_world");
 	}
 
 	if (!icon_vao) {
@@ -326,7 +329,8 @@ void icon_begin(float projection[16])
 	glEnable(GL_BLEND);
 
 	glUseProgram(icon_prog);
-	glUniformMatrix4fv(icon_uni_projection, 1, 0, projection);
+	glUniformMatrix4fv(icon_uni_clip_from_view, 1, 0, clip_from_view);
+	glUniformMatrix4fv(icon_uni_view_from_world, 1, 0, view_from_world);
 
 	glBindVertexArray(icon_vao);
 }

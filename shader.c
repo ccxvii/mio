@@ -108,20 +108,20 @@ int compile_shader(const char *vert_src, const char *frag_src)
 
 	int prog = glCreateProgram();
 
-	glBindAttribLocation(prog, ATT_POSITION, "att_Position");
-	glBindAttribLocation(prog, ATT_NORMAL, "att_Normal");
-	glBindAttribLocation(prog, ATT_TANGENT, "att_Tangent");
-	glBindAttribLocation(prog, ATT_TEXCOORD, "att_TexCoord");
-	glBindAttribLocation(prog, ATT_COLOR, "att_Color");
-	glBindAttribLocation(prog, ATT_BLEND_INDEX, "att_BlendIndex");
-	glBindAttribLocation(prog, ATT_BLEND_WEIGHT, "att_BlendWeight");
-	glBindAttribLocation(prog, ATT_LIGHTMAP, "att_LightMap");
-	glBindAttribLocation(prog, ATT_SPLAT, "att_Splat");
-	glBindAttribLocation(prog, ATT_WIND, "att_Wind");
+	glBindAttribLocation(prog, ATT_POSITION, "att_position");
+	glBindAttribLocation(prog, ATT_NORMAL, "att_normal");
+	glBindAttribLocation(prog, ATT_TANGENT, "att_tangent");
+	glBindAttribLocation(prog, ATT_TEXCOORD, "att_texcoord");
+	glBindAttribLocation(prog, ATT_COLOR, "att_color");
+	glBindAttribLocation(prog, ATT_BLEND_INDEX, "att_blend_index");
+	glBindAttribLocation(prog, ATT_BLEND_WEIGHT, "att_blend_weight");
+	glBindAttribLocation(prog, ATT_LIGHTMAP, "att_lightmap");
+	glBindAttribLocation(prog, ATT_SPLAT, "att_splat");
+	glBindAttribLocation(prog, ATT_WIND, "att_wind");
 
-	glBindFragDataLocation(prog, FRAG_COLOR, "frag_Color");
-	glBindFragDataLocation(prog, FRAG_NORMAL, "frag_Normal");
-	glBindFragDataLocation(prog, FRAG_ALBEDO, "frag_Albedo");
+	glBindFragDataLocation(prog, FRAG_COLOR, "frag_color");
+	glBindFragDataLocation(prog, FRAG_NORMAL, "frag_normal");
+	glBindFragDataLocation(prog, FRAG_ALBEDO, "frag_albedo");
 
 	glAttachShader(prog, vert);
 	glAttachShader(prog, frag);
@@ -138,14 +138,14 @@ int compile_shader(const char *vert_src, const char *frag_src)
 	glDeleteShader(frag);
 
 	glUseProgram(prog);
-	glUniform1i(glGetUniformLocation(prog, "map_Color"), MAP_COLOR - GL_TEXTURE0);
-	glUniform1i(glGetUniformLocation(prog, "map_Gloss"), MAP_GLOSS - GL_TEXTURE0);
-	glUniform1i(glGetUniformLocation(prog, "map_Normal"), MAP_NORMAL - GL_TEXTURE0);
-	glUniform1i(glGetUniformLocation(prog, "map_Shadow"), MAP_SHADOW - GL_TEXTURE0);
-	glUniform1i(glGetUniformLocation(prog, "map_Depth"), MAP_DEPTH - GL_TEXTURE0);
-	glUniform1i(glGetUniformLocation(prog, "map_Emission"), MAP_EMISSION - GL_TEXTURE0);
-	glUniform1i(glGetUniformLocation(prog, "map_Light"), MAP_LIGHT - GL_TEXTURE0);
-	glUniform1i(glGetUniformLocation(prog, "map_Splat"), MAP_SPLAT - GL_TEXTURE0);
+	glUniform1i(glGetUniformLocation(prog, "map_color"), MAP_COLOR - GL_TEXTURE0);
+	glUniform1i(glGetUniformLocation(prog, "map_gloss"), MAP_GLOSS - GL_TEXTURE0);
+	glUniform1i(glGetUniformLocation(prog, "map_normal"), MAP_NORMAL - GL_TEXTURE0);
+	glUniform1i(glGetUniformLocation(prog, "map_shadow"), MAP_SHADOW - GL_TEXTURE0);
+	glUniform1i(glGetUniformLocation(prog, "map_depth"), MAP_DEPTH - GL_TEXTURE0);
+	glUniform1i(glGetUniformLocation(prog, "map_emission"), MAP_EMISSION - GL_TEXTURE0);
+	glUniform1i(glGetUniformLocation(prog, "map_light"), MAP_LIGHT - GL_TEXTURE0);
+	glUniform1i(glGetUniformLocation(prog, "map_splat"), MAP_SPLAT - GL_TEXTURE0);
 
 	return prog;
 }

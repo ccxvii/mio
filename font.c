@@ -254,31 +254,29 @@ static struct glyph *lookup_glyph(struct font *font, float scale, int gid, int s
  * Text buffer and drawing.
  */
 
-static int text_prog = 0;
-static int text_uni_projection = -1;
-
 static const char *text_vert_src =
-	"uniform mat4 Projection;\n"
-	"in vec2 att_Position;\n"
-	"in vec2 att_TexCoord;\n"
-	"in vec4 att_Color;\n"
-	"out vec2 var_TexCoord;\n"
-	"out vec4 var_Color;\n"
+	"uniform mat4 clip_from_view;\n"
+	"uniform mat4 view_from_world;\n"
+	"in vec4 att_position;\n"
+	"in vec2 att_texcoord;\n"
+	"in vec4 att_color;\n"
+	"out vec2 var_texcoord;\n"
+	"out vec4 var_color;\n"
 	"void main() {\n"
-	"	gl_Position = Projection * vec4(att_Position, 0.0, 1.0);\n"
-	"	var_TexCoord = att_TexCoord;\n"
-	"	var_Color = att_Color;\n"
+	"	gl_Position = clip_from_view * view_from_world * att_position;\n"
+	"	var_texcoord = att_texcoord;\n"
+	"	var_color = att_color;\n"
 	"}\n"
 ;
 
 static const char *text_frag_src =
-	"uniform sampler2D map_Color;\n"
-	"in vec2 var_TexCoord;\n"
-	"in vec4 var_Color;\n"
-	"out vec4 frag_Color;\n"
+	"uniform sampler2D map_color;\n"
+	"in vec2 var_texcoord;\n"
+	"in vec4 var_color;\n"
+	"out vec4 frag_color;\n"
 	"void main() {\n"
-	"	float coverage = texture(map_Color, var_TexCoord).r;\n"
-	"	frag_Color = var_Color * coverage;\n"
+	"	float coverage = texture(map_color, var_texcoord).r;\n"
+	"	frag_color = var_color * coverage;\n"
 	"}\n"
 ;
 
@@ -311,8 +309,12 @@ void text_set_font(struct font *font, float size)
 	text_scale = stbtt_ScaleForPixelHeight(&font->info, size);
 }
 
-void text_begin(float projection[16])
+void text_begin(mat4 clip_from_view, mat4 view_from_world)
 {
+	static int text_prog = 0;
+	static int text_uni_clip_from_view = -1;
+	static int text_uni_view_from_world = -1;
+
 	if (!cache_tex) {
 		memset(table, 0, sizeof table);
 		memset(cache_zero, 0, sizeof cache_zero);
@@ -328,7 +330,8 @@ void text_begin(float projection[16])
 
 	if (!text_prog) {
 		text_prog = compile_shader(text_vert_src, text_frag_src);
-		text_uni_projection = glGetUniformLocation(text_prog, "Projection");
+		text_uni_clip_from_view = glGetUniformLocation(text_prog, "clip_from_view");
+		text_uni_view_from_world = glGetUniformLocation(text_prog, "view_from_world");
 	}
 
 	if (!text_vao) {
@@ -350,7 +353,8 @@ void text_begin(float projection[16])
 	glEnable(GL_BLEND);
 
 	glUseProgram(text_prog);
-	glUniformMatrix4fv(text_uni_projection, 1, 0, projection);
+	glUniformMatrix4fv(text_uni_clip_from_view, 1, 0, clip_from_view);
+	glUniformMatrix4fv(text_uni_view_from_world, 1, 0, view_from_world);
 
 	glBindVertexArray(text_vao);
 

@@ -97,7 +97,7 @@ int make_texture_array(unsigned char *data, int w, int h, int d, int n, int srgb
 int load_texture_array(char *filename, int srgb, int *d);
 
 void icon_set_color(float r, float g, float b, float a);
-void icon_begin(mat4 projection);
+void icon_begin(mat4 clip_from_view, mat4 view_from_world);
 void icon_end(void);
 void icon_show(int texture,
 		float x0, float y0, float x1, float y1,
@@ -110,7 +110,7 @@ struct font *load_font_from_memory(char *filename, unsigned char *data, int len)
 void free_font(struct font *font);
 float font_width(struct font *font, float size, char *str);
 
-void text_begin(mat4 projection);
+void text_begin(mat4 clip_from_view, mat4 view_from_world);
 void text_set_color(float r, float g, float b, float a);
 void text_set_font(struct font *font, float size);
 float text_show(float x, float y, char *text);
@@ -120,7 +120,7 @@ void text_end(void);
 /* drawing flat shaded primitives */
 
 void draw_set_color(float r, float g, float b, float a);
-void draw_begin(mat4 projection, mat4 model_view);
+void draw_begin(mat4 clip_from_view, mat4 view_from_world);
 void draw_end(void);
 void draw_line(float x0, float y0, float z0, float x1, float y1, float z1);
 void draw_rect(float x0, float y0, float x1, float y1);
@@ -138,7 +138,7 @@ void console_init(void);
 void console_update(int key, int mod);
 void console_print(const char *s);
 void console_printnl(const char *s);
-void console_draw(mat4 projection, struct font *font, float size);
+void console_draw(mat4 clip_from_view, mat4 view_from_world, struct font *font, float size);
 
 /* shaders */
 
@@ -232,8 +232,8 @@ void extract_pose(struct pose *pose, struct anim *anim, int frame);
 void apply_animation(struct pose *dst_pose, struct skel *dst, struct pose *src_pose, struct skel *src);
 void apply_animation_ryzom(struct pose *dst_pose, struct skel *dst, struct pose *src_pose, struct skel *src);
 void draw_armature(mat4 *abs_pose_matrix, int *parent, int count);
-void draw_model(struct mesh *mesh, mat4 projection, mat4 model_view);
-void draw_model_with_pose(struct mesh *mesh, mat4 projection, mat4 model_view, mat4 *skin_matrix);
+void draw_model(struct mesh *mesh, mat4 clip_from_view, mat4 view_from_world);
+void draw_model_with_pose(struct mesh *mesh, mat4 clip_from_view, mat4 view_from_world, mat4 *skin_matrix);
 
 /* scene graph */
 
@@ -308,5 +308,5 @@ void render_spot_light(int map, mat4 projection, mat4 model_view, vec3 spot_posi
 void render_mesh_shadow(struct mesh *mesh);
 void render_mesh(struct mesh *mesh, mat4 projection, mat4 model_view);
 
-void render_blit(float projection[16], int w, int h);
-void render_debug_buffers(float projection[16]);
+void render_blit(mat4 proj, mat4 view, int w, int h);
+void render_debug_buffers(mat4 proj, mat4 view);

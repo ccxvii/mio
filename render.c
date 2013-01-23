@@ -214,10 +214,10 @@ void render_finish(void)
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 
-void render_blit(float projection[16], int w, int h)
+void render_blit(mat4 proj, mat4 view, int w, int h)
 {
 	// Render fullscreen quad with post-process filter
-	icon_begin(projection);
+	icon_begin(proj, view);
 	icon_show(tex_forward, 0, 0, w, h, 0, 1, 1, 0);
 	icon_end();
 
@@ -227,12 +227,12 @@ void render_blit(float projection[16], int w, int h)
 //	glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
 }
 
-void render_debug_buffers(float projection[16])
+void render_debug_buffers(mat4 proj, mat4 view)
 {
 	int w = fbo_w / 2;
 	int h = fbo_h / 2;
 
-	icon_begin(projection);
+	icon_begin(proj, view);
 	glDisable(GL_BLEND);
 	icon_show(tex_albedo, 0, 0, w, h, 0, 1, 1, 0);
 	icon_show(tex_normal, w, 0, w+w, h, 0, 1, 1, 0);
@@ -244,9 +244,9 @@ void render_debug_buffers(float projection[16])
 /* draw lights */
 
 static const char *quad_vert_src =
-	"in vec4 att_Position;\n"
+	"in vec4 att_position;\n"
 	"void main() {\n"
-	"	gl_Position = att_Position;\n"
+	"	gl_Position = att_position;\n"
 	"}\n"
 ;
 
@@ -275,10 +275,10 @@ static void draw_fullscreen_quad(void)
 /* Sun light */
 
 static const char *sun_frag_src =
-	"uniform sampler2D map_Color;\n"
-	"uniform sampler2D map_Normal;\n"
-	"uniform sampler2D map_Depth;\n"
-	"uniform sampler2DShadow map_Shadow;\n"
+	"uniform sampler2D map_color;\n"
+	"uniform sampler2D map_normal;\n"
+	"uniform sampler2D map_depth;\n"
+	"uniform sampler2DShadow map_shadow;\n"
 	"uniform vec2 Viewport;\n"
 	"uniform mat4 InverseProjection;\n"
 	"uniform mat4 ShadowMatrix;\n"
@@ -288,14 +288,14 @@ static const char *sun_frag_src =
 	"out vec4 frag_Color;\n"
 	"void main() {\n"
 	"	vec2 texcoord = gl_FragCoord.xy / Viewport.xy;\n"
-	"	float depth = texture(map_Depth, texcoord).x;\n"
+	"	float depth = texture(map_depth, texcoord).x;\n"
 	"	vec4 pos_ndc = 2.0 * vec4(texcoord, depth, 1.0) - 1.0;\n"
 	"	vec4 pos_hom = InverseProjection * pos_ndc;\n"
 	"	vec3 position = pos_hom.xyz / pos_hom.w;\n"
-	"	vec3 normal = texture(map_Normal, texcoord).xyz;\n"
-	"	vec4 albedo = texture(map_Color, texcoord);\n"
+	"	vec3 normal = texture(map_normal, texcoord).xyz;\n"
+	"	vec4 albedo = texture(map_color, texcoord);\n"
 	"	vec4 pos_shadow = ShadowMatrix * vec4(position, 1.0);\n"
-	"	float shadow = textureProj(map_Shadow, pos_shadow);\n"
+	"	float shadow = textureProj(map_shadow, pos_shadow);\n"
 	"	vec2 ps = pos_shadow.xy / pos_shadow.w;\n"
 	"	if (pos_shadow.w < 0 || ps.x < 0 || ps.x > 1 || ps.y < 0 || ps.y > 1) shadow = 1.0;\n"
 
@@ -372,9 +372,9 @@ void render_sun_light(int shadow_map, mat4 projection, mat4 model_view, vec3 sun
 /* Point light */
 
 static const char *point_frag_src =
-	"uniform sampler2D map_Color;\n"
-	"uniform sampler2D map_Normal;\n"
-	"uniform sampler2D map_Depth;\n"
+	"uniform sampler2D map_color;\n"
+	"uniform sampler2D map_normal;\n"
+	"uniform sampler2D map_depth;\n"
 	"uniform vec2 Viewport;\n"
 	"uniform mat4 InverseProjection;\n"
 	"uniform vec3 LightPosition;\n"
@@ -384,12 +384,12 @@ static const char *point_frag_src =
 	"out vec4 frag_Color;\n"
 	"void main() {\n"
 	"	vec2 texcoord = gl_FragCoord.xy / Viewport.xy;\n"
-	"	float depth = texture(map_Depth, texcoord).x;\n"
+	"	float depth = texture(map_depth, texcoord).x;\n"
 	"	vec4 pos_ndc = 2.0 * vec4(texcoord, depth, 1.0) - 1.0;\n"
 	"	vec4 pos_hom = InverseProjection * pos_ndc;\n"
 	"	vec3 position = pos_hom.xyz / pos_hom.w;\n"
-	"	vec3 normal = texture(map_Normal, texcoord).xyz;\n"
-	"	vec4 albedo = texture(map_Color, texcoord);\n"
+	"	vec3 normal = texture(map_normal, texcoord).xyz;\n"
+	"	vec4 albedo = texture(map_color, texcoord);\n"
 
 	"	vec3 direction = LightPosition - position;\n"
 	"	float dist2 = dot(direction, direction);\n"
@@ -454,10 +454,10 @@ void render_point_light(mat4 projection, mat4 model_view, vec3 point_position, v
 /* Spot light */
 
 static const char *spot_frag_src =
-	"uniform sampler2D map_Color;\n"
-	"uniform sampler2D map_Normal;\n"
-	"uniform sampler2D map_Depth;\n"
-	"uniform sampler2DShadow map_Shadow;\n"
+	"uniform sampler2D map_color;\n"
+	"uniform sampler2D map_normal;\n"
+	"uniform sampler2D map_depth;\n"
+	"uniform sampler2DShadow map_shadow;\n"
 	"uniform vec2 Viewport;\n"
 	"uniform mat4 InverseProjection;\n"
 	"uniform mat4 ShadowMatrix;\n"
@@ -470,14 +470,14 @@ static const char *spot_frag_src =
 	"out vec4 frag_Color;\n"
 	"void main() {\n"
 	"	vec2 texcoord = gl_FragCoord.xy / Viewport.xy;\n"
-	"	float depth = texture(map_Depth, texcoord).x;\n"
+	"	float depth = texture(map_depth, texcoord).x;\n"
 	"	vec4 pos_ndc = 2.0 * vec4(texcoord, depth, 1.0) - 1.0;\n"
 	"	vec4 pos_hom = InverseProjection * pos_ndc;\n"
 	"	vec3 position = pos_hom.xyz / pos_hom.w;\n"
-	"	vec3 normal = texture(map_Normal, texcoord).xyz;\n"
-	"	vec4 albedo = texture(map_Color, texcoord);\n"
+	"	vec3 normal = texture(map_normal, texcoord).xyz;\n"
+	"	vec4 albedo = texture(map_color, texcoord);\n"
 	"	vec4 pos_shadow = ShadowMatrix * vec4(position, 1.0);\n"
-	"	float shadow = textureProj(map_Shadow, pos_shadow);\n"
+	"	float shadow = textureProj(map_shadow, pos_shadow);\n"
 	"	vec2 ps = pos_shadow.xy / pos_shadow.w;\n"
 	"	if (pos_shadow.w < 0 || ps.x < 0 || ps.x > 1 || ps.y < 0 || ps.y > 1) shadow = 0.0;\n"
 
@@ -577,33 +577,33 @@ void render_spot_light(int shadow_map, mat4 projection, mat4 model_view, vec3 sp
 static const char *static_vert_src =
 	"uniform mat4 Projection;\n"
 	"uniform mat4 ModelView;\n"
-	"in vec4 att_Position;\n"
-	"in vec3 att_Normal;\n"
-	"in vec2 att_TexCoord;\n"
-	"out vec3 var_Normal;\n"
-	"out vec2 var_TexCoord;\n"
+	"in vec4 att_position;\n"
+	"in vec3 att_normal;\n"
+	"in vec2 att_texcoord;\n"
+	"out vec3 var_normal;\n"
+	"out vec2 var_texcoord;\n"
 	"void main() {\n"
-	"	gl_Position = Projection * ModelView * att_Position;\n"
-	"	vec4 normal = ModelView * vec4(att_Normal, 0.0);\n"
-	"	var_Normal = normalize(normal.xyz);\n"
-	"	var_TexCoord = att_TexCoord;\n"
+	"	gl_Position = Projection * ModelView * att_position;\n"
+	"	vec4 normal = ModelView * vec4(att_normal, 0.0);\n"
+	"	var_normal = normalize(normal.xyz);\n"
+	"	var_texcoord = att_texcoord;\n"
 	"}\n"
 ;
 
 static const char *static_frag_src =
-	"uniform sampler2D map_Color;\n"
-	"uniform sampler2D map_Gloss;\n"
-	"in vec3 var_Normal;\n"
-	"in vec2 var_TexCoord;\n"
-	"out vec4 frag_Normal;\n"
-	"out vec4 frag_Albedo;\n"
+	"uniform sampler2D map_color;\n"
+	"uniform sampler2D map_gloss;\n"
+	"in vec3 var_normal;\n"
+	"in vec2 var_texcoord;\n"
+	"out vec4 frag_normal;\n"
+	"out vec4 frag_albedo;\n"
 	"void main() {\n"
-	"	vec4 albedo = texture(map_Color, var_TexCoord);\n"
-	"	vec4 gloss = texture(map_Gloss, var_TexCoord);\n"
-	"	vec3 normal = normalize(var_Normal);\n"
+	"	vec4 albedo = texture(map_color, var_texcoord);\n"
+	"	vec4 gloss = texture(map_gloss, var_texcoord);\n"
+	"	vec3 normal = normalize(var_normal);\n"
 	"	if (albedo.a < 0.2) discard;\n"
-	"	frag_Normal = vec4(normal.xyz, 0);\n"
-	"	frag_Albedo = vec4(albedo.rgb, gloss.x);\n"
+	"	frag_normal = vec4(normal.xyz, 0);\n"
+	"	frag_albedo = vec4(albedo.rgb, gloss.x);\n"
 	"}\n"
 ;
 
@@ -640,20 +640,20 @@ void render_mesh(struct mesh *mesh, mat4 projection, mat4 model_view)
 static const char *shadow_vert_src =
 	"uniform mat4 Projection;\n"
 	"uniform mat4 ModelView;\n"
-	"in vec4 att_Position;\n"
-	"in vec2 att_TexCoord;\n"
-	"out vec2 var_TexCoord;\n"
+	"in vec4 att_position;\n"
+	"in vec2 att_texcoord;\n"
+	"out vec2 var_texcoord;\n"
 	"void main() {\n"
-	"	gl_Position = Projection * ModelView * att_Position;\n"
-	"	var_TexCoord = att_TexCoord;\n"
+	"	gl_Position = Projection * ModelView * att_position;\n"
+	"	var_texcoord = att_texcoord;\n"
 	"}\n"
 ;
 
 static const char *shadow_frag_src =
-	"uniform sampler2D map_Color;\n"
-	"in vec2 var_TexCoord;\n"
+	"uniform sampler2D map_color;\n"
+	"in vec2 var_texcoord;\n"
 	"void main() {\n"
-	"	vec4 albedo = texture(map_Color, var_TexCoord);\n"
+	"	vec4 albedo = texture(map_color, var_texcoord);\n"
 	"	if (albedo.a < 0.2) discard;\n"
 	"}\n"
 ;
@@ -702,50 +702,50 @@ static const char *bone_vert_src =
 	"uniform mat4 Projection;\n"
 	"uniform mat4 ModelView;\n"
 	"uniform mat4 BoneMatrix[80];\n"
-	"in vec4 att_Position;\n"
-	"in vec3 att_Normal;\n"
-	"in vec2 att_TexCoord;\n"
-	"in vec4 att_BlendIndex;\n"
-	"in vec4 att_BlendWeight;\n"
-	"out vec3 var_Normal;\n"
-	"out vec2 var_TexCoord;\n"
+	"in vec4 att_position;\n"
+	"in vec3 att_normal;\n"
+	"in vec2 att_texcoord;\n"
+	"in vec4 att_blend_index;\n"
+	"in vec4 att_blend_weight;\n"
+	"out vec3 var_normal;\n"
+	"out vec2 var_texcoord;\n"
 	"void main() {\n"
 	"	vec4 position = vec4(0);\n"
 	"	vec4 normal = vec4(0);\n"
-	"	vec4 index = att_BlendIndex;\n"
-	"	vec4 weight = att_BlendWeight;\n"
+	"	vec4 index = att_blend_index;\n"
+	"	vec4 weight = att_blend_weight;\n"
 	"	for (int i = 0; i < 4; i++) {\n"
 	"		mat4 m = BoneMatrix[int(index.x)];\n"
-	"		position += m * att_Position * weight.x;\n"
-	"		normal += m * vec4(att_Normal, 0) * weight.x;\n"
+	"		position += m * att_position * weight.x;\n"
+	"		normal += m * vec4(att_normal, 0) * weight.x;\n"
 	"		index = index.yzwx;\n"
 	"		weight = weight.yzwx;\n"
 	"	}\n"
 	"	position = ModelView * position;\n"
 	"	normal = ModelView * normal;\n"
 	"	gl_Position = Projection * position;\n"
-	"	var_Normal = normal.xyz;\n"
-	"	var_TexCoord = att_TexCoord;\n"
+	"	var_normal = normal.xyz;\n"
+	"	var_texcoord = att_texcoord;\n"
 	"}\n"
 ;
 
 static const char *model_frag_src =
-	"uniform sampler2D map_Color;\n"
-	"in vec3 var_Position;\n"
-	"in vec3 var_Normal;\n"
-	"in vec2 var_TexCoord;\n"
-	"out vec4 frag_Color;\n"
+	"uniform sampler2D map_color;\n"
+	"in vec3 var_position;\n"
+	"in vec3 var_normal;\n"
+	"in vec2 var_texcoord;\n"
+	"out vec4 frag_color;\n"
 	"const vec3 LightDirection = vec3(-0.5773, 0.5773, 0.5773);\n"
 	"const vec3 LightAmbient = vec3(0.1);\n"
 	"const vec3 LightDiffuse = vec3(0.9);\n"
 	"void main() {\n"
-	"	vec4 albedo = texture(map_Color, var_TexCoord);\n"
-	"	vec3 N = normalize(var_Normal);\n"
+	"	vec4 albedo = texture(map_color, var_texcoord);\n"
+	"	vec3 N = normalize(var_normal);\n"
 	"	float diffuse = max(dot(N, LightDirection), 0.0);\n"
 	"	vec3 Ka = albedo.rgb * LightAmbient;\n"
 	"	vec3 Kd = albedo.rgb * LightDiffuse * diffuse;\n"
 	"	if (albedo.a < 0.2) discard;\n"
-	"	frag_Color = vec4(Ka + Kd, albedo.a);\n"
+	"	frag_color = vec4(Ka + Kd, albedo.a);\n"
 	"}\n"
 ;
 

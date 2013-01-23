@@ -237,7 +237,7 @@ static void display(void)
 	mat_ortho(projection, 0, screenw, screenh, 0, -1, 1);
 	mat_identity(model_view);
 
-	text_begin(projection);
+	text_begin(projection, model_view);
 	text_set_font(droid_sans, 20);
 	text_set_color(1, 1, 1, 1);
 	{
@@ -263,14 +263,14 @@ static void display(void)
 		glBindTexture(GL_TEXTURE_2D, showicon);
 		glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_WIDTH, &texw);
 		glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_HEIGHT, &texh);
-		icon_begin(projection);
+		icon_begin(projection, model_view);
 		icon_set_color(1, 1, 1, 1);
 		icon_show(showicon, screenw - texw, screenh - texh, screenw, screenh, 0, 0, 1, 1);
 		icon_end();
 	}
 
 	if (showconsole)
-		console_draw(projection, droid_sans_mono, 15);
+		console_draw(projection, model_view, droid_sans_mono, 15);
 
 	glutSwapBuffers();
 
@@ -308,6 +308,7 @@ int main(int argc, char **argv)
 	glEnable(GL_CULL_FACE);
 
 	register_directory("data/");
+	register_directory("data/textures/");
 	register_archive("data/shapes.zip");
 	register_archive("data/textures.zip");
 

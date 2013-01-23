@@ -118,10 +118,10 @@ void console_update(int key, int mod)
 	}
 }
 
-void console_draw(float projection[16], struct font *font, float size)
+void console_draw(mat4 clip_from_view, mat4 view_from_world, struct font *font, float size)
 {
 	float model_view[16];
-	float screenw = 2 / projection[0]; // assume we have an orthogonal matrix
+	float screenw = 2 / clip_from_view[0]; // assume we have an orthogonal matrix
 	float cellw = font_width(font, size, "0");
 	float cellh = size + 2;
 	float ascent = size * 0.8;
@@ -137,12 +137,12 @@ void console_draw(float projection[16], struct font *font, float size)
 
 	mat_identity(model_view);
 
-	draw_begin(projection, model_view);
+	draw_begin(clip_from_view, view_from_world);
 	draw_set_color(0, 0, 0, 0.8);
 	draw_rect(x0-margin, y0-margin, x1+margin, y1+margin);
 	draw_end();
 
-	text_begin(projection);
+	text_begin(clip_from_view, view_from_world);
 	text_set_color(1, 1, 1, 1);
 	text_set_font(font, size);
 
@@ -156,7 +156,7 @@ void console_draw(float projection[16], struct font *font, float size)
 
 	text_end();
 
-	draw_begin(projection, model_view);
+	draw_begin(clip_from_view, view_from_world);
 	draw_set_color(1, 1, 1, 1);
 	draw_line(x+1, y-ascent, 0, x+1, y+descent-1, 0);
 	draw_end();
