@@ -167,6 +167,9 @@ enum {
 	MAP_NORMAL,
 	MAP_SHADOW,
 	MAP_DEPTH,
+	MAP_EMISSION,
+	MAP_LIGHT,
+	MAP_SPLAT,
 };
 
 int compile_shader(const char *vert_src, const char *frag_src);

@@ -125,10 +125,14 @@ int compile_shader(const char *vert_src, const char *frag_src)
 
 	glAttachShader(prog, vert);
 	glAttachShader(prog, frag);
+
 	glLinkProgram(prog);
 	glGetProgramiv(prog, GL_LINK_STATUS, &status);
 	if (!status)
 		print_program_log(prog);
+
+	glDetachShader(prog, vert);
+	glDetachShader(prog, frag);
 
 	glDeleteShader(vert);
 	glDeleteShader(frag);
@@ -139,6 +143,9 @@ int compile_shader(const char *vert_src, const char *frag_src)
 	glUniform1i(glGetUniformLocation(prog, "map_Normal"), MAP_NORMAL - GL_TEXTURE0);
 	glUniform1i(glGetUniformLocation(prog, "map_Shadow"), MAP_SHADOW - GL_TEXTURE0);
 	glUniform1i(glGetUniformLocation(prog, "map_Depth"), MAP_DEPTH - GL_TEXTURE0);
+	glUniform1i(glGetUniformLocation(prog, "map_Emission"), MAP_EMISSION - GL_TEXTURE0);
+	glUniform1i(glGetUniformLocation(prog, "map_Light"), MAP_LIGHT - GL_TEXTURE0);
+	glUniform1i(glGetUniformLocation(prog, "map_Splat"), MAP_SPLAT - GL_TEXTURE0);
 
 	return prog;
 }
