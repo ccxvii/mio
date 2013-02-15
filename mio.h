@@ -56,6 +56,10 @@ int xstrlcat(char *dst, const char *src, int siz);
 #define SRGB(r,g,b) SLUM(r),SLUM(g),SLUM(b)
 #define SRGBA(r,g,b,a) SRGB(r,g,b),(a)
 
+/* linked list utils */
+
+#include "list.h"
+
 /* matrix math utils */
 
 #include "vector.h"
@@ -73,22 +77,22 @@ void calc_matrix_from_pose(mat4 *pose_matrix, struct pose *pose, int count);
 
 /* archive data file loading */
 
-void register_directory(char *dirname);
-void register_archive(char *zipname);
-unsigned char *load_file(char *filename, int *lenp);
+void register_directory(const char *dirname);
+void register_archive(const char *zipname);
+unsigned char *load_file(const char *filename, int *lenp);
 
 /* resource cache */
 
 struct cache;
 
-void *lookup(struct cache *cache, char *key);
-struct cache *insert(struct cache *cache, char *key, void *value);
+void *lookup(struct cache *cache, const char *key);
+struct cache *insert(struct cache *cache, const char *key, void *value);
 void print_cache(struct cache *cache);
 
 /* texture loader based on stb_image */
 
-unsigned char *stbi_load(char const *filename, int *x, int *y, int *comp, int req_comp);
-unsigned char *stbi_load_from_memory(unsigned char const *buffer, int len, int *x, int *y, int *comp, int req_comp);
+unsigned char *stbi_load(const char *filename, int *x, int *y, int *comp, int req_comp);
+unsigned char *stbi_load_from_memory(const unsigned char *buffer, int len, int *x, int *y, int *comp, int req_comp);
 
 int make_texture(unsigned char *data, int w, int h, int n, int srgb);
 int load_texture(char *filename, int srgb);
@@ -219,14 +223,14 @@ struct anim {
 	struct pose pose[MAXBONE];
 };
 
-struct model *load_iqe_from_memory(char *filename, unsigned char *data, int len);
-struct model *load_iqm_from_memory(char *filename, unsigned char *data, int len);
-struct model *load_obj_from_memory(char *filename, unsigned char *data, int len);
-struct model *load_model(char *filename);
+struct model *load_iqe_from_memory(const char *filename, unsigned char *data, int len);
+struct model *load_iqm_from_memory(const char *filename, unsigned char *data, int len);
+struct model *load_obj_from_memory(const char *filename, unsigned char *data, int len);
+struct model *load_model(const char *filename);
 
-struct skel *load_skel(char *filename);
-struct mesh *load_mesh(char *filename);
-struct anim *load_anim(char *filename);
+struct skel *load_skel(const char *filename);
+struct mesh *load_mesh(const char *filename);
+struct anim *load_anim(const char *filename);
 
 void extract_pose(struct pose *pose, struct anim *anim, int frame);
 void apply_animation(struct pose *dst_pose, struct skel *dst, struct pose *src_pose, struct skel *src);
@@ -263,6 +267,8 @@ struct object
 	vec3 color;
 };
 
+enum { LIGHT_SUN, LIGHT_POINT, LIGHT_SPOT };
+
 struct light
 {
 	struct light *next, *prev;
@@ -287,6 +293,13 @@ struct scene
 	struct object *objects;
 	struct light *lights;
 };
+
+struct scene *new_scene(void);
+struct armature *new_armature(struct scene *scene, const char *skelname);
+struct object *new_object(struct scene *scene, const char *meshname);
+struct light *new_light(struct scene *scene);
+
+void draw_scene(struct scene *scene, mat4 projection, mat4 view);
 
 /* deferred shading */
 

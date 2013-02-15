@@ -200,7 +200,7 @@ static int read_zip_dir(struct archive *zip)
 	return -1;
 }
 
-struct archive *open_archive(char *filename)
+struct archive *open_archive(const char *filename)
 {
 	struct archive *zip;
 	FILE *file;
@@ -236,7 +236,7 @@ void close_archive(struct archive *zip)
 	free(zip);
 }
 
-unsigned char *read_archive(struct archive *zip, char *filename, int *sizep)
+unsigned char *read_archive(struct archive *zip, const char *filename, int *sizep)
 {
 	int l = 0;
 	int r = zip->count - 1;
@@ -253,7 +253,7 @@ unsigned char *read_archive(struct archive *zip, char *filename, int *sizep)
 	return NULL;
 }
 
-unsigned char *read_file(char *filename, int *lenp)
+unsigned char *read_file(const char *filename, int *lenp)
 {
 	unsigned char *data;
 	int len;
@@ -284,7 +284,7 @@ struct directory
 static struct directory *dir_head = NULL;
 static struct archive *zip_head = NULL;
 
-void register_directory(char *dirname)
+void register_directory(const char *dirname)
 {
 	char buf[512];
 	int n = strlen(dirname);
@@ -297,7 +297,7 @@ void register_directory(char *dirname)
 	dir_head = dir;
 }
 
-void register_archive(char *zipname)
+void register_archive(const char *zipname)
 {
 	struct archive *zip = open_archive(zipname);
 	if (zip) {
@@ -306,7 +306,7 @@ void register_archive(char *zipname)
 	}
 }
 
-unsigned char *load_file(char *filename, int *lenp)
+unsigned char *load_file(const char *filename, int *lenp)
 {
 	struct directory *dir = dir_head;
 	struct archive *zip = zip_head;

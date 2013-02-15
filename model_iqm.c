@@ -3,7 +3,7 @@
 
 // Simple loader assumes little-endian and 4-byte ints!
 
-static void error(char *filename, char *msg)
+static void error(const char *filename, char *msg)
 {
 	fprintf(stderr, "error: %s: '%s'\n", msg, filename);
 }
@@ -79,7 +79,7 @@ static void flip_triangles(unsigned short *dst, unsigned int *src, int count)
 static mat4 loc_bind_matrix[MAXBONE];
 static mat4 abs_bind_matrix[MAXBONE];
 
-struct model *load_iqm_from_memory(char *filename, unsigned char *data, int len)
+struct model *load_iqm_from_memory(const char *filename, unsigned char *data, int len)
 {
 	struct iqmheader *iqm = (void*)data;
 	struct iqmvertexarray *vertexarrays = (void*)(data + iqm->ofs_vertexarrays);

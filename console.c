@@ -1,14 +1,11 @@
 #include "mio.h"
 #include <ctype.h>
 
-#define USELUA
-
-#ifdef USELUA
 #include <lua.h>
 #include <lauxlib.h>
 #include <lualib.h>
-static lua_State *L = NULL;
-#endif
+
+extern lua_State *L; /* in bind.c */
 
 #define PS1 "> "
 #define COLS 80
@@ -38,7 +35,6 @@ void console_printnl(const char *s)
 	scrollup();
 }
 
-#ifdef USELUA
 static int ffi_print(lua_State *L)
 {
 	int i, n = lua_gettop(L);
@@ -57,18 +53,17 @@ static int ffi_print(lua_State *L)
 	console_printnl("");
 	return 0;
 }
-#endif
 
 void console_init(void)
 {
 	memset(screen, 0, sizeof screen);
 
-#ifdef USELUA
-	L = luaL_newstate();
-	luaL_openlibs(L);
-	lua_settop(L, 0);
+	if (!L) {
+		L = luaL_newstate();
+		luaL_openlibs(L);
+	}
+
 	lua_register(L, "print", ffi_print);
-#endif
 
 	console_print(PS1);
 }
@@ -91,7 +86,6 @@ void console_update(int key, int mod)
 		}
 		scrollup();
 
-#ifdef USELUA
 		int status;
 		status = luaL_dostring(L, cmd);
 		if (status && !lua_isnil(L, -1)) {
@@ -105,7 +99,6 @@ void console_update(int key, int mod)
 			lua_insert(L, 1);
 			lua_pcall(L, lua_gettop(L)-1, 0, 0);
 		}
-#endif
 
 		console_print(PS1);
 		cursor = 0;

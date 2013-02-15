@@ -6,9 +6,8 @@
 
 #define TAG_DOUBLESIDED "doublesided"
 #define TAG_SINGLESIDED "singlesided"
-#define TAG_RADIAL_BASE "radial=base"
-#define TAG_RADIAL_CENTER "radial=center"
-#define TAG_RADIAL_EQ "radial="
+#define TAG_RADIAL "radial"
+#define TAG_RADIAL_XYZ "r="
 
 struct floatarray {
 	int len, cap;
@@ -321,26 +320,15 @@ static void process_tags(char *tags, int v0, int v1, int f0, int f1)
 			singlesided = 1;
 		else if (!strcmp(s, TAG_DOUBLESIDED))
 			doublesided = 1;
-		else if (!strcmp(s, TAG_RADIAL_BASE)) {
-			float z = 0;
-			vec_init(c[n], 0, 0, 0);
-			for (i = v0; i < v1; i++) {
-				vec_add(c[n], c[n], position.data + i * 3);
-				z = MIN(z, position.data[i*3+2]);
-			}
-			vec_div_s(c[n], c[n], v1 - v0);
-			c[n][2] = z;
-			n++;
-		}
-		else if (!strcmp(s, TAG_RADIAL_CENTER)) {
+		else if (!strcmp(s, TAG_RADIAL)) {
 			vec_init(c[n], 0, 0, 0);
 			for (i = v0; i < v1; i++)
 				vec_add(c[n], c[n], position.data + i * 3);
 			vec_div_s(c[n], c[n], v1 - v0);
 			n++;
 		}
-		else if (strstr(s, TAG_RADIAL_EQ) == s) {
-			sscanf(s + strlen(TAG_RADIAL_EQ), "%g,%g,%g", c[n], c[n]+1, c[n]+2);
+		else if (strstr(s, TAG_RADIAL_XYZ) == s) {
+			sscanf(s + strlen(TAG_RADIAL_XYZ), "%g,%g,%g", c[n], c[n]+1, c[n]+2);
 			n++;
 		}
 		s = strsep(&tags, ";");
@@ -424,7 +412,7 @@ static inline int parseint(char **stringp, int def)
 static mat4 loc_bind_matrix[MAXBONE];
 static mat4 abs_bind_matrix[MAXBONE];
 
-struct model *load_iqe_from_memory(char *filename, unsigned char *data, int len)
+struct model *load_iqe_from_memory(const char *filename, unsigned char *data, int len)
 {
 	char dirname[1024];
 	char *line, *next, *p, *s, *sp;

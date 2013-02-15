@@ -194,7 +194,7 @@ static void splitfv(char *buf, int *vpp, int *vnp, int *vtp)
 	*vnp = vn && vn[0] ? atoi(vn) - 1 : 0;
 }
 
-struct model *load_obj_from_memory(char *filename, unsigned char *data, int len)
+struct model *load_obj_from_memory(const char *filename, unsigned char *data, int len)
 {
 	char dirname[1024];
 	char *line, *next, *p, *s;

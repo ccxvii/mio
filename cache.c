@@ -12,7 +12,7 @@ struct cache
 
 static struct cache sentinel = { "", NULL, &sentinel, &sentinel, 0 };
 
-static struct cache *make_node(char *key, void *value)
+static struct cache *make_node(const char *key, void *value)
 {
 	struct cache *node = malloc(sizeof(struct cache));
 	node->key = strdup(key);
@@ -22,7 +22,7 @@ static struct cache *make_node(char *key, void *value)
 	return node;
 }
 
-void *lookup(struct cache *node, char *key)
+void *lookup(struct cache *node, const char *key)
 {
 	if (node && node != &sentinel) {
 		int c = strcmp(key, node->key);
@@ -63,7 +63,7 @@ static struct cache *split(struct cache *node)
 	return node;
 }
 
-struct cache *insert(struct cache *node, char *key, void *value)
+struct cache *insert(struct cache *node, const char *key, void *value)
 {
 	if (node && node != &sentinel) {
 		int c = strcmp(key, node->key);

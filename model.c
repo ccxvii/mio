@@ -2,7 +2,7 @@
 
 static struct cache *model_cache = NULL;
 
-struct model *load_model(char *filename)
+struct model *load_model(const char *filename)
 {
 	struct model *model;
 	unsigned char *data;
@@ -34,7 +34,7 @@ struct model *load_model(char *filename)
 
 }
 
-struct skel *load_skel(char *filename)
+struct skel *load_skel(const char *filename)
 {
 	struct model *model = load_model(filename);
 	if (model)
@@ -42,7 +42,7 @@ struct skel *load_skel(char *filename)
 	return NULL;
 }
 
-struct mesh *load_mesh(char *filename)
+struct mesh *load_mesh(const char *filename)
 {
 	struct model *model = load_model(filename);
 	if (model)
@@ -50,7 +50,7 @@ struct mesh *load_mesh(char *filename)
 	return NULL;
 }
 
-struct anim *load_anim(char *filename)
+struct anim *load_anim(const char *filename)
 {
 	struct model *model = load_model(filename);
 	if (model)
