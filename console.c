@@ -15,6 +15,7 @@ extern lua_State *L; /* in bind.c */
 static char screen[ROWS][COLS+1];
 static char *input = screen[ROWS-1] + 2;
 static int cursor = 0;
+static int end = 0;
 
 static void scrollup(void)
 {
@@ -68,46 +69,94 @@ void console_init(void)
 	console_print(PS1);
 }
 
-void console_update(int key, int mod)
+static void console_insert(int c)
+{
+	if (end + 1 < INPUT) {
+		memmove(input + cursor + 1, input + cursor, end - cursor);
+		input[cursor++] = c;
+		input[++end] = 0;
+	}
+}
+
+static void console_delete(void)
+{
+	if (cursor > 0) {
+		memmove(input + cursor - 1, input + cursor, end - cursor);
+		input[--end] = 0;
+		--cursor;
+	}
+}
+
+static void console_enter(void)
 {
 	char cmd[INPUT];
 
-	if (mod & GLUT_ACTIVE_ALT) return;
-	if (mod & GLUT_ACTIVE_CTRL) return;
+	if (input[0] == '=') {
+		strlcpy(cmd, "return ", sizeof cmd);
+		strlcat(cmd, input + 1, sizeof cmd);
+	} else {
+		strlcpy(cmd, input, sizeof cmd);
+	}
+	scrollup();
+
+	int status;
+	status = luaL_dostring(L, cmd);
+	if (status && !lua_isnil(L, -1)) {
+		const char *msg = lua_tostring(L, -1);
+		if (msg == NULL) msg = "(error object is not a string)";
+		console_printnl(msg);
+		lua_pop(L, 1);
+	}
+	if (lua_gettop(L) > 0) {
+		lua_getglobal(L, "print");
+		lua_insert(L, 1);
+		lua_pcall(L, lua_gettop(L)-1, 0, 0);
+	}
+
+	console_print(PS1);
+	cursor = end = 0;
+}
+
+#define CTL(x) (x-64)
+
+void console_keyboard(int key, int mod)
+{
 	if (key >= 0xE000 && key < 0xF900) return; // in PUA
 	if (key >= 0x10000) return; // outside BMP
 
+	if (mod & GLUT_ACTIVE_ALT) return;
+
+	if (mod & GLUT_ACTIVE_CTRL) {
+		switch (key) {
+		case CTL('A'): cursor = 0; break;
+		case CTL('E'): cursor = end; break;
+		case CTL('U'):
+			while (cursor > 0) console_delete();
+			break;
+		case CTL('W'):
+			while (cursor > 0 && !isalnum(input[cursor-1])) console_delete();
+			while (cursor > 0 && isalnum(input[cursor-1])) console_delete();
+			break;
+		}
+		return;
+	}
+
 	if (key == '\r') {
-		if (input[0] == '=') {
-			strlcpy(cmd, "return ", sizeof cmd);
-			strlcat(cmd, input + 1, sizeof cmd);
-		} else {
-			strlcpy(cmd, input, sizeof cmd);
-		}
-		scrollup();
-
-		int status;
-		status = luaL_dostring(L, cmd);
-		if (status && !lua_isnil(L, -1)) {
-			const char *msg = lua_tostring(L, -1);
-			if (msg == NULL) msg = "(error object is not a string)";
-			console_printnl(msg);
-			lua_pop(L, 1);
-		}
-		if (lua_gettop(L) > 0) {
-			lua_getglobal(L, "print");
-			lua_insert(L, 1);
-			lua_pcall(L, lua_gettop(L)-1, 0, 0);
-		}
-
-		console_print(PS1);
-		cursor = 0;
+		console_enter();
 	} else if (key == 0x08 || key == 0x7F) {
-		if (cursor > 0)
-			input[--cursor] = 0;
-	} else if (isprint(key) && cursor + 1 < INPUT) {
-		input[cursor++] = key;
-		input[cursor] = 0;
+		console_delete();
+	} else if (isprint(key)) {
+		console_insert(key);
+	}
+}
+
+void console_special(int key, int mod)
+{
+	switch (key) {
+	case GLUT_KEY_LEFT: if (cursor > 0) cursor--; break;
+	case GLUT_KEY_RIGHT: if (cursor < end) cursor++; break;
+	case GLUT_KEY_HOME: cursor = 0; break;
+	case GLUT_KEY_END: cursor = end; break;
 	}
 }
 
@@ -146,6 +195,7 @@ void console_draw(mat4 clip_from_view, mat4 view_from_world, struct font *font, 
 		y += cellh;
 	}
 	y -= cellh;
+	x -= text_width(input + cursor);
 
 	text_end();
 

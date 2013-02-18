@@ -96,7 +96,7 @@ static void keyboard(unsigned char key, int x, int y)
 	else if (key ==	'`')
 		showconsole = !showconsole;
 	else if (showconsole)
-		console_update(key, mod);
+		console_keyboard(key, mod);
 	else switch (key) {
 		case 27: case 'q': exit(0); break;
 		case 'i': showicon = MAX(0, showicon+1); break;
