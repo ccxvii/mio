@@ -5,6 +5,9 @@
 #include <assert.h>
 #include <errno.h>
 
+#include "queue.h" // freebsd sys/queue.h
+#include "tree.h" // freebsd sys/tree.h
+
 #include <GL/gl3w.h>
 
 #ifdef __APPLE__
@@ -55,10 +58,6 @@ int xstrlcat(char *dst, const char *src, int siz);
 #define SLUM(x) ((x)*(x)) /* approximate sRGB to Linear conversion */
 #define SRGB(r,g,b) SLUM(r),SLUM(g),SLUM(b)
 #define SRGBA(r,g,b,a) SRGB(r,g,b),(a)
-
-/* linked list utils */
-
-#include "list.h"
 
 /* matrix math utils */
 
@@ -244,7 +243,8 @@ void draw_model_with_pose(struct mesh *mesh, mat4 clip_from_view, mat4 view_from
 
 struct armature
 {
-	struct armature *next, *prev;
+	LIST_ENTRY(armature) list;
+
 	struct armature *parent_amt;
 	int parent_bone;
 
@@ -258,7 +258,8 @@ struct armature
 
 struct object
 {
-	struct object *next, *prev;
+	LIST_ENTRY(object) list;
+
 	struct armature *parent_amt;
 	int parent_bone;
 	unsigned char parent_map[256];
@@ -272,7 +273,8 @@ enum { LIGHT_SUN, LIGHT_POINT, LIGHT_SPOT };
 
 struct light
 {
-	struct light *next, *prev;
+	LIST_ENTRY(light) list;
+
 	struct armature *parent_amt;
 	int parent_bone;
 
@@ -290,9 +292,9 @@ struct light
 
 struct scene
 {
-	struct armature *armatures;
-	struct object *objects;
-	struct light *lights;
+	LIST_HEAD(armature_list, armature) armatures;
+	LIST_HEAD(object_list, object) objects;
+	LIST_HEAD(light_list, light) lights;
 };
 
 struct scene *new_scene(void);

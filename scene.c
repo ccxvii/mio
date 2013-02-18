@@ -3,7 +3,9 @@
 struct scene *new_scene(void)
 {
 	struct scene *scene = malloc(sizeof(*scene));
-	memset(scene, 0, sizeof(*scene));
+	LIST_INIT(&scene->armatures);
+	LIST_INIT(&scene->objects);
+	LIST_INIT(&scene->lights);
 	return scene;
 }
 
@@ -15,7 +17,7 @@ struct armature *new_armature(struct scene *scene, const char *skelname)
 	amt->skel = load_skel(skelname);
 	mat_identity(amt->transform);
 
-	list_insert(scene->armatures, amt);
+	LIST_INSERT_HEAD(&scene->armatures, amt, list);
 	return amt;
 }
 
@@ -27,7 +29,7 @@ struct object *new_object(struct scene *scene, const char *meshname)
 	obj->mesh = load_mesh(meshname);
 	mat_identity(obj->transform);
 
-	list_insert(scene->objects, obj);
+	LIST_INSERT_HEAD(&scene->objects, obj, list);
 	return obj;
 }
 
@@ -36,7 +38,7 @@ struct light *new_light(struct scene *scene)
 	struct light *light = malloc(sizeof(*light));
 	memset(light, 0, sizeof(*light));
 
-	list_insert(scene->lights, light);
+	LIST_INSERT_HEAD(&scene->lights, light, list);
 	return light;
 }
 
@@ -52,10 +54,7 @@ void draw_scene(struct scene *scene, mat4 projection, mat4 view)
 	struct armature *amt;
 	struct object *obj;
 
-	list_for_each(scene->objects, obj) {
+	LIST_FOREACH(obj, &scene->objects, list) {
 		draw_object(scene, obj, projection, view);
-	}
-
-	list_for_each(scene->armatures, amt) {
 	}
 }
