@@ -11,11 +11,18 @@ extern lua_State *L; /* in bind.c */
 #define COLS 80
 #define ROWS 7
 #define INPUT 80-2
+#define HISTORY 100
 
 static char screen[ROWS][COLS+1];
 static char *input = screen[ROWS-1] + 2;
 static int cursor = 0;
 static int end = 0;
+
+static struct history_entry {
+	TAILQ_ENTRY(history_entry) list;
+	char s[INPUT];
+} *hist_look;
+static TAILQ_HEAD(history_list, history_entry) hist_list;
 
 static void scrollup(void)
 {
@@ -71,6 +78,7 @@ void console_init(void)
 
 static void console_insert(int c)
 {
+	hist_look = NULL;
 	if (end + 1 < INPUT) {
 		memmove(input + cursor + 1, input + cursor, end - cursor);
 		input[cursor++] = c;
@@ -80,6 +88,7 @@ static void console_insert(int c)
 
 static void console_delete(void)
 {
+	hist_look = NULL;
 	if (cursor > 0) {
 		memmove(input + cursor - 1, input + cursor, end - cursor);
 		input[--end] = 0;
@@ -87,9 +96,44 @@ static void console_delete(void)
 	}
 }
 
+static void console_history_push(char *s)
+{
+	if (strlen(s) > 0) {
+		struct history_entry *line = malloc(sizeof *line);
+		strlcpy(line->s, s, sizeof line->s);
+		TAILQ_INSERT_HEAD(&hist_list, line, list);
+		hist_look = NULL;
+	}
+}
+
+static void console_history_prev(void)
+{
+	hist_look = hist_look ? TAILQ_NEXT(hist_look, list) : TAILQ_FIRST(&hist_list);
+	if (!hist_look) hist_look = TAILQ_LAST(&hist_list, history_list);
+	if (hist_look) {
+		memcpy(input, hist_look->s, INPUT);
+		cursor = end = strlen(input);
+	}
+}
+
+static void console_history_next(void)
+{
+	hist_look = hist_look ? TAILQ_PREV(hist_look, history_list, list) : NULL;
+	//if (!hist_look) hist_look = TAILQ_FIRST(&hist_list);
+	if (hist_look) {
+		memcpy(input, hist_look->s, INPUT);
+		cursor = end = strlen(input);
+	} else {
+		cursor = end = 0;
+		input[0] = 0;
+	}
+}
+
 static void console_enter(void)
 {
 	char cmd[INPUT];
+
+	console_history_push(input);
 
 	if (input[0] == '=') {
 		strlcpy(cmd, "return ", sizeof cmd);
@@ -157,6 +201,8 @@ void console_special(int key, int mod)
 	case GLUT_KEY_RIGHT: if (cursor < end) cursor++; break;
 	case GLUT_KEY_HOME: cursor = 0; break;
 	case GLUT_KEY_END: cursor = end; break;
+	case GLUT_KEY_UP: console_history_prev(); break;
+	case GLUT_KEY_DOWN: console_history_next(); break;
 	}
 }
 
