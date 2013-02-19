@@ -434,7 +434,7 @@ struct model *load_iqe_from_memory(const char *filename, unsigned char *data, in
 	else strlcpy(dirname, "", sizeof dirname);
 
 	if (memcmp(data, IQE_MAGIC, strlen(IQE_MAGIC))) {
-		fprintf(stderr, "error: bad iqe magic: '%s'\n", filename);
+		warn("error: bad iqe magic: '%s'", filename);
 		return NULL;
 	}
 

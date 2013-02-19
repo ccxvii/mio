@@ -124,8 +124,11 @@ static void keyboard(unsigned char key, int x, int y)
 
 static void special(int key, int x, int y)
 {
-	if (key == GLUT_KEY_F4 && glutGetModifiers() == GLUT_ACTIVE_ALT)
+	int mod = glutGetModifiers();
+	if (key == GLUT_KEY_F4 && mod == GLUT_ACTIVE_ALT)
 		exit(0);
+	if (showconsole)
+		console_special(key, mod);
 	glutPostRedisplay();
 }
 
@@ -292,8 +295,7 @@ int main(int argc, char **argv)
 
 	gl3wInit();
 
-	fprintf(stderr, "OpenGL %s; ", glGetString(GL_VERSION));
-	fprintf(stderr, "GLSL %s\n", glGetString(GL_SHADING_LANGUAGE_VERSION));
+	warn("OpenGL %s; GLSL %s", glGetString(GL_VERSION), glGetString(GL_SHADING_LANGUAGE_VERSION));
 
 	glutReshapeFunc(reshape);
 	glutDisplayFunc(display);
@@ -312,6 +314,8 @@ int main(int argc, char **argv)
 	register_archive("data/shapes.zip");
 	register_archive("data/textures.zip");
 
+	console_init();
+
 	droid_sans = load_font("fonts/DroidSans.ttf");
 	if (!droid_sans)
 		exit(1);
@@ -324,8 +328,6 @@ int main(int argc, char **argv)
 		animation = load_anim(argv[--argc]);
 	for (i = 1; i < argc; i++)
 		model[model_count++] = load_mesh(argv[i]);
-
-	console_init();
 
 	glutMainLoop();
 	return 0;

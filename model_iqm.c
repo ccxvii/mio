@@ -5,7 +5,7 @@
 
 static void error(const char *filename, char *msg)
 {
-	fprintf(stderr, "error: %s: '%s'\n", msg, filename);
+	warn("error: %s: '%s'", msg, filename);
 }
 
 static int enum_of_type(int type, char *text)

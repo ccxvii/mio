@@ -12,7 +12,7 @@ int make_texture(unsigned char *data, int w, int h, int n, int srgb)
 	int intfmt, fmt;
 
 	if ((w & (w-1)) || (h & (h-1)))
-		fprintf(stderr, "warning: non-power-of-two texture size (%dx%d)!\n", w, h);
+		warn("warning: non-power-of-two texture size (%dx%d)!", w, h);
 
 	glGenTextures(1, &texid);
 
@@ -56,7 +56,7 @@ static int load_dds_from_memory(char *filename, unsigned char *data, int srgb)
 	unsigned char *four;
 
 	if (memcmp(data, "DDS ", 4) || getint(data + 4) != 124) {
-		fprintf(stderr, "error: not a DDS texture: '%s'\n", filename);
+		warn("error: not a DDS texture: '%s'", filename);
 		return 0;
 	}
 
@@ -65,13 +65,13 @@ static int load_dds_from_memory(char *filename, unsigned char *data, int srgb)
 	mips = getint(data + 7*4);
 
 	if ((w & (w-1)) || (h & (h-1)))
-		fprintf(stderr, "warning: non-power-of-two DDS texture size (%dx%d): '%s'\n", w, h, filename);
+		warn("warning: non-power-of-two DDS texture size (%dx%d): '%s'", w, h, filename);
 
 	flags = getint(data + 20*4);
 	four = data + 21*4;
 
 	if (!(flags & 4)) {
-		fprintf(stderr, "error: not a compressed DDS texture: '%s'\n", filename);
+		warn("error: not a compressed DDS texture: '%s'", filename);
 		return 0;
 	}
 
@@ -101,7 +101,7 @@ static int load_dds_from_memory(char *filename, unsigned char *data, int srgb)
 		else
 			fmt = GL_COMPRESSED_RGBA_S3TC_DXT5_EXT;
 	} else {
-		fprintf(stderr, "error: unknown format in DDS texture (%4s): '%s'\n", four, filename);
+		warn("error: unknown format in DDS texture (%4s): '%s'", four, filename);
 		return 0;
 	}
 
@@ -136,7 +136,7 @@ static int load_texture_from_memory(char *filename, unsigned char *data, int len
 
 	image = stbi_load_from_memory(data, len, &w, &h, &n, 0);
 	if (!image) {
-		fprintf(stderr, "error: cannot decode image '%s': %s\n", filename, stbi_failure_reason());
+		warn("error: cannot decode image '%s': %s", filename, stbi_failure_reason());
 		return 0;
 	}
 	texid = make_texture(image, w, h, n, srgb);
@@ -159,7 +159,7 @@ int load_texture(char *filename, int srgb)
 		texid = load_texture_from_memory(filename, data, len, srgb);
 		free(data);
 	} else {
-		fprintf(stderr, "error: cannot load image file: '%s'\n", filename);
+		warn("error: cannot load image file: '%s'", filename);
 	}
 
 	if (texid)
@@ -179,7 +179,7 @@ int make_texture_array(unsigned char *data, int w, int h, int d, int n, int srgb
 	int intfmt, fmt;
 
 	if ((w & (w-1)) || (h & (h-1)))
-		fprintf(stderr, "warning: non-power-of-two texture size (%dx%d)!\n", w, h);
+		warn("warning: non-power-of-two texture size (%dx%d)!", w, h);
 
 	glGenTextures(1, &texid);
 
@@ -211,7 +211,7 @@ static int load_texture_array_from_memory(char *filename, unsigned char *data, i
 
 	image = stbi_load_from_memory(data, len, &w, &h, &n, 0);
 	if (!image) {
-		fprintf(stderr, "error: cannot decode image '%s': %s\n", filename, stbi_failure_reason());
+		warn("error: cannot decode image '%s': %s", filename, stbi_failure_reason());
 		return 0;
 	}
 	if (d)
@@ -235,7 +235,7 @@ int load_texture_array(char *filename, int srgb, int *d)
 		return texid;
 	}
 
-	fprintf(stderr, "loading texture array '%s'\n", filename);
+	printf("loading texture array '%s'", filename);
 
 	data = load_file(filename, &len);
 	if (!data) return 0;

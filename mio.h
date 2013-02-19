@@ -21,6 +21,8 @@
 #include <GL/freeglut.h>
 #endif
 
+void warn(char *fmt, ...);
+
 const char *gl_error_string(GLenum code);
 void gl_assert(const char *msg);
 void gl_assert_framebuffer(GLenum target, const char *msg);

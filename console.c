@@ -7,14 +7,26 @@
 
 extern lua_State *L; /* in bind.c */
 
+void warn(char *fmt, ...)
+{
+	va_list ap;
+	char buf[256];
+	va_start(ap, fmt);
+	vsnprintf(buf, sizeof buf, fmt, ap);
+	va_end(ap);
+	fprintf(stderr, "%s\n", buf);
+	console_printnl(buf);
+}
+
 #define PS1 "> "
+#define PS2 ">>"
 #define COLS 80
-#define ROWS 7
+#define ROWS 20
 #define INPUT 80-2
 #define HISTORY 100
 
-static char screen[ROWS][COLS+1];
-static char *input = screen[ROWS-1] + 2;
+static char screen[ROWS][COLS+1] = {{0}};
+static char input[INPUT] = {0};
 static int cursor = 0;
 static int end = 0;
 
@@ -64,16 +76,12 @@ static int ffi_print(lua_State *L)
 
 void console_init(void)
 {
-	memset(screen, 0, sizeof screen);
-
 	if (!L) {
 		L = luaL_newstate();
 		luaL_openlibs(L);
 	}
 
 	lua_register(L, "print", ffi_print);
-
-	console_print(PS1);
 }
 
 static void console_insert(int c)
@@ -119,7 +127,6 @@ static void console_history_prev(void)
 static void console_history_next(void)
 {
 	hist_look = hist_look ? TAILQ_PREV(hist_look, history_list, list) : NULL;
-	//if (!hist_look) hist_look = TAILQ_FIRST(&hist_list);
 	if (hist_look) {
 		memcpy(input, hist_look->s, INPUT);
 		cursor = end = strlen(input);
@@ -134,6 +141,8 @@ static void console_enter(void)
 	char cmd[INPUT];
 
 	console_history_push(input);
+	console_print(PS1);
+	console_printnl(input);
 
 	if (input[0] == '=') {
 		strlcpy(cmd, "return ", sizeof cmd);
@@ -141,7 +150,6 @@ static void console_enter(void)
 	} else {
 		strlcpy(cmd, input, sizeof cmd);
 	}
-	scrollup();
 
 	int status;
 	status = luaL_dostring(L, cmd);
@@ -157,7 +165,7 @@ static void console_enter(void)
 		lua_pcall(L, lua_gettop(L)-1, 0, 0);
 	}
 
-	console_print(PS1);
+	input[0] = 0;
 	cursor = end = 0;
 }
 
@@ -241,6 +249,8 @@ void console_draw(mat4 clip_from_view, mat4 view_from_world, struct font *font, 
 		y += cellh;
 	}
 	y -= cellh;
+	x = text_show(x, y, PS1);
+	x = text_show(x, y, input);
 	x -= text_width(input + cursor);
 
 	text_end();

@@ -140,7 +140,7 @@ static void mtllib(char *dirname, char *filename)
 
 	data = load_file(abspath(path, dirname, filename, sizeof path), &len);
 	if (!data) {
-		fprintf(stderr, "cannot load material library: '%s'\n", filename);
+		warn("cannot load material library: '%s'", filename);
 		return;
 	}
 
@@ -204,7 +204,7 @@ struct model *load_obj_from_memory(const char *filename, unsigned char *data, in
 	int first, material;
 	int i, n;
 
-	fprintf(stderr, "loading obj model '%s'\n", filename);
+	printf("loading obj model '%s'", filename);
 
 	strlcpy(dirname, filename, sizeof dirname);
 	p = strrchr(dirname, '/');
@@ -276,7 +276,7 @@ struct model *load_obj_from_memory(const char *filename, unsigned char *data, in
 	if (element.len > first)
 		push_part(&part, first, element.len, material);
 
-	fprintf(stderr, "\t%d parts; %d vertices; %d triangles\n", part.len, vertex.len/8, element.len/3);
+	printf("\t%d parts; %d vertices; %d triangles", part.len, vertex.len/8, element.len/3);
 
 	mesh = malloc(sizeof(struct mesh));
 	mesh->enabled = 1<<ATT_POSITION | 1<<ATT_NORMAL | 1<<ATT_TEXCOORD;

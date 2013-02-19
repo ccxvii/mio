@@ -92,8 +92,11 @@ static void keyboard(unsigned char key, int x, int y)
 
 static void special(int key, int x, int y)
 {
-	if (key == GLUT_KEY_F4 && glutGetModifiers() == GLUT_ACTIVE_ALT)
+	int mod = glutGetModifiers();
+	if (key == GLUT_KEY_F4 && mod == GLUT_ACTIVE_ALT)
 		exit(0);
+	if (showconsole)
+		console_special(key, mod);
 	glutPostRedisplay();
 }
 
@@ -108,7 +111,6 @@ static void display(void)
 {
 	float projection[16];
 	float model_view[16];
-	int i;
 
 	if (!spot_shadow) spot_shadow = alloc_shadow_map();
 	if (!sun_shadow) sun_shadow = alloc_shadow_map();
@@ -209,7 +211,7 @@ static void display(void)
 	icon_end();
 
 	if (showconsole)
-		console_draw(projection, model_view, droid_sans_mono, 15);
+		console_draw(projection, model_view, droid_sans_mono, 16);
 
 	glutSwapBuffers();
 
@@ -218,8 +220,6 @@ static void display(void)
 
 int main(int argc, char **argv)
 {
-	int i;
-
 	glutInit(&argc, argv);
 	glutInitContextVersion(3, 0);
 	glutInitContextFlags(GLUT_FORWARD_COMPATIBLE);
@@ -231,8 +231,7 @@ int main(int argc, char **argv)
 
 	gl3wInit();
 
-	fprintf(stderr, "OpenGL %s; ", glGetString(GL_VERSION));
-	fprintf(stderr, "GLSL %s\n", glGetString(GL_SHADING_LANGUAGE_VERSION));
+	warn("OpenGL %s; GLSL %s", glGetString(GL_VERSION), glGetString(GL_SHADING_LANGUAGE_VERSION));
 
 	glutReshapeFunc(reshape);
 	glutDisplayFunc(display);

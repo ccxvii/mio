@@ -139,7 +139,7 @@ static void display(void)
 	mat_identity(view);
 
 	if (showconsole)
-		console_draw(projection, view, droid_sans_mono, 15);
+		console_draw(projection, view, droid_sans, 16);
 
 	glutSwapBuffers();
 
@@ -159,8 +159,7 @@ int main(int argc, char **argv)
 
 	gl3wInit();
 
-	fprintf(stderr, "OpenGL %s; ", glGetString(GL_VERSION));
-	fprintf(stderr, "GLSL %s\n", glGetString(GL_SHADING_LANGUAGE_VERSION));
+	warn("OpenGL %s; GLSL %s", glGetString(GL_VERSION), glGetString(GL_SHADING_LANGUAGE_VERSION));
 
 	glutReshapeFunc(reshape);
 	glutDisplayFunc(display);

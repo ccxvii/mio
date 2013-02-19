@@ -43,7 +43,7 @@ void gl_assert(const char *msg)
 {
 	int code = glGetError();
 	if (code != GL_NO_ERROR) {
-		fprintf(stderr, "glGetError(%s): %s\n", msg, gl_error_string(code));
+		warn("glGetError(%s): %s", msg, gl_error_string(code));
 	}
 }
 
@@ -51,8 +51,8 @@ void gl_assert_framebuffer(GLenum target, const char *msg)
 {
 	int code = glCheckFramebufferStatus(target);
 	if (code != GL_FRAMEBUFFER_COMPLETE) {
-		fprintf(stderr, "glCheckFramebufferStatus(%s): %s\n", msg, gl_error_string(code));
-		fprintf(stderr, "Fatal error!\n");
+		warn("glCheckFramebufferStatus(%s): %s", msg, gl_error_string(code));
+		warn("Fatal error!");
 		exit(1);
 	}
 }
@@ -63,7 +63,7 @@ static void print_shader_log(char *kind, int shader)
 	glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &len);
 	char *log = malloc(len + 1);
 	glGetShaderInfoLog(shader, len, NULL, log);
-	fprintf(stderr, "--- glsl %s shader compile results ---\n%s\n", kind, log);
+	warn("--- glsl %s shader compile results ---\n%s", kind, log);
 	free(log);
 }
 
@@ -73,7 +73,7 @@ static void print_program_log(int program)
 	glGetProgramiv(program, GL_INFO_LOG_LENGTH, &len);
 	char *log = malloc(len + 1);
 	glGetProgramInfoLog(program, len, NULL, log);
-	fprintf(stderr, "--- glsl program link results ---\n%s\n", log);
+	warn("--- glsl program link results ---\n%s", log);
 	free(log);
 }
 

@@ -55,7 +55,7 @@ static unsigned char *read_zip_file(FILE *file, int offset, int *sizep)
 
 	sig = getlong(file);
 	if (sig != ZIP_LOCAL_FILE_SIG) {
-		fprintf(stderr, "zip: wrong signature for local file\n");
+		warn("zip: wrong signature for local file");
 		return NULL;
 	}
 
@@ -86,14 +86,14 @@ static unsigned char *read_zip_file(FILE *file, int offset, int *sizep)
 		usize = stbi_zlib_decode_noheader_buffer(udata, usize, cdata, csize);
 		free(cdata);
 		if (usize < 0) {
-			fprintf(stderr, "zip: %s\n", stbi_failure_reason());
+			warn("zip: %s", stbi_failure_reason());
 			return NULL;
 		}
 		*sizep = usize;
 		return (unsigned char*) udata;
 	}
 
-	fprintf(stderr, "zip: unknown compression method\n");
+	warn("zip: unknown compression method");
 	return NULL;
 }
 
@@ -109,7 +109,7 @@ static int read_zip_dir_imp(struct archive *zip, int startoffset)
 
 	sig = getlong(file);
 	if (sig != ZIP_END_OF_CENTRAL_DIRECTORY_SIG) {
-		fprintf(stderr, "zip: wrong signature for end of central directory\n");
+		warn("zip: wrong signature for end of central directory");
 		return -1;
 	}
 
@@ -134,7 +134,7 @@ static int read_zip_dir_imp(struct archive *zip, int startoffset)
 			for (k = 0; k < i; k++)
 				free(zip->table[k].name);
 			free(zip->table);
-			fprintf(stderr, "zip: wrong signature for central directory\n");
+			warn("zip: wrong signature for central directory");
 			return -1;
 		}
 
@@ -185,7 +185,7 @@ static int read_zip_dir(struct archive *zip)
 		fseek(file, filesize - back, 0);
 		n = fread(buf, 1, sizeof buf, file);
 		if (n < 0) {
-			fprintf(stderr, "zip: cannot read end of central directory\n");
+			warn("zip: cannot read end of central directory");
 			return -1;
 		}
 
@@ -196,7 +196,7 @@ static int read_zip_dir(struct archive *zip)
 		back += sizeof buf - 4;
 	}
 
-	fprintf(stderr, "zip: cannot find end of central directory\n");
+	warn("zip: cannot find end of central directory");
 	return -1;
 }
 
@@ -207,7 +207,7 @@ struct archive *open_archive(const char *filename)
 
 	file = fopen(filename, "rb");
 	if (!file) {
-		fprintf(stderr, "cannot open archive: '%s'\n", filename);
+		warn("cannot open archive: '%s'", filename);
 		return NULL;
 	}
 

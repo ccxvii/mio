@@ -45,7 +45,7 @@ struct font *load_font_from_memory(char *filename, unsigned char *data, int len)
 
 	ok = stbtt_InitFont(&font->info, font->data, 0);
 	if (!ok) {
-		fprintf(stderr, "error: cannot init font file: '%s'\n", filename);
+		warn("error: cannot init font file: '%s'", filename);
 		return NULL;
 	}
 
@@ -64,13 +64,13 @@ struct font *load_font(char *filename)
 	font = malloc(sizeof(struct font));
 	font->data = load_file(filename, NULL);
 	if (!font->data) {
-		fprintf(stderr, "error: cannot load font file: '%s'\n", filename);
+		warn("error: cannot load font file: '%s'", filename);
 		return NULL;
 	}
 
 	ok = stbtt_InitFont(&font->info, font->data, 0);
 	if (!ok) {
-		fprintf(stderr, "error: cannot init font file: '%s'\n", filename);
+		warn("error: cannot init font file: '%s'", filename);
 		return NULL;
 	}
 
@@ -206,7 +206,7 @@ static struct glyph *lookup_glyph(struct font *font, float scale, int gid, int s
 	}
 
 	if (h + PADDING > CACHESIZE || w + PADDING > CACHESIZE) {
-		fprintf(stderr, "error: rendered glyph exceeds cache dimensions");
+		warn("error: rendered glyph exceeds cache dimensions");
 		exit(1);
 	}
 

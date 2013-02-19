@@ -14,7 +14,7 @@ struct model *load_model(const char *filename)
 
 	data = load_file(filename, &len);
 	if (!data) {
-		fprintf(stderr, "error: cannot load model file: '%s'\n", filename);
+		warn("error: cannot load model file: '%s'", filename);
 		return NULL;
 	}
 
@@ -23,7 +23,7 @@ struct model *load_model(const char *filename)
 	if (strstr(filename, ".iqe")) model = load_iqe_from_memory(filename, data, len);
 	if (strstr(filename, ".obj")) model = load_obj_from_memory(filename, data, len);
 	if (!model)
-		fprintf(stderr, "error: cannot load model: '%s'\n", filename);
+		warn("error: cannot load model: '%s'", filename);
 
 	free(data);
 
