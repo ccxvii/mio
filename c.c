@@ -139,7 +139,7 @@ static void display(void)
 	mat_identity(view);
 
 	if (showconsole)
-		console_draw(projection, view, droid_sans, 16);
+		console_draw(projection, view, droid_sans_mono, 15);
 
 	glutSwapBuffers();
 

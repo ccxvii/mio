@@ -243,8 +243,12 @@ void draw_model_with_pose(struct mesh *mesh, mat4 clip_from_view, mat4 view_from
 
 /* scene graph */
 
+enum { TAG_SCENE = 42, TAG_ARMATURE, TAG_OBJECT, TAG_LIGHT };
+
 struct armature
 {
+	int tag;
+
 	LIST_ENTRY(armature) list;
 
 	struct armature *parent_amt;
@@ -260,6 +264,8 @@ struct armature
 
 struct object
 {
+	int tag;
+
 	LIST_ENTRY(object) list;
 
 	struct armature *parent_amt;
@@ -275,6 +281,8 @@ enum { LIGHT_SUN, LIGHT_POINT, LIGHT_SPOT };
 
 struct light
 {
+	int tag;
+
 	LIST_ENTRY(light) list;
 
 	struct armature *parent_amt;
@@ -294,6 +302,7 @@ struct light
 
 struct scene
 {
+	int tag;
 	LIST_HEAD(armature_list, armature) armatures;
 	LIST_HEAD(object_list, object) objects;
 	LIST_HEAD(light_list, light) lights;

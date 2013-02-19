@@ -226,7 +226,7 @@ void console_draw(mat4 clip_from_view, mat4 view_from_world, struct font *font, 
 
 	int x0 = (screenw - cellw * COLS) / 2;
 	int y0 = margin;
-	int x1 = x0 + cellw * COLS;
+	int x1 = x0 + cellw * (COLS-1);
 	int y1 = y0 + cellh * ROWS;
 	float x, y;
 	int i;
