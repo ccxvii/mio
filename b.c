@@ -105,6 +105,7 @@ static void reshape(int w, int h)
 	screenw = w;
 	screenh = h;
 	glViewport(0, 0, w, h);
+	render_reshape(w, h);
 }
 
 static void display(void)
@@ -243,8 +244,6 @@ int main(int argc, char **argv)
 	glEnable(GL_FRAMEBUFFER_SRGB);
 	glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
 	glEnable(GL_CULL_FACE);
-
-	render_setup(screenw, screenh);
 
 	register_directory("data/");
 	register_directory("data/textures/");

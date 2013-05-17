@@ -363,7 +363,7 @@ int alloc_shadow_map(void);
 void render_spot_shadow(int map, vec3 spot_position, vec3 spot_direction, float spot_angle, float distance);
 void render_sun_shadow(int map, vec3 sun_position, vec3 sun_direction, float width, float depth);
 
-void render_setup(int w, int h);
+void render_reshape(int w, int h);
 
 void render_geometry_pass(void);
 void render_light_pass(void);

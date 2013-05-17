@@ -90,7 +90,7 @@ void render_sun_shadow(int shadow_map, vec3 sun_position, vec3 sun_direction, fl
 
 /* Deferred shader */
 
-static int fbo_w, fbo_h;
+static int fbo_w = 0, fbo_h = 0;
 
 static unsigned int fbo_geometry = 0;
 static unsigned int tex_depth = 0;
@@ -100,34 +100,30 @@ static unsigned int tex_albedo = 0;
 static unsigned int fbo_forward = 0;
 static unsigned int tex_forward = 0;
 
-void render_setup(int w, int h)
+static void render_init(void)
 {
-	fbo_w = w;
-	fbo_h = h;
+	if (tex_depth)
+		return;
 
 	glGenTextures(1, &tex_depth);
 	glBindTexture(GL_TEXTURE_2D, tex_depth);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, w, h, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
 
 	glGenTextures(1, &tex_normal);
 	glBindTexture(GL_TEXTURE_2D, tex_normal);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB16F, w, h, 0, GL_RGB, GL_FLOAT, NULL);
 
 	glGenTextures(1, &tex_albedo);
 	glBindTexture(GL_TEXTURE_2D, tex_albedo);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_SRGB_ALPHA, w, h, 0, GL_RGB, GL_FLOAT, NULL);
 
 	glGenTextures(1, &tex_forward);
 	glBindTexture(GL_TEXTURE_2D, tex_forward);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_SRGB, w, h, 0, GL_RGB, GL_FLOAT, NULL);
 
 	/* For the geometry pass */
 
@@ -143,8 +139,6 @@ void render_setup(int w, int h)
 	glReadBuffer(GL_NONE);
 	glDrawBuffers(nelem(geometry_list), geometry_list);
 
-	gl_assert_framebuffer(GL_FRAMEBUFFER, "geometry");
-
 	/* For the light accumulation and forward passes */
 
 	static const GLenum forward_list[] = { GL_COLOR_ATTACHMENT0 };
@@ -158,6 +152,35 @@ void render_setup(int w, int h)
 	glReadBuffer(GL_NONE);
 	glDrawBuffers(nelem(forward_list), forward_list);
 
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+}
+
+void render_reshape(int w, int h)
+{
+	render_init();
+
+	if (fbo_w == w && fbo_h == h)
+		return;
+
+	fbo_w = w;
+	fbo_h = h;
+
+	glBindTexture(GL_TEXTURE_2D, tex_depth);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, w, h, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
+
+	glBindTexture(GL_TEXTURE_2D, tex_normal);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB16F, w, h, 0, GL_RGB, GL_FLOAT, NULL);
+
+	glBindTexture(GL_TEXTURE_2D, tex_albedo);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_SRGB_ALPHA, w, h, 0, GL_RGB, GL_FLOAT, NULL);
+
+	glBindTexture(GL_TEXTURE_2D, tex_forward);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_SRGB, w, h, 0, GL_RGB, GL_FLOAT, NULL);
+
+	glBindFramebuffer(GL_FRAMEBUFFER, fbo_geometry);
+	gl_assert_framebuffer(GL_FRAMEBUFFER, "geometry");
+
+	glBindFramebuffer(GL_FRAMEBUFFER, fbo_forward);
 	gl_assert_framebuffer(GL_FRAMEBUFFER, "deferred");
 
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
