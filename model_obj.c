@@ -164,7 +164,7 @@ static void mtllib(char *dirname, char *filename)
 		} else if (!strcmp(s, "map_Kd")) {
 			s = strtok(NULL, SEP);
 			if (s && mtl_count > 0) {
-				mtl_map[mtl_count-1].material = load_texture(abspath(path, dirname, filename, sizeof path), 1);
+				mtl_map[mtl_count-1].material = load_texture(abspath(path, dirname, s, sizeof path), 1);
 			}
 		}
 	}
@@ -204,7 +204,7 @@ struct model *load_obj_from_memory(const char *filename, unsigned char *data, in
 	int first, material;
 	int i, n;
 
-	printf("loading obj model '%s'", filename);
+	printf("loading obj model '%s'\n", filename);
 
 	strlcpy(dirname, filename, sizeof dirname);
 	p = strrchr(dirname, '/');
