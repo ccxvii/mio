@@ -16,7 +16,10 @@ struct armature *new_armature(struct scene *scene, const char *skelname)
 	memset(amt, 0, sizeof(*amt));
 	amt->tag = TAG_ARMATURE;
 	amt->skel = load_skel(skelname);
-	mat_identity(amt->transform);
+	vec_init(amt->location, 0, 0, 0);
+	quat_init(amt->rotation, 0, 0, 0, 1);
+	vec_init(amt->scale, 1, 1, 1);
+	amt->dirty = 1;
 	LIST_INSERT_HEAD(&scene->armatures, amt, list);
 	return amt;
 }
@@ -27,7 +30,10 @@ struct object *new_object(struct scene *scene, const char *meshname)
 	memset(obj, 0, sizeof(*obj));
 	obj->tag = TAG_OBJECT;
 	obj->mesh = load_mesh(meshname);
-	mat_identity(obj->transform);
+	vec_init(obj->location, 0, 0, 0);
+	quat_init(obj->rotation, 0, 0, 0, 1);
+	vec_init(obj->scale, 1, 1, 1);
+	obj->dirty = 1;
 	LIST_INSERT_HEAD(&scene->objects, obj, list);
 	return obj;
 }
@@ -37,6 +43,10 @@ struct light *new_light(struct scene *scene)
 	struct light *light = malloc(sizeof(*light));
 	memset(light, 0, sizeof(*light));
 	light->tag = TAG_LIGHT;
+	vec_init(light->location, 0, 0, 0);
+	quat_init(light->rotation, 0, 0, 0, 1);
+	vec_init(light->scale, 1, 1, 1);
+	light->dirty = 1;
 	LIST_INSERT_HEAD(&scene->lights, light, list);
 	return light;
 }
@@ -44,6 +54,10 @@ struct light *new_light(struct scene *scene)
 void draw_object(struct scene *scene, struct object *obj, mat4 projection, mat4 view)
 {
 	mat4 model_view;
+	if (obj->dirty) {
+		mat_from_pose(obj->transform, obj->location, obj->rotation, obj->scale);
+		obj->dirty = 0;
+	}
 	mat_mul(model_view, view, obj->transform);
 	draw_model(obj->mesh, projection, model_view);
 }
