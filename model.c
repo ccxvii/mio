@@ -67,9 +67,9 @@ void extract_pose(struct pose *pose, struct anim *anim, int frame)
 	for (i = 0; i < anim->skel->count; i++) {
 		int mask = anim->mask[i];
 		pose[i] = anim->pose[i];
-		if (mask & 0x01) pose[i].position[0] = *s++;
-		if (mask & 0x02) pose[i].position[1] = *s++;
-		if (mask & 0x04) pose[i].position[2] = *s++;
+		if (mask & 0x01) pose[i].location[0] = *s++;
+		if (mask & 0x02) pose[i].location[1] = *s++;
+		if (mask & 0x04) pose[i].location[2] = *s++;
 		if (mask & 0x08) pose[i].rotation[0] = *s++;
 		if (mask & 0x10) pose[i].rotation[1] = *s++;
 		if (mask & 0x20) pose[i].rotation[2] = *s++;

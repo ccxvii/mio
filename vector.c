@@ -724,5 +724,5 @@ void calc_matrix_from_pose(mat4 *pose_matrix, struct pose *pose, int count)
 {
 	int i;
 	for (i = 0; i < count; i++)
-		mat_from_pose(pose_matrix[i], pose[i].position, pose[i].rotation, pose[i].scale);
+		mat_from_pose(pose_matrix[i], pose[i].location, pose[i].rotation, pose[i].scale);
 }

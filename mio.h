@@ -66,7 +66,7 @@ int xstrlcat(char *dst, const char *src, int siz);
 #include "vector.h"
 
 struct pose {
-	vec3 position;
+	vec3 location;
 	vec4 rotation;
 	vec3 scale;
 };
@@ -138,6 +138,8 @@ void draw_quad(float x0, float y0, float z0,
 	float x3, float y3, float z3);
 
 /* console */
+
+void bind_init(void);
 
 void console_init(void);
 void console_keyboard(int key, int mod);
@@ -254,12 +256,17 @@ struct armature
 	struct armature *parent_amt;
 	int parent_bone;
 
-	mat4 transform;
+	vec3 location;
+	vec4 rotation;
+	vec3 scale;
 	vec3 color;
 
 	struct skel *skel;
 	struct anim *anim;
 	float time;
+
+	int dirty;
+	mat4 transform;
 };
 
 struct object
@@ -273,8 +280,14 @@ struct object
 	unsigned char parent_map[256];
 
 	struct mesh *mesh;
-	mat4 transform;
+
+	vec3 location;
+	vec4 rotation;
+	vec3 scale;
 	vec3 color;
+
+	int dirty;
+	mat4 transform;
 };
 
 enum { LIGHT_SUN, LIGHT_POINT, LIGHT_SPOT };
@@ -288,9 +301,11 @@ struct light
 	struct armature *parent_amt;
 	int parent_bone;
 
-	int type;
-	vec3 position;
+	vec3 location;
 	vec4 rotation;
+	vec3 scale;
+
+	int type;
 	float energy;
 	vec3 color;
 	float distance;
@@ -298,6 +313,9 @@ struct light
 	float spot_blend;
 	int use_sphere;
 	int use_square;
+
+	int dirty;
+	mat4 transform;
 };
 
 struct scene

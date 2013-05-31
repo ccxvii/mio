@@ -230,9 +230,9 @@ static struct rawanim *new_raw_anim(struct rawanim *head, char *name)
 static int make_mask(struct pose *a, struct pose *b)
 {
 	int m = 0;
-	if (POSCMP(a->position[0], b->position[0])) m |= 0x01;
-	if (POSCMP(a->position[1], b->position[1])) m |= 0x02;
-	if (POSCMP(a->position[2], b->position[2])) m |= 0x04;
+	if (POSCMP(a->location[0], b->location[0])) m |= 0x01;
+	if (POSCMP(a->location[1], b->location[1])) m |= 0x02;
+	if (POSCMP(a->location[2], b->location[2])) m |= 0x04;
 	if (ROTCMP(a->rotation[0], b->rotation[0])) m |= 0x08;
 	if (ROTCMP(a->rotation[1], b->rotation[1])) m |= 0x10;
 	if (ROTCMP(a->rotation[2], b->rotation[2])) m |= 0x20;
@@ -292,9 +292,9 @@ static struct anim *make_anim(struct anim *head, struct skel *skel, struct rawan
 		for (i = 0; i < skel->count; i++) {
 			int mask = anim->mask[i];
 			struct pose *p = frame->pose + i;
-			if (mask & 0x01) *out++ = p->position[0];
-			if (mask & 0x02) *out++ = p->position[1];
-			if (mask & 0x04) *out++ = p->position[2];
+			if (mask & 0x01) *out++ = p->location[0];
+			if (mask & 0x02) *out++ = p->location[1];
+			if (mask & 0x04) *out++ = p->location[2];
 			if (mask & 0x08) *out++ = p->rotation[0];
 			if (mask & 0x10) *out++ = p->rotation[1];
 			if (mask & 0x20) *out++ = p->rotation[2];
@@ -551,9 +551,9 @@ struct model *load_iqe_from_memory(const char *filename, unsigned char *data, in
 
 		else if (s[0] == 'p' && s[1] == 'q' && s[2] == 0) {
 			if (pose_count < MAXBONE) {
-				pose[pose_count].position[0] = parsefloat(&sp, 0);
-				pose[pose_count].position[1] = parsefloat(&sp, 0);
-				pose[pose_count].position[2] = parsefloat(&sp, 0);
+				pose[pose_count].location[0] = parsefloat(&sp, 0);
+				pose[pose_count].location[1] = parsefloat(&sp, 0);
+				pose[pose_count].location[2] = parsefloat(&sp, 0);
 				pose[pose_count].rotation[0] = parsefloat(&sp, 0);
 				pose[pose_count].rotation[1] = parsefloat(&sp, 0);
 				pose[pose_count].rotation[2] = parsefloat(&sp, 0);
