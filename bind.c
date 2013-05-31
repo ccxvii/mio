@@ -202,12 +202,27 @@ static int ffi_light_rotation(lua_State *L)
 	return 4;
 }
 
+/* Misc */
+
+static int ffi_register_archive(lua_State *L)
+{
+	register_archive(lua_tostring(L, 1));
+}
+
+static int ffi_register_directory(lua_State *L)
+{
+	register_directory(lua_tostring(L, 1));
+}
+
 void bind_init(void)
 {
 	if (!L) {
 		L = luaL_newstate();
 		luaL_openlibs(L);
 	}
+
+	lua_register(L, "register_archive", ffi_register_archive);
+	lua_register(L, "register_directory", ffi_register_directory);
 
 	lua_register(L, "amt_new", ffi_amt_new);
 	lua_register(L, "amt_set_location", ffi_amt_set_location);
