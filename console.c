@@ -21,11 +21,14 @@ void warn(char *fmt, ...)
 #define PS1 "> "
 #define PS2 ">>"
 #define COLS 80
-#define ROWS 20
+#define ROWS 23
+#define LAST (ROWS-1)
 #define INPUT 80-2
 #define HISTORY 100
+#define TABSTOP 8
 
 static char screen[ROWS][COLS+1] = {{0}};
+static int tail = 0;
 static char input[INPUT] = {0};
 static int cursor = 0;
 static int end = 0;
@@ -41,17 +44,35 @@ static void scrollup(void)
 	int i;
 	for (i = 1; i < ROWS; i++)
 		memcpy(screen[i-1], screen[i], COLS);
-	screen[ROWS-1][0] = 0;
+	screen[LAST][0] = 0;
+	tail = 0;
+}
+
+void console_putc(int c)
+{
+	if (tail >= COLS) {
+		scrollup();
+		screen[LAST][tail++] = c;
+	} else if (c == '\n') {
+		scrollup();
+	} else if (c == '\t') {
+		int n = ((tail+8)/8)*8 - tail;
+		while (n--)
+			console_putc(' ');
+	} else {
+		screen[LAST][tail++] = c;
+	}
+	screen[LAST][tail] = 0;
 }
 
 void console_print(const char *s)
 {
-	strlcat(screen[ROWS-1], s, COLS);
+	while (*s) console_putc(*s++);
 }
 
 void console_printnl(const char *s)
 {
-	strlcat(screen[ROWS-1], s, COLS);
+	while (*s) console_putc(*s++);
 	scrollup();
 }
 
@@ -226,7 +247,7 @@ void console_draw(mat4 clip_from_view, mat4 view_from_world, struct font *font, 
 
 	int x0 = (screenw - cellw * COLS) / 2;
 	int y0 = margin;
-	int x1 = x0 + cellw * (COLS-1);
+	int x1 = x0 + cellw * COLS;
 	int y1 = y0 + cellh * ROWS;
 	float x, y;
 	int i;
