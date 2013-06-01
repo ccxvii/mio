@@ -253,20 +253,19 @@ struct armature
 
 	LIST_ENTRY(armature) list;
 
-	struct armature *parent_amt;
-	int parent_bone;
+	struct skel *skel;
 
+	struct armature *parent;
+	int parent_tag;
+
+	int dirty;
 	vec3 location;
 	vec4 rotation;
 	vec3 scale;
-	vec3 color;
+	mat4 transform;
 
-	struct skel *skel;
 	struct anim *anim;
 	float time;
-
-	int dirty;
-	mat4 transform;
 };
 
 struct object
@@ -275,22 +274,22 @@ struct object
 
 	LIST_ENTRY(object) list;
 
-	struct armature *parent_amt;
-	int parent_bone;
-	unsigned char parent_map[256];
-
 	struct mesh *mesh;
 
+	struct armature *parent;
+	int parent_tag;
+	unsigned char parent_map[256];
+
+	int dirty;
 	vec3 location;
 	vec4 rotation;
 	vec3 scale;
-	vec3 color;
-
-	int dirty;
 	mat4 transform;
+
+	vec3 color;
 };
 
-enum { LIGHT_SUN, LIGHT_POINT, LIGHT_SPOT };
+enum { LIGHT_POINT, LIGHT_SPOT, LIGHT_SUN };
 
 struct light
 {
@@ -298,24 +297,24 @@ struct light
 
 	LIST_ENTRY(light) list;
 
-	struct armature *parent_amt;
-	int parent_bone;
+	struct armature *parent;
+	int parent_tag;
 
+	int dirty;
 	vec3 location;
 	vec4 rotation;
 	vec3 scale;
+	mat4 transform;
 
 	int type;
-	float energy;
 	vec3 color;
+	float energy;
 	float distance;
 	float spot_angle;
 	float spot_blend;
 	int use_sphere;
 	int use_square;
-
-	int dirty;
-	mat4 transform;
+	int use_shadow;
 };
 
 struct scene
@@ -330,6 +329,14 @@ struct scene *new_scene(void);
 struct armature *new_armature(struct scene *scene, const char *skelname);
 struct object *new_object(struct scene *scene, const char *meshname);
 struct light *new_light(struct scene *scene);
+
+int attach_armature(struct armature *node, struct armature *parent, const char *tagname);
+int attach_object(struct object *node, struct armature *parent, const char *tagname);
+int attach_light(struct light *node, struct armature *parent, const char *tagname);
+
+void detach_armature(struct armature *node);
+void detach_object(struct object *node);
+void detach_light(struct light *node);
 
 void draw_scene(struct scene *scene, mat4 projection, mat4 view);
 
