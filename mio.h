@@ -266,6 +266,8 @@ struct armature
 
 	struct anim *anim;
 	float time;
+
+	mat4 model_pose[MAXBONE];
 };
 
 struct object
@@ -278,7 +280,7 @@ struct object
 
 	struct armature *parent;
 	int parent_tag;
-	unsigned char parent_map[256];
+	unsigned char parent_map[MAXBONE];
 
 	int dirty;
 	vec3 location;

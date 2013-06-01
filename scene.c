@@ -70,6 +70,7 @@ int attach_armature(struct armature *node, struct armature *parent, const char *
 	int i;
 	for (i = 0; i < skel->count; i++) {
 		if (!strcmp(skel->name[i], tagname)) {
+			node->dirty = 1;
 			node->parent = parent;
 			node->parent_tag = i;
 			return 0;
@@ -87,6 +88,7 @@ int attach_object(struct object *node, struct armature *parent, const char *tagn
 	if (tagname) {
 		for (i = 0; i < skel->count; i++) {
 			if (!strcmp(skel->name[i], tagname)) {
+				node->dirty = 1;
 				node->parent = parent;
 				node->parent_tag = i;
 				return 0;
@@ -96,6 +98,7 @@ int attach_object(struct object *node, struct armature *parent, const char *tagn
 	}
 
 	else if (mskel) {
+		node->dirty = 1;
 		node->parent = parent;
 		node->parent_tag = 0;
 		for (i = 0; i < mskel->count; i++) {
@@ -118,6 +121,7 @@ int attach_light(struct light *node, struct armature *parent, const char *tagnam
 	int i;
 	for (i = 0; i < skel->count; i++) {
 		if (!strcmp(skel->name[i], tagname)) {
+			node->dirty = 1;
 			node->parent = parent;
 			node->parent_tag = i;
 			return 0;
@@ -147,13 +151,97 @@ void detach_light(struct light *node)
 	node->parent_tag = 0;
 }
 
+static int update_armature(struct scene *scene, struct armature *node)
+{
+	if (node->parent)
+		node->dirty |= update_armature(scene, node->parent);
+
+	if (node->dirty) {
+		mat4 local_pose[MAXBONE];
+
+		// TODO: extract current animation
+
+		calc_matrix_from_pose(local_pose, node->skel->pose, node->skel->count);
+		calc_abs_matrix(node->model_pose, local_pose, node->skel->parent, node->skel->count);
+
+		if (node->parent) {
+			mat4 parent, local;
+			mat_from_pose(local, node->location, node->rotation, node->scale);
+			mat_mul(parent, node->parent->transform, node->parent->model_pose[node->parent_tag]);
+			mat_mul(node->transform, parent, local);
+		} else {
+			mat_from_pose(node->transform, node->location, node->rotation, node->scale);
+		}
+
+		return 1;
+	}
+
+	return 0;
+}
+
+static void update_object(struct scene *scene, struct object *node)
+{
+	if (node->parent)
+		node->dirty |= update_armature(scene, node->parent);
+
+	if (node->dirty) {
+		if (node->parent) {
+			if (node->mesh->skel) {
+				// TODO: calculate skinning matrix
+				mat_copy(node->transform, node->parent->transform);
+			} else {
+				mat4 parent, local;
+				mat_from_pose(local, node->location, node->rotation, node->scale);
+				mat_mul(parent, node->parent->transform, node->parent->model_pose[node->parent_tag]);
+				mat_mul(node->transform, parent, local);
+			}
+		} else {
+			mat_from_pose(node->transform, node->location, node->rotation, node->scale);
+		}
+	}
+
+	node->dirty = 0;
+}
+
+static void update_light(struct scene *scene, struct light *node)
+{
+	if (node->parent)
+		node->dirty |= update_armature(scene, node->parent);
+
+	if (node->dirty) {
+		if (node->parent) {
+			mat4 parent, local;
+			mat_from_pose(local, node->location, node->rotation, node->scale);
+			mat_mul(parent, node->parent->transform, node->parent->model_pose[node->parent_tag]);
+			mat_mul(node->transform, parent, local);
+		} else {
+			mat_from_pose(node->transform, node->location, node->rotation, node->scale);
+		}
+	}
+
+	node->dirty = 0;
+}
+
+void update_scene(struct scene *scene)
+{
+	struct object *obj;
+	struct armature *amt;
+	struct light *light;
+
+	LIST_FOREACH(amt, &scene->armatures, list)
+		update_armature(scene, amt);
+	LIST_FOREACH(obj, &scene->objects, list)
+		update_object(scene, obj);
+	LIST_FOREACH(light, &scene->lights, list)
+		update_light(scene, light);
+
+	LIST_FOREACH(amt, &scene->armatures, list)
+		amt->dirty = 0;
+}
+
 void draw_object(struct scene *scene, struct object *obj, mat4 projection, mat4 view)
 {
 	mat4 model_view;
-	if (obj->dirty) {
-		mat_from_pose(obj->transform, obj->location, obj->rotation, obj->scale);
-		obj->dirty = 0;
-	}
 	mat_mul(model_view, view, obj->transform);
 	draw_model(obj->mesh, projection, model_view);
 }
@@ -161,6 +249,8 @@ void draw_object(struct scene *scene, struct object *obj, mat4 projection, mat4 
 void draw_scene(struct scene *scene, mat4 projection, mat4 view)
 {
 	struct object *obj;
+
+	update_scene(scene);
 
 	LIST_FOREACH(obj, &scene->objects, list) {
 		draw_object(scene, obj, projection, view);
