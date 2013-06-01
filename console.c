@@ -37,7 +37,8 @@ static struct history_entry {
 	TAILQ_ENTRY(history_entry) list;
 	char s[INPUT];
 } *hist_look;
-static TAILQ_HEAD(history_list, history_entry) hist_list;
+
+static TAILQ_HEAD(history_list, history_entry) history;
 
 static void scrollup(void)
 {
@@ -130,16 +131,17 @@ static void console_history_push(char *s)
 	if (strlen(s) > 0) {
 		struct history_entry *line = malloc(sizeof *line);
 		strlcpy(line->s, s, sizeof line->s);
-		TAILQ_INSERT_HEAD(&hist_list, line, list);
+		TAILQ_INSERT_HEAD(&history, line, list);
 		hist_look = NULL;
 	}
 }
 
 static void console_history_prev(void)
 {
-	hist_look = hist_look ? TAILQ_NEXT(hist_look, list) : TAILQ_FIRST(&hist_list);
-	if (!hist_look) hist_look = TAILQ_LAST(&hist_list, history_list);
-	if (hist_look) {
+	struct history_entry *candidate;
+	candidate = hist_look ? TAILQ_NEXT(hist_look, list) : TAILQ_FIRST(&history);
+	if (candidate) {
+		hist_look = candidate;
 		memcpy(input, hist_look->s, INPUT);
 		cursor = end = strlen(input);
 	}
