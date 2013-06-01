@@ -88,7 +88,7 @@ static int ffi_print(lua_State *L)
 		lua_call(L, 1, 1);
 		s = lua_tostring(L, -1); /* get result */
 		if (!s) return luaL_error(L, "'tostring' must return a string to 'print'");
-		if (i > 1) console_print(" ");
+		if (i > 1) console_print("\t");
 		console_print(s);
 		lua_pop(L, 1); /* pop result */
 	}
@@ -104,26 +104,6 @@ void console_init(void)
 	}
 
 	lua_register(L, "print", ffi_print);
-}
-
-static void console_insert(int c)
-{
-	hist_look = NULL;
-	if (end + 1 < INPUT) {
-		memmove(input + cursor + 1, input + cursor, end - cursor);
-		input[cursor++] = c;
-		input[++end] = 0;
-	}
-}
-
-static void console_delete(void)
-{
-	hist_look = NULL;
-	if (cursor > 0) {
-		memmove(input + cursor - 1, input + cursor, end - cursor);
-		input[--end] = 0;
-		--cursor;
-	}
 }
 
 static void console_history_push(char *s)
@@ -192,6 +172,59 @@ static void console_enter(void)
 	cursor = end = 0;
 }
 
+static void console_insert(int c)
+{
+	hist_look = NULL;
+	if (end + 1 < INPUT) {
+		memmove(input + cursor + 1, input + cursor, end - cursor);
+		input[cursor++] = c;
+		input[++end] = 0;
+	}
+}
+
+static void console_backspace(void)
+{
+	hist_look = NULL;
+	if (cursor > 0) {
+		memmove(input + cursor - 1, input + cursor, end - cursor);
+		input[--end] = 0;
+		--cursor;
+	}
+}
+
+static void console_delete(void)
+{
+	hist_look = NULL;
+	if (cursor < end) {
+		memmove(input + cursor, input + cursor + 1, end - cursor);
+		input[--end] = 0;
+	}
+}
+
+void console_backspace_word(void)
+{
+	while (cursor > 0 && !isalnum(input[cursor-1])) console_backspace();
+	while (cursor > 0 && isalnum(input[cursor-1])) console_backspace();
+}
+
+void console_delete_word(void)
+{
+	while (cursor < end && isalnum(input[cursor])) console_delete();
+	while (cursor < end && !isalnum(input[cursor])) console_delete();
+}
+
+void console_skip_word_left(void)
+{
+	while (cursor > 0 && !isalnum(input[cursor-1])) --cursor;
+	while (cursor > 0 && isalnum(input[cursor-1])) --cursor;
+}
+
+void console_skip_word_right(void)
+{
+	while (cursor < end && !isalnum(input[cursor])) ++cursor;
+	while (cursor < end && isalnum(input[cursor])) ++cursor;
+}
+
 #define CTL(x) (x-64)
 
 void console_keyboard(int key, int mod)
@@ -199,26 +232,36 @@ void console_keyboard(int key, int mod)
 	if (key >= 0xE000 && key < 0xF900) return; // in PUA
 	if (key >= 0x10000) return; // outside BMP
 
-	if (mod & GLUT_ACTIVE_ALT) return;
+	if (mod & GLUT_ACTIVE_ALT) {
+		switch (key) {
+		case 'b': console_skip_word_left(); break;
+		case 'f': console_skip_word_right(); break;
+		case 'd': console_delete_word();
+		}
+		return;
+	}
 
 	if (mod & GLUT_ACTIVE_CTRL) {
 		switch (key) {
 		case CTL('A'): cursor = 0; break;
 		case CTL('E'): cursor = end; break;
-		case CTL('U'):
-			while (cursor > 0) console_delete();
-			break;
-		case CTL('W'):
-			while (cursor > 0 && !isalnum(input[cursor-1])) console_delete();
-			while (cursor > 0 && isalnum(input[cursor-1])) console_delete();
-			break;
+		case CTL('B'): if (cursor > 0) --cursor; break;
+		case CTL('F'): if (cursor < end) ++cursor; break;
+		case CTL('U'): while (cursor > 0) console_backspace(); break;
+		case CTL('K'): while (cursor < end) console_delete(); break;
+		case CTL('W'): console_backspace_word(); break;
+		case CTL('T'): if (cursor > 1) { int t = input[cursor-1]; input[cursor-1] = input[cursor]; input[cursor] = t; } break;
+		case CTL('P'): console_history_prev(); break;
+		case CTL('N'): console_history_next(); break;
 		}
 		return;
 	}
 
 	if (key == '\r') {
 		console_enter();
-	} else if (key == 0x08 || key == 0x7F) {
+	} else if (key == 0x08) {
+		console_backspace();
+	} else if (key == 0x7F) {
 		console_delete();
 	} else if (isprint(key)) {
 		console_insert(key);
@@ -227,9 +270,19 @@ void console_keyboard(int key, int mod)
 
 void console_special(int key, int mod)
 {
+	if (mod & GLUT_ACTIVE_CTRL) {
+		switch (key) {
+		case GLUT_KEY_LEFT: console_skip_word_left(); break;
+		case GLUT_KEY_RIGHT: console_skip_word_right(); break;
+		case GLUT_KEY_UP: cursor = 0; break;
+		case GLUT_KEY_DOWN: cursor = end; break;
+		}
+		return;
+	}
+
 	switch (key) {
-	case GLUT_KEY_LEFT: if (cursor > 0) cursor--; break;
-	case GLUT_KEY_RIGHT: if (cursor < end) cursor++; break;
+	case GLUT_KEY_LEFT: if (cursor > 0) --cursor; break;
+	case GLUT_KEY_RIGHT: if (cursor < end) ++cursor; break;
 	case GLUT_KEY_HOME: cursor = 0; break;
 	case GLUT_KEY_END: cursor = end; break;
 	case GLUT_KEY_UP: console_history_prev(); break;
