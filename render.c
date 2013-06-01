@@ -749,7 +749,7 @@ static const char *model_frag_src =
 	"}\n"
 ;
 
-void draw_model(struct mesh *mesh, mat4 projection, mat4 model_view)
+void draw_mesh(struct mesh *mesh, mat4 projection, mat4 model_view)
 {
 	static int prog = 0;
 	static int uni_projection;
@@ -779,7 +779,7 @@ void draw_model(struct mesh *mesh, mat4 projection, mat4 model_view)
 	}
 }
 
-void draw_model_with_pose(struct mesh *mesh, mat4 projection, mat4 model_view, mat4 *skin_matrix)
+void draw_mesh_with_pose(struct mesh *mesh, mat4 projection, mat4 model_view, mat4 *skin_matrix)
 {
 	static int prog = 0;
 	static int uni_projection;

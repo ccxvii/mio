@@ -22,6 +22,8 @@ static void *checktag(lua_State *L, int n, int tag)
 static int ffi_amt_new(lua_State *L)
 {
 	struct armature *amt = new_armature(scene, luaL_checkstring(L, 1));
+	if (!amt)
+		return luaL_error(L, "cannot load skeleton: %s", luaL_checkstring(L, 1));
 	lua_pushlightuserdata(L, amt);
 	return 1;
 }
@@ -32,7 +34,7 @@ static int ffi_amt_attach(lua_State *L)
 	struct armature *parent = checktag(L, 2, TAG_ARMATURE);
 	const char *tagname = luaL_checkstring(L, 3);
 	if (attach_armature(amt, parent, tagname))
-		return luaL_argerror(L, 3, "cannot find bone");
+		return luaL_error(L, "cannot find bone: %s", tagname);
 	return 0;
 }
 
@@ -102,11 +104,33 @@ static int ffi_amt_scale(lua_State *L)
 	return 3;
 }
 
+static int ffi_amt_play_animation(lua_State *L)
+{
+	struct armature *amt = checktag(L, 1, TAG_ARMATURE);
+	const char *animname = luaL_checkstring(L, 2);
+	float time = luaL_checknumber(L, 3);
+	amt->anim = load_anim(animname);
+	amt->time = time;
+	amt->dirty = 1;
+	return 0;
+}
+
+static int ffi_amt_stop_animation(lua_State *L)
+{
+	struct armature *amt = checktag(L, 1, TAG_ARMATURE);
+	amt->anim = NULL;
+	amt->time = 0;
+	amt->dirty = 1;
+	return 0;
+}
+
 /* Object */
 
 static int ffi_obj_new(lua_State *L)
 {
 	struct object *obj = new_object(scene, luaL_checkstring(L, 1));
+	if (!obj)
+		return luaL_error(L, "cannot load mesh: %s", luaL_checkstring(L, 1));
 	lua_pushlightuserdata(L, obj);
 	return 1;
 }
@@ -116,8 +140,12 @@ static int ffi_obj_attach(lua_State *L)
 	struct object *obj = checktag(L, 1, TAG_OBJECT);
 	struct armature *parent = checktag(L, 2, TAG_ARMATURE);
 	const char *tagname = lua_tostring(L, 3);
-	if (attach_object(obj, parent, tagname))
-		return luaL_argerror(L, 3, "cannot find bone");
+	if (attach_object(obj, parent, tagname)) {
+		if (tagname)
+			return luaL_error(L, "cannot find bone: %s", tagname);
+		else
+			return luaL_error(L, "skeleton mismatch");
+	}
 	return 0;
 }
 
@@ -212,6 +240,8 @@ static const char *light_type_enum[] = { "POINT", "SPOT", "SUN", 0 };
 static int ffi_light_new(lua_State *L)
 {
 	struct light *light = new_light(scene);
+	if (!light)
+		return luaL_error(L, "cannot create light");
 	lua_pushlightuserdata(L, light);
 	return 1;
 }
@@ -222,7 +252,7 @@ static int ffi_light_attach(lua_State *L)
 	struct armature *parent = checktag(L, 2, TAG_ARMATURE);
 	const char *tagname = luaL_checkstring(L, 3);
 	if (attach_light(light, parent, tagname))
-		return luaL_argerror(L, 3, "cannot find bone");
+		return luaL_error(L, "cannot find bone: %s", tagname);
 	return 0;
 }
 
@@ -436,6 +466,8 @@ void bind_init(void)
 	lua_register(L, "amt_location", ffi_amt_location);
 	lua_register(L, "amt_rotation", ffi_amt_rotation);
 	lua_register(L, "amt_scale", ffi_amt_scale);
+	lua_register(L, "amt_play_animation", ffi_amt_play_animation);
+	lua_register(L, "amt_stop_animation", ffi_amt_stop_animation);
 
 	lua_register(L, "obj_new", ffi_obj_new);
 	lua_register(L, "obj_attach", ffi_obj_attach);

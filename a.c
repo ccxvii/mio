@@ -210,7 +210,7 @@ static void display(void)
 			calc_matrix_from_pose(pose_matrix, posebuf, model[i]->skel->count);
 			calc_abs_matrix(abs_pose_matrix, pose_matrix, model[i]->skel->parent, model[i]->skel->count);
 			calc_mul_matrix(skin_matrix, abs_pose_matrix, model[i]->inv_bind_matrix, model[i]->skel->count);
-			draw_model_with_pose(model[i], projection, model_view, skin_matrix);
+			draw_mesh_with_pose(model[i], projection, model_view, skin_matrix);
 		}
 	} else {
 		if (model[0] && model[0]->skel) {
@@ -218,7 +218,7 @@ static void display(void)
 			calc_abs_matrix(abs_pose_matrix, pose_matrix, model[0]->skel->parent, model[0]->skel->count);
 		}
 		for (i = 0; i < model_count; i++) {
-			draw_model(model[i], projection, model_view);
+			draw_mesh(model[i], projection, model_view);
 		}
 	}
 
@@ -232,7 +232,7 @@ static void display(void)
 		if (model[0] && (animation || model[0]->skel)) {
 			draw_begin(projection, model_view);
 			draw_set_color(1, 1, 1, 1);
-			draw_armature(abs_pose_matrix, model[0]->skel->parent, model[0]->skel->count);
+			draw_skel(abs_pose_matrix, model[0]->skel->parent, model[0]->skel->count);
 			draw_end();
 		}
 	}
@@ -311,8 +311,6 @@ int main(int argc, char **argv)
 
 	register_directory("data/");
 	register_directory("data/textures/");
-	register_archive("data/shapes.zip");
-	register_archive("data/textures.zip");
 
 	console_init();
 

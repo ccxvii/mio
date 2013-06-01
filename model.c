@@ -89,7 +89,7 @@ static int haschildren(int *parent, int count, int x)
 	return 0;
 }
 
-void draw_armature(mat4 *abs_pose_matrix, int *parent, int count)
+void draw_skel(mat4 *abs_pose_matrix, int *parent, int count)
 {
 	vec3 x = { 0.1, 0, 0 };
 	int i;

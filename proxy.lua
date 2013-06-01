@@ -31,6 +31,14 @@ function mt_amt:location() return amt_location(self.user) end
 function mt_amt:rotation() return amt_rotation(self.user) end
 function mt_amt:scale() return amt_scale(self.user) end
 
+function mt_amt:play_animation(animname, time)
+	amt_play_animation(self.user, animname, time)
+end
+
+function mt_amt:stop_animation(animname, time)
+	amt_stop_animation(self.user)
+end
+
 function armature(data)
 	amt = amt_new(data.skel)
 	if data.location then amt_set_location(amt, table_unpack(data.location)) end

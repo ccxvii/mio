@@ -239,9 +239,9 @@ struct anim *load_anim(const char *filename);
 void extract_pose(struct pose *pose, struct anim *anim, int frame);
 void apply_animation(struct pose *dst_pose, struct skel *dst, struct pose *src_pose, struct skel *src);
 void apply_animation_ryzom(struct pose *dst_pose, struct skel *dst, struct pose *src_pose, struct skel *src);
-void draw_armature(mat4 *abs_pose_matrix, int *parent, int count);
-void draw_model(struct mesh *mesh, mat4 clip_from_view, mat4 view_from_world);
-void draw_model_with_pose(struct mesh *mesh, mat4 clip_from_view, mat4 view_from_world, mat4 *skin_matrix);
+void draw_skel(mat4 *abs_pose_matrix, int *parent, int count);
+void draw_mesh(struct mesh *mesh, mat4 clip_from_view, mat4 view_from_world);
+void draw_mesh_with_pose(struct mesh *mesh, mat4 clip_from_view, mat4 view_from_world, mat4 *skin_matrix);
 
 /* scene graph */
 
@@ -289,6 +289,8 @@ struct object
 	mat4 transform;
 
 	vec3 color;
+
+	mat4 skin_matrix[MAXBONE];
 };
 
 enum { LIGHT_POINT, LIGHT_SPOT, LIGHT_SUN };
