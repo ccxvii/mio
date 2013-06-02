@@ -58,9 +58,7 @@ struct anim *load_anim(const char *filename)
 	return NULL;
 }
 
-/* TODO: clean up below */
-
-void extract_pose(struct pose *pose, struct anim *anim, int frame)
+void extract_frame(struct pose *pose, struct anim *anim, int frame)
 {
 	float *s = anim->data + anim->channels * frame;
 	int i;
@@ -106,48 +104,5 @@ void draw_skel(mat4 *abs_pose_matrix, int *parent, int count)
 			mat_vec_mul(b, abs_pose_matrix[i], x);
 			draw_line(a[12], a[13], a[14], b[0], b[1], b[2]);
 		}
-	}
-}
-
-static int findbone(char (*bone_name)[32], int count, char *name)
-{
-	int i;
-	for (i = 0; i < count; i++)
-		if (!strcmp(bone_name[i], name))
-			return i;
-	return -1;
-}
-
-void apply_animation(struct pose *dst_pose, struct skel *dst, struct pose *src_pose, struct skel *src)
-{
-	int s, d;
-	for (d = 0; d < dst->count; d++) {
-		s = findbone(src->name, src->count, dst->name[d]);
-		if (s >= 0) {
-			dst_pose[d] = src_pose[s];
-		}
-	}
-}
-
-static const char *ryzom_bones[] = {
-	"bip01", "bip01_pelvis", "bip01_l_clavicle", "bip01_r_clavicle", "bip01_spine", "bip01_tail",
-	"bip02", "bip02_pelvis",
-};
-
-void apply_animation_ryzom(struct pose *dst_pose, struct skel *dst, struct pose *src_pose, struct skel *src)
-{
-	int s, d, i;
-	for (d = 0; d < dst->count; d++) {
-		s = findbone(src->name, src->count, dst->name[d]);
-		if (s >= 0) {
-			for (i = 0; i < nelem(ryzom_bones); i++) {
-				if (!strcmp(dst->name[d], ryzom_bones[i])) {
-					dst_pose[d] = src_pose[s];
-					goto next;
-				}
-			}
-			memcpy(dst_pose[d].rotation, src_pose[s].rotation, 4*sizeof(float));
-		}
-next:;
 	}
 }

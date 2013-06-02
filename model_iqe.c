@@ -270,6 +270,7 @@ static struct anim *make_anim(struct anim *head, struct skel *skel, struct rawan
 	strlcpy(anim->name, raw->name, sizeof anim->name);
 	anim->skel = skel;
 	anim->next = head;
+	anim->anim_map_head = NULL;
 
 	for (i = 0; i < skel->count; i++) {
 		anim->pose[i] = raw->first->pose[i];

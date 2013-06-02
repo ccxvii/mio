@@ -21,7 +21,7 @@
 #include <GL/freeglut.h>
 #endif
 
-void warn(char *fmt, ...);
+void warn(const char *fmt, ...);
 
 const char *gl_error_string(GLenum code);
 void gl_assert(const char *msg);
@@ -142,10 +142,13 @@ void draw_quad(float x0, float y0, float z0,
 void bind_init(void);
 
 void console_init(void);
+void console_run_string(const char *cmd);
+void console_run_file(const char *filename);
 void console_keyboard(int key, int mod);
 void console_special(int key, int mod);
 void console_print(const char *s);
 void console_printnl(const char *s);
+void console_printf(const char *fmt, ...);
 void console_draw(mat4 clip_from_view, mat4 view_from_world, struct font *font, float size);
 
 /* shaders */
@@ -243,9 +246,7 @@ struct skel *load_skel(const char *filename);
 struct mesh *load_mesh(const char *filename);
 struct anim *load_anim(const char *filename);
 
-void extract_pose(struct pose *pose, struct anim *anim, int frame);
-void apply_animation(struct pose *dst_pose, struct skel *dst, struct pose *src_pose, struct skel *src);
-void apply_animation_ryzom(struct pose *dst_pose, struct skel *dst, struct pose *src_pose, struct skel *src);
+void extract_frame(struct pose *pose, struct anim *anim, int frame);
 void draw_skel(mat4 *abs_pose_matrix, int *parent, int count);
 void draw_mesh(struct mesh *mesh, mat4 clip_from_view, mat4 view_from_world);
 void draw_mesh_with_pose(struct mesh *mesh, mat4 clip_from_view, mat4 view_from_world, mat4 *skin_matrix);
@@ -353,6 +354,7 @@ void detach_light(struct light *node);
 void play_anim(struct armature *node, struct anim *anim, float time);
 void stop_anim(struct armature *node);
 
+void update_scene(struct scene *scene);
 void draw_scene(struct scene *scene, mat4 projection, mat4 view);
 
 /* deferred shading */

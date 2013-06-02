@@ -60,16 +60,13 @@ lua.exe : $(OUT)/lua.o $(LUA_LIB)
 luac.exe : $(OUT)/luac.o $(LUA_LIB)
 	$(LINK_CMD)
 
-a.exe : $(OUT)/a.o $(MIO_LIB) $(LUA_LIB)
+mio.exe : $(OUT)/main.o $(MIO_LIB) $(LUA_LIB)
 	$(LINK_CMD)
 
 b.exe : $(OUT)/b.o $(MIO_LIB) $(LUA_LIB)
 	$(LINK_CMD)
 
-c.exe : $(OUT)/c.o $(MIO_LIB) $(LUA_LIB)
-	$(LINK_CMD)
-
-all: $(OUT) $(LUA_LIB) $(MIO_LIB) lua.exe luac.exe a.exe b.exe c.exe
+all: $(OUT) $(LUA_LIB) $(MIO_LIB) lua.exe luac.exe mio.exe
 
 clean:
 	rm -rf $(OUT)

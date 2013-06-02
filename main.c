@@ -112,6 +112,10 @@ static void display(void)
 	timediff = thistime - lasttime;
 	lasttime = thistime;
 
+	// update world
+
+	update_scene(scene);
+
 	glViewport(0, 0, screenw, screenh);
 
 	glClearColor(0.05, 0.05, 0.05, 1.0);
@@ -143,11 +147,15 @@ static void display(void)
 
 	glutSwapBuffers();
 
+	glutPostRedisplay();
+
 	gl_assert("swap buffers");
 }
 
 int main(int argc, char **argv)
 {
+	int i;
+
 	glutInit(&argc, argv);
 	glutInitContextVersion(3, 0);
 	glutInitContextFlags(GLUT_FORWARD_COMPATIBLE);
@@ -184,14 +192,14 @@ int main(int argc, char **argv)
 		exit(1);
 
 	console_init();
-
 	bind_init();
+
+	console_run_file("proxy.lua");
 
 	// load world
 	scene = new_scene();
-//	new_object(scene, "pr_s2_mycotree_a.iqe");
-//	new_object(scene, "tr_s2_bamboo_a.iqe");
-//	mat_translate(scene->objects->transform, 5, 0, 0);
+	for (i = 1; i < argc; i++)
+		console_run_file(argv[i]);
 
 	glutMainLoop();
 	return 0;

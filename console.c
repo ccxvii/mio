@@ -7,7 +7,7 @@
 
 extern lua_State *L; /* in bind.c */
 
-void warn(char *fmt, ...)
+void warn(const char *fmt, ...)
 {
 	va_list ap;
 	char buf[256];
@@ -77,6 +77,16 @@ void console_printnl(const char *s)
 	scrollup();
 }
 
+void console_printf(const char *fmt, ...)
+{
+	va_list ap;
+	char buf[256];
+	va_start(ap, fmt);
+	vsnprintf(buf, sizeof buf, fmt, ap);
+	va_end(ap);
+	console_print(buf);
+}
+
 static int ffi_print(lua_State *L)
 {
 	int i, n = lua_gettop(L);
@@ -139,6 +149,44 @@ static void console_history_next(void)
 	}
 }
 
+
+void console_run_string(const char *cmd)
+{
+	int status;
+	status = luaL_dostring(L, cmd);
+	if (status && !lua_isnil(L, -1)) {
+		const char *msg = lua_tostring(L, -1);
+		if (msg == NULL) msg = "(error object is not a string)";
+		console_printnl(msg);
+		lua_pop(L, 1);
+	}
+	if (lua_gettop(L) > 0) {
+		lua_getglobal(L, "print");
+		lua_insert(L, 1);
+		lua_pcall(L, lua_gettop(L)-1, 0, 0);
+	}
+}
+
+void console_run_file(const char *filename)
+{
+	int status;
+
+	console_printf(PS1 "dofile '%s'\n", filename);
+
+	status = luaL_dofile(L, filename);
+	if (status && !lua_isnil(L, -1)) {
+		const char *msg = lua_tostring(L, -1);
+		if (msg == NULL) msg = "(error object is not a string)";
+		console_printnl(msg);
+		lua_pop(L, 1);
+	}
+	if (lua_gettop(L) > 0) {
+		lua_getglobal(L, "print");
+		lua_insert(L, 1);
+		lua_pcall(L, lua_gettop(L)-1, 0, 0);
+	}
+}
+
 static void console_enter(void)
 {
 	char cmd[INPUT];
@@ -154,22 +202,10 @@ static void console_enter(void)
 		strlcpy(cmd, input, sizeof cmd);
 	}
 
-	int status;
-	status = luaL_dostring(L, cmd);
-	if (status && !lua_isnil(L, -1)) {
-		const char *msg = lua_tostring(L, -1);
-		if (msg == NULL) msg = "(error object is not a string)";
-		console_printnl(msg);
-		lua_pop(L, 1);
-	}
-	if (lua_gettop(L) > 0) {
-		lua_getglobal(L, "print");
-		lua_insert(L, 1);
-		lua_pcall(L, lua_gettop(L)-1, 0, 0);
-	}
-
 	input[0] = 0;
 	cursor = end = 0;
+
+	console_run_string(cmd);
 }
 
 static void console_insert(int c)

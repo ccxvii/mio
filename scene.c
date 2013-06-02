@@ -218,6 +218,11 @@ void stop_anim(struct armature *node)
 
 static int update_armature(struct armature *node)
 {
+	if (node->anim) {
+		node->time += 0.5;
+		node->dirty = 1;
+	}
+
 	if (node->parent)
 		node->dirty |= update_armature(node->parent);
 
@@ -230,7 +235,7 @@ static int update_armature(struct armature *node)
 			int i;
 
 			// TODO: interpolate
-			extract_pose(anim_pose, node->anim, (int)node->time % node->anim->frames);
+			extract_frame(anim_pose, node->anim, (int)node->time % node->anim->frames);
 
 			for (i = 0; i < node->skel->count; i++) {
 				int k = node->anim_map[i];
@@ -359,15 +364,18 @@ void draw_object(struct scene *scene, struct object *node, mat4 projection, mat4
 void draw_scene(struct scene *scene, mat4 projection, mat4 view)
 {
 	struct object *obj;
-	struct armature *amt;
-
-	update_scene(scene);
 
 	LIST_FOREACH(obj, &scene->objects, list)
 		draw_object(scene, obj, projection, view);
+}
+
+void draw_scene_debug(struct scene *scene, mat4 projection, mat4 view)
+{
+	struct armature *amt;
 
 	glDisable(GL_DEPTH_TEST);
-	LIST_FOREACH(amt, &scene->armatures, list)
+	LIST_FOREACH(amt, &scene->armatures, list) {
 		draw_armature(scene, amt, projection, view);
+	}
 	glEnable(GL_DEPTH_TEST);
 }
