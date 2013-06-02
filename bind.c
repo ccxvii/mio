@@ -21,9 +21,10 @@ static void *checktag(lua_State *L, int n, int tag)
 
 static int ffi_amt_new(lua_State *L)
 {
-	struct armature *amt = new_armature(scene, luaL_checkstring(L, 1));
+	const char *skelname = luaL_checkstring(L, 1);
+	struct armature *amt = new_armature(scene, skelname);
 	if (!amt)
-		return luaL_error(L, "cannot load skeleton: %s", luaL_checkstring(L, 1));
+		return luaL_error(L, "cannot load skeleton: %s", skelname);
 	lua_pushlightuserdata(L, amt);
 	return 1;
 }
@@ -109,18 +110,17 @@ static int ffi_amt_play_animation(lua_State *L)
 	struct armature *amt = checktag(L, 1, TAG_ARMATURE);
 	const char *animname = luaL_checkstring(L, 2);
 	float time = luaL_checknumber(L, 3);
-	amt->anim = load_anim(animname);
-	amt->time = time;
-	amt->dirty = 1;
+	struct anim *anim = load_anim(animname);
+	if (!anim)
+		return luaL_error(L, "cannot load anim: %s", animname);
+	play_anim(amt, anim, time);
 	return 0;
 }
 
 static int ffi_amt_stop_animation(lua_State *L)
 {
 	struct armature *amt = checktag(L, 1, TAG_ARMATURE);
-	amt->anim = NULL;
-	amt->time = 0;
-	amt->dirty = 1;
+	stop_anim(amt);
 	return 0;
 }
 
@@ -128,9 +128,10 @@ static int ffi_amt_stop_animation(lua_State *L)
 
 static int ffi_obj_new(lua_State *L)
 {
-	struct object *obj = new_object(scene, luaL_checkstring(L, 1));
+	const char *meshname = luaL_checkstring(L, 1);
+	struct object *obj = new_object(scene, meshname);
 	if (!obj)
-		return luaL_error(L, "cannot load mesh: %s", luaL_checkstring(L, 1));
+		return luaL_error(L, "cannot load mesh: %s", meshname);
 	lua_pushlightuserdata(L, obj);
 	return 1;
 }

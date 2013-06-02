@@ -172,6 +172,50 @@ void detach_light(struct light *node)
 	node->parent_tag = 0;
 }
 
+void play_anim(struct armature *node, struct anim *anim, float time)
+{
+	struct skel *skel = node->skel;
+	struct skel *askel = anim->skel;
+	struct anim_map *map;
+
+	for (map = anim->anim_map_head; map; map = map->next)
+		if (map->skel == node->skel)
+			break;
+
+	if (!map) {
+		int i, k;
+
+		map = malloc(sizeof(*map));
+		map->skel = node->skel;
+		map->next = anim->anim_map_head;
+		anim->anim_map_head = map;
+
+		for (i = 0; i < skel->count; i++) {
+			for (k = 0; k < askel->count; k++) {
+				if (!strcmp(skel->name[i], askel->name[k])) {
+					map->anim_map[i] = k;
+					break;
+				}
+			}
+			if (k == askel->count)
+				map->anim_map[i] = -1; /* bone missing from skeleton */
+		}
+	}
+
+	node->anim_map = map->anim_map;
+	node->anim = anim;
+	node->time = time;
+	node->dirty = 1;
+}
+
+void stop_anim(struct armature *node)
+{
+	node->anim_map = NULL;
+	node->anim = NULL;
+	node->time = 0;
+	node->dirty = 1;
+}
+
 static int update_armature(struct armature *node)
 {
 	if (node->parent)
@@ -181,15 +225,21 @@ static int update_armature(struct armature *node)
 		mat4 local_pose[MAXBONE];
 
 		if (node->anim) {
+			struct pose *skel_pose = node->skel->pose;
 			struct pose anim_pose[MAXBONE];
-			struct pose skel_pose[MAXBONE];
+			int i;
 
-			// TODO: action bone_map
+			// TODO: interpolate
 			extract_pose(anim_pose, node->anim, (int)node->time % node->anim->frames);
-			memcpy(skel_pose, node->skel->pose, node->skel->count * sizeof(struct pose));
-			apply_animation(skel_pose, node->skel, anim_pose, node->anim->skel);
 
-			calc_matrix_from_pose(local_pose, skel_pose, node->skel->count);
+			for (i = 0; i < node->skel->count; i++) {
+				int k = node->anim_map[i];
+				if (k >= 0)
+					mat_from_pose(local_pose[i], anim_pose[k].location, anim_pose[k].rotation, anim_pose[k].scale);
+				else
+					mat_from_pose(local_pose[i], skel_pose[i].location, skel_pose[i].rotation, skel_pose[i].scale);
+			}
+
 			calc_abs_matrix(node->model_pose, local_pose, node->skel->parent, node->skel->count);
 		} else {
 			calc_matrix_from_pose(local_pose, node->skel->pose, node->skel->count);

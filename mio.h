@@ -217,6 +217,12 @@ struct mesh {
 	mat4 *inv_bind_matrix;
 };
 
+struct anim_map {
+	struct skel *skel;
+	struct anim_map *next;
+	int anim_map[MAXBONE];
+};
+
 struct anim {
 	char name[32];
 	int frames, channels;
@@ -225,6 +231,7 @@ struct anim {
 	struct anim *next;
 	int mask[MAXBONE];
 	struct pose pose[MAXBONE];
+	struct anim_map *anim_map_head;
 };
 
 struct model *load_iqe_from_memory(const char *filename, unsigned char *data, int len);
@@ -266,6 +273,7 @@ struct armature
 
 	struct anim *anim;
 	float time;
+	int *anim_map;
 
 	mat4 model_pose[MAXBONE];
 };
@@ -341,6 +349,9 @@ int attach_light(struct light *node, struct armature *parent, const char *tagnam
 void detach_armature(struct armature *node);
 void detach_object(struct object *node);
 void detach_light(struct light *node);
+
+void play_anim(struct armature *node, struct anim *anim, float time);
+void stop_anim(struct armature *node);
 
 void draw_scene(struct scene *scene, mat4 projection, mat4 view);
 
