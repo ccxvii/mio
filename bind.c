@@ -19,7 +19,7 @@ static int ffi_print(lua_State *L)
 		lua_call(L, 1, 1);
 		s = lua_tostring(L, -1); /* get result */
 		if (!s) return luaL_error(L, "'tostring' must return a string to 'print'");
-		if (i > 1) console_print("\t");
+		if (i > 1) console_putc('\t');
 		console_print(s);
 		lua_pop(L, 1); /* pop result */
 	}
@@ -29,37 +29,46 @@ static int ffi_print(lua_State *L)
 
 static int ffi_traceback(lua_State *L)
 {
-	lua_getglobal(L, "debug");
-	lua_getfield(L, -1, "traceback");
-	lua_pushvalue(L, 1);
-	lua_pushinteger(L, 2);
-	lua_call(L, 2, 1);
+	const char *msg = lua_tostring(L, 1);
+	if (msg)
+		luaL_traceback(L, L, msg, 1);
+	else if (!lua_isnoneornil(L, 1)) { /* is there an error object? */
+		if (!luaL_callmeta(L, 1, "__tostring")) /* try its 'tostring' metamethod */
+			lua_pushliteral(L, "(no error message)");
+	}
 	return 1;
+}
+
+static int docall(lua_State *L, int narg, int nres)
+{
+	int status;
+	int base = lua_gettop(L) - narg;
+	lua_pushcfunction(L, ffi_traceback);
+	lua_insert(L, base);
+	status = lua_pcall(L, narg, nres, base);
+	lua_remove(L, base);
+	return status;
 }
 
 void run_string(const char *cmd)
 {
 	if (!L) {
-		console_print("[no command interpreter]\n");
+		console_printnl("[no command interpreter]");
 		return;
 	}
 
 	int status = luaL_loadstring(L, cmd);
 	if (status) {
 		const char *msg = lua_tostring(L, -1);
-		console_printf("%s\n", msg);
+		console_printnl(msg);
 		lua_pop(L, 1);
 		return;
 	}
 
-	lua_pushcfunction(L, ffi_traceback);
-	lua_insert(L, 1);
-	status = lua_pcall(L, 0, LUA_MULTRET, 1);
-	lua_remove(L, 1);
-
+	status = docall(L, 0, LUA_MULTRET);
 	if (status) {
 		const char *msg = lua_tostring(L, -1);
-		console_printf("%s\n", msg);
+		console_printnl(msg);
 		lua_pop(L, 1);
 		return;
 	}
@@ -74,26 +83,22 @@ void run_string(const char *cmd)
 void run_file(const char *filename)
 {
 	if (!L) {
-		console_print("[no command interpreter]\n");
+		console_printnl("[no command interpreter]");
 		return;
 	}
 
 	int status = luaL_loadfile(L, filename);
 	if (status) {
 		const char *msg = lua_tostring(L, -1);
-		console_printf("%s\n", msg);
+		console_printnl(msg);
 		lua_pop(L, 1);
 		return;
 	}
 
-	lua_pushcfunction(L, ffi_traceback);
-	lua_insert(L, 1);
-	status = lua_pcall(L, 0, 0, 1);
-	lua_remove(L, 1);
-
+	status = docall(L, 0, 0);
 	if (status) {
 		const char *msg = lua_tostring(L, -1);
-		console_printf("%s\n", msg);
+		console_printnl(msg);
 		lua_pop(L, 1);
 		return;
 	}

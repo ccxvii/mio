@@ -147,6 +147,7 @@ void console_keyboard(int key, int mod);
 void console_special(int key, int mod);
 void console_printf(const char *fmt, ...);
 void console_print(const char *s);
+void console_printnl(const char *s);
 void console_putc(int c);
 void console_draw(mat4 clip_from_view, mat4 view_from_world, struct font *font, float size);
 

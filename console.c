@@ -10,12 +10,12 @@ extern lua_State *L; /* in bind.c */
 void warn(const char *fmt, ...)
 {
 	va_list ap;
-	char buf[256];
+	char buf[4096];
 	va_start(ap, fmt);
 	vsnprintf(buf, sizeof buf, fmt, ap);
 	va_end(ap);
 	fprintf(stderr, "%s\n", buf);
-	console_printf("%s\n", buf);
+	console_printnl(buf);
 }
 
 #define PS1 "> "
@@ -71,10 +71,16 @@ void console_print(const char *s)
 	while (*s) console_putc(*s++);
 }
 
+void console_printnl(const char *s)
+{
+	while (*s) console_putc(*s++);
+	scrollup();
+}
+
 void console_printf(const char *fmt, ...)
 {
 	va_list ap;
-	char buf[256];
+	char buf[4096];
 	va_start(ap, fmt);
 	vsnprintf(buf, sizeof buf, fmt, ap);
 	va_end(ap);
@@ -120,8 +126,7 @@ static void console_enter(void)
 
 	console_history_push(input);
 	console_print(PS1);
-	console_print(input);
-	console_print("\n");
+	console_printnl(input);
 
 	if (input[0] == '=') {
 		strlcpy(cmd, "return ", sizeof cmd);
