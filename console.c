@@ -25,7 +25,7 @@ void warn(const char *fmt, ...)
 #define LAST (ROWS-1)
 #define INPUT 80-2
 #define HISTORY 100
-#define TABSTOP 8
+#define TABSTOP 4
 
 static char screen[ROWS][COLS+1] = {{0}};
 static int tail = 0;
