@@ -198,6 +198,12 @@ void console_skip_word_right(void)
 
 void console_keyboard(int key, int mod)
 {
+#ifdef __APPLE__
+	/* Stupid Apple... */
+	if (key == 0x7F) key = 0x08;
+	else if (key == 0x8) key = 0x7F;
+#endif
+
 	if (key >= 0xE000 && key < 0xF900) return; // in PUA
 	if (key >= 0x10000) return; // outside BMP
 
@@ -216,6 +222,7 @@ void console_keyboard(int key, int mod)
 		case CTL('E'): cursor = end; break;
 		case CTL('B'): if (cursor > 0) --cursor; break;
 		case CTL('F'): if (cursor < end) ++cursor; break;
+		case CTL('H'): console_backspace(); break;
 		case CTL('U'): while (cursor > 0) console_backspace(); break;
 		case CTL('K'): while (cursor < end) console_delete(); break;
 		case CTL('W'): console_backspace_word(); break;
