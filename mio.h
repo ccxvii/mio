@@ -139,16 +139,15 @@ void draw_quad(float x0, float y0, float z0,
 
 /* console */
 
-void bind_init(void);
+void init_lua(void);
+void run_string(const char *cmd);
+void run_file(const char *filename);
 
-void console_init(void);
-void console_run_string(const char *cmd);
-void console_run_file(const char *filename);
 void console_keyboard(int key, int mod);
 void console_special(int key, int mod);
-void console_print(const char *s);
-void console_printnl(const char *s);
 void console_printf(const char *fmt, ...);
+void console_print(const char *s);
+void console_putc(int c);
 void console_draw(mat4 clip_from_view, mat4 view_from_world, struct font *font, float size);
 
 /* shaders */
@@ -343,13 +342,13 @@ struct armature *new_armature(struct scene *scene, const char *skelname);
 struct object *new_object(struct scene *scene, const char *meshname);
 struct light *new_light(struct scene *scene);
 
-int attach_armature(struct armature *node, struct armature *parent, const char *tagname);
-int attach_object(struct object *node, struct armature *parent, const char *tagname);
-int attach_light(struct light *node, struct armature *parent, const char *tagname);
+int armature_set_parent(struct armature *node, struct armature *parent, const char *tagname);
+int object_set_parent(struct object *node, struct armature *parent, const char *tagname);
+int light_set_parent(struct light *node, struct armature *parent, const char *tagname);
 
-void detach_armature(struct armature *node);
-void detach_object(struct object *node);
-void detach_light(struct light *node);
+void armature_clear_parent(struct armature *node);
+void object_clear_parent(struct object *node);
+void light_clear_parent(struct light *node);
 
 void play_anim(struct armature *node, struct anim *anim, float time);
 void stop_anim(struct armature *node);

@@ -191,15 +191,14 @@ int main(int argc, char **argv)
 	if (!droid_sans_mono)
 		exit(1);
 
-	console_init();
-	bind_init();
-
-	console_run_file("proxy.lua");
+	init_lua();
+	run_string("require 'strict'");
+	run_file("proxy.lua");
 
 	// load world
 	scene = new_scene();
 	for (i = 1; i < argc; i++)
-		console_run_file(argv[i]);
+		run_file(argv[i]);
 
 	glutMainLoop();
 	return 0;

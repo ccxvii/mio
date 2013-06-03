@@ -8,6 +8,97 @@ struct scene *scene = NULL;
 
 lua_State *L = NULL;
 
+static int ffi_print(lua_State *L)
+{
+	int i, n = lua_gettop(L);
+	lua_getglobal(L, "tostring");
+	for (i=1; i<=n; i++) {
+		const char *s;
+		lua_pushvalue(L, -1); /* tostring */
+		lua_pushvalue(L, i); /* value to print */
+		lua_call(L, 1, 1);
+		s = lua_tostring(L, -1); /* get result */
+		if (!s) return luaL_error(L, "'tostring' must return a string to 'print'");
+		if (i > 1) console_print("\t");
+		console_print(s);
+		lua_pop(L, 1); /* pop result */
+	}
+	console_putc('\n');
+	return 0;
+}
+
+static int ffi_traceback(lua_State *L)
+{
+	lua_getglobal(L, "debug");
+	lua_getfield(L, -1, "traceback");
+	lua_pushvalue(L, 1);
+	lua_pushinteger(L, 2);
+	lua_call(L, 2, 1);
+	return 1;
+}
+
+void run_string(const char *cmd)
+{
+	if (!L) {
+		console_print("[no command interpreter]\n");
+		return;
+	}
+
+	int status = luaL_loadstring(L, cmd);
+	if (status) {
+		const char *msg = lua_tostring(L, -1);
+		console_printf("%s\n", msg);
+		lua_pop(L, 1);
+		return;
+	}
+
+	lua_pushcfunction(L, ffi_traceback);
+	lua_insert(L, 1);
+	status = lua_pcall(L, 0, LUA_MULTRET, 1);
+	lua_remove(L, 1);
+
+	if (status) {
+		const char *msg = lua_tostring(L, -1);
+		console_printf("%s\n", msg);
+		lua_pop(L, 1);
+		return;
+	}
+
+	if (lua_gettop(L) > 0) {
+		lua_getglobal(L, "print");
+		lua_insert(L, 1);
+		lua_pcall(L, lua_gettop(L)-1, 0, 0);
+	}
+}
+
+void run_file(const char *filename)
+{
+	if (!L) {
+		console_print("[no command interpreter]\n");
+		return;
+	}
+
+	int status = luaL_loadfile(L, filename);
+	if (status) {
+		const char *msg = lua_tostring(L, -1);
+		console_printf("%s\n", msg);
+		lua_pop(L, 1);
+		return;
+	}
+
+	lua_pushcfunction(L, ffi_traceback);
+	lua_insert(L, 1);
+	status = lua_pcall(L, 0, 0, 1);
+	lua_remove(L, 1);
+
+	if (status) {
+		const char *msg = lua_tostring(L, -1);
+		console_printf("%s\n", msg);
+		lua_pop(L, 1);
+		return;
+	}
+}
+
 static void *checktag(lua_State *L, int n, int tag)
 {
 	luaL_checktype(L, n, LUA_TLIGHTUSERDATA);
@@ -29,20 +120,20 @@ static int ffi_amt_new(lua_State *L)
 	return 1;
 }
 
-static int ffi_amt_attach(lua_State *L)
+static int ffi_amt_set_parent(lua_State *L)
 {
 	struct armature *amt = checktag(L, 1, TAG_ARMATURE);
 	struct armature *parent = checktag(L, 2, TAG_ARMATURE);
 	const char *tagname = luaL_checkstring(L, 3);
-	if (attach_armature(amt, parent, tagname))
+	if (armature_set_parent(amt, parent, tagname))
 		return luaL_error(L, "cannot find bone: %s", tagname);
 	return 0;
 }
 
-static int ffi_amt_detach(lua_State *L)
+static int ffi_amt_clear_parent(lua_State *L)
 {
 	struct armature *amt = checktag(L, 1, TAG_ARMATURE);
-	detach_armature(amt);
+	armature_clear_parent(amt);
 	return 0;
 }
 
@@ -105,7 +196,7 @@ static int ffi_amt_scale(lua_State *L)
 	return 3;
 }
 
-static int ffi_amt_play_animation(lua_State *L)
+static int ffi_amt_play_anim(lua_State *L)
 {
 	struct armature *amt = checktag(L, 1, TAG_ARMATURE);
 	const char *animname = luaL_checkstring(L, 2);
@@ -117,7 +208,7 @@ static int ffi_amt_play_animation(lua_State *L)
 	return 0;
 }
 
-static int ffi_amt_stop_animation(lua_State *L)
+static int ffi_amt_stop_anim(lua_State *L)
 {
 	struct armature *amt = checktag(L, 1, TAG_ARMATURE);
 	stop_anim(amt);
@@ -136,12 +227,12 @@ static int ffi_obj_new(lua_State *L)
 	return 1;
 }
 
-static int ffi_obj_attach(lua_State *L)
+static int ffi_obj_set_parent(lua_State *L)
 {
 	struct object *obj = checktag(L, 1, TAG_OBJECT);
 	struct armature *parent = checktag(L, 2, TAG_ARMATURE);
 	const char *tagname = lua_tostring(L, 3);
-	if (attach_object(obj, parent, tagname)) {
+	if (object_set_parent(obj, parent, tagname)) {
 		if (tagname)
 			return luaL_error(L, "cannot find bone: %s", tagname);
 		else
@@ -150,10 +241,10 @@ static int ffi_obj_attach(lua_State *L)
 	return 0;
 }
 
-static int ffi_obj_detach(lua_State *L)
+static int ffi_obj_clear_parent(lua_State *L)
 {
 	struct object *obj = checktag(L, 1, TAG_OBJECT);
-	detach_object(obj);
+	object_clear_parent(obj);
 	return 0;
 }
 
@@ -247,20 +338,20 @@ static int ffi_light_new(lua_State *L)
 	return 1;
 }
 
-static int ffi_light_attach(lua_State *L)
+static int ffi_light_set_parent(lua_State *L)
 {
 	struct light *light = checktag(L, 1, TAG_LIGHT);
 	struct armature *parent = checktag(L, 2, TAG_ARMATURE);
 	const char *tagname = luaL_checkstring(L, 3);
-	if (attach_light(light, parent, tagname))
+	if (light_set_parent(light, parent, tagname))
 		return luaL_error(L, "cannot find bone: %s", tagname);
 	return 0;
 }
 
-static int ffi_light_detach(lua_State *L)
+static int ffi_light_clear_parent(lua_State *L)
 {
 	struct light *light = checktag(L, 1, TAG_LIGHT);
-	detach_light(light);
+	light_clear_parent(light);
 	return 0;
 }
 
@@ -448,31 +539,31 @@ static int ffi_register_directory(lua_State *L)
 	return 0;
 }
 
-void bind_init(void)
+void init_lua(void)
 {
-	if (!L) {
-		L = luaL_newstate();
-		luaL_openlibs(L);
-	}
+	L = luaL_newstate();
+	luaL_openlibs(L);
+
+	lua_register(L, "print", ffi_print);
 
 	lua_register(L, "register_archive", ffi_register_archive);
 	lua_register(L, "register_directory", ffi_register_directory);
 
 	lua_register(L, "amt_new", ffi_amt_new);
-	lua_register(L, "amt_attach", ffi_amt_attach);
-	lua_register(L, "amt_detach", ffi_amt_detach);
+	lua_register(L, "amt_set_parent", ffi_amt_set_parent);
+	lua_register(L, "amt_clear_parent", ffi_amt_clear_parent);
 	lua_register(L, "amt_set_location", ffi_amt_set_location);
 	lua_register(L, "amt_set_rotation", ffi_amt_set_rotation);
 	lua_register(L, "amt_set_scale", ffi_amt_set_scale);
 	lua_register(L, "amt_location", ffi_amt_location);
 	lua_register(L, "amt_rotation", ffi_amt_rotation);
 	lua_register(L, "amt_scale", ffi_amt_scale);
-	lua_register(L, "amt_play_animation", ffi_amt_play_animation);
-	lua_register(L, "amt_stop_animation", ffi_amt_stop_animation);
+	lua_register(L, "amt_play_anim", ffi_amt_play_anim);
+	lua_register(L, "amt_stop_anim", ffi_amt_stop_anim);
 
 	lua_register(L, "obj_new", ffi_obj_new);
-	lua_register(L, "obj_attach", ffi_obj_attach);
-	lua_register(L, "obj_detach", ffi_obj_detach);
+	lua_register(L, "obj_set_parent", ffi_obj_set_parent);
+	lua_register(L, "obj_clear_parent", ffi_obj_clear_parent);
 	lua_register(L, "obj_set_location", ffi_obj_set_location);
 	lua_register(L, "obj_set_rotation", ffi_obj_set_rotation);
 	lua_register(L, "obj_set_scale", ffi_obj_set_scale);
@@ -483,8 +574,8 @@ void bind_init(void)
 	lua_register(L, "obj_color", ffi_obj_color);
 
 	lua_register(L, "light_new", ffi_light_new);
-	lua_register(L, "light_attach", ffi_light_attach);
-	lua_register(L, "light_detach", ffi_light_detach);
+	lua_register(L, "light_set_parent", ffi_light_set_parent);
+	lua_register(L, "light_clear_parent", ffi_light_clear_parent);
 	lua_register(L, "light_set_location", ffi_light_set_location);
 	lua_register(L, "light_set_rotation", ffi_light_set_rotation);
 	lua_register(L, "light_set_type", ffi_light_set_type);

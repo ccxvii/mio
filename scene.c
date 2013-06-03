@@ -72,7 +72,7 @@ struct light *new_light(struct scene *scene)
 	return light;
 }
 
-int attach_armature(struct armature *node, struct armature *parent, const char *tagname)
+int armature_set_parent(struct armature *node, struct armature *parent, const char *tagname)
 {
 	struct skel *skel = parent->skel;
 	int i;
@@ -92,7 +92,7 @@ int attach_armature(struct armature *node, struct armature *parent, const char *
 	return -1;
 }
 
-int attach_object(struct object *node, struct armature *parent, const char *tagname)
+int object_set_parent(struct object *node, struct armature *parent, const char *tagname)
 {
 	struct skel *skel = parent->skel;
 	struct skel *mskel = node->mesh->skel;
@@ -131,7 +131,7 @@ int attach_object(struct object *node, struct armature *parent, const char *tagn
 	return -1; /* no tag, no skin */
 }
 
-int attach_light(struct light *node, struct armature *parent, const char *tagname)
+int light_set_parent(struct light *node, struct armature *parent, const char *tagname)
 {
 	struct skel *skel = parent->skel;
 	int i;
@@ -151,21 +151,21 @@ int attach_light(struct light *node, struct armature *parent, const char *tagnam
 	return -1;
 }
 
-void detach_armature(struct armature *node)
+void armature_clear_parent(struct armature *node)
 {
 	node->dirty = 1;
 	node->parent = NULL;
 	node->parent_tag = 0;
 }
 
-void detach_object(struct object *node)
+void object_clear_parent(struct object *node)
 {
 	node->dirty = 1;
 	node->parent = NULL;
 	node->parent_tag = 0;
 }
 
-void detach_light(struct light *node)
+void light_clear_parent(struct light *node)
 {
 	node->dirty = 1;
 	node->parent = NULL;

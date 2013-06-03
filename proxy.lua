@@ -6,13 +6,16 @@ local mt_amt = {}
 
 mt_amt.__index = mt_amt
 
-function mt_amt:attach(parent, tagname)
-	print("amt_attach", self, parent)
-	amt_attach(self.user, parent.user, tagname)
+function mt_amt:set_parent(parent, tagname)
+	amt_set_parent(self.user, parent.user, tagname)
 end
 
-function mt_amt:detach()
-	amt_detach(self.user)
+function mt_amt:clear_parent()
+	amt_clear_parent(self.user)
+end
+
+function mt_amt:attach(child, tagname)
+	child:set_parent(self, tagname)
 end
 
 function mt_amt:set_location(x, y, z)
@@ -32,15 +35,16 @@ function mt_amt:rotation() return amt_rotation(self.user) end
 function mt_amt:scale() return amt_scale(self.user) end
 
 function mt_amt:play_animation(animname, time)
-	amt_play_animation(self.user, animname, time)
+	amt_play_anim(self.user, animname, time)
 end
 
 function mt_amt:stop_animation(animname, time)
-	amt_stop_animation(self.user)
+	amt_stop_anim(self.user)
 end
 
 function armature(data)
-	amt = amt_new(data.skel)
+	if type(data) == 'string' then return armature {skel=data} end
+	local amt = amt_new(data.skel)
 	if data.location then amt_set_location(amt, table_unpack(data.location)) end
 	if data.rotation then amt_set_rotation(amt, table_unpack(data.rotation)) end
 	if data.scale then amt_set_scale(amt, table_unpack(data.scale)) end
@@ -54,12 +58,12 @@ local mt_obj = {}
 
 mt_obj.__index = mt_obj
 
-function mt_obj:attach(parent, tagname)
-	obj_attach(self.user, parent.user, tagname)
+function mt_obj:set_parent(parent, tagname)
+	obj_set_parent(self.user, parent.user, tagname)
 end
 
-function mt_obj:detach()
-	obj_detach(self.user)
+function mt_obj:clear_parent()
+	obj_clear_parent(self.user)
 end
 
 function mt_obj:set_location(x, y, z)
@@ -79,7 +83,8 @@ function mt_obj:rotation() return obj_rotation(self.user) end
 function mt_obj:scale() return obj_scale(self.user) end
 
 function object(data)
-	obj = obj_new(data.mesh)
+	if type(data) == 'string' then return object {mesh=data} end
+	local obj = obj_new(data.mesh)
 	if data.location then obj_set_location(obj, table_unpack(data.location)) end
 	if data.rotation then obj_set_rotation(obj, table_unpack(data.rotation)) end
 	if data.scale then obj_set_scale(obj, table_unpack(data.scale)) end
@@ -95,12 +100,12 @@ local mt_light = {}
 
 mt_light.__index = mt_light
 
-function mt_light:attach(parent, tagname)
-	light_attach(self.user, parent.user, tagname)
+function mt_light:set_parent(parent, tagname)
+	light_set_parent(self.user, parent.user, tagname)
 end
 
-function mt_light:detach()
-	light_detach(self.user)
+function mt_light:clear_parent()
+	light_clear_parent(self.user)
 end
 
 function mt_light:set_location(x, y, z)
@@ -132,6 +137,9 @@ end
 
 -- Utilities
 
-function attach(parent, child, tag)
-	child:attach(parent, tag)
+function model(filename)
+	local amt = armature(filename)
+	local obj = object(filename)
+	obj:set_parent(amt)
+	return amt
 end

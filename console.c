@@ -15,7 +15,7 @@ void warn(const char *fmt, ...)
 	vsnprintf(buf, sizeof buf, fmt, ap);
 	va_end(ap);
 	fprintf(stderr, "%s\n", buf);
-	console_printnl(buf);
+	console_printf("%s\n", buf);
 }
 
 #define PS1 "> "
@@ -51,13 +51,13 @@ static void scrollup(void)
 
 void console_putc(int c)
 {
-	if (tail >= COLS) {
+	if (c == '\n') {
+		scrollup();
+	} else if (tail >= COLS) {
 		scrollup();
 		screen[LAST][tail++] = c;
-	} else if (c == '\n') {
-		scrollup();
 	} else if (c == '\t') {
-		int n = ((tail+8)/8)*8 - tail;
+		int n = TABSTOP - (tail % TABSTOP);
 		while (n--)
 			console_putc(' ');
 	} else {
@@ -71,12 +71,6 @@ void console_print(const char *s)
 	while (*s) console_putc(*s++);
 }
 
-void console_printnl(const char *s)
-{
-	while (*s) console_putc(*s++);
-	scrollup();
-}
-
 void console_printf(const char *fmt, ...)
 {
 	va_list ap;
@@ -85,35 +79,6 @@ void console_printf(const char *fmt, ...)
 	vsnprintf(buf, sizeof buf, fmt, ap);
 	va_end(ap);
 	console_print(buf);
-}
-
-static int ffi_print(lua_State *L)
-{
-	int i, n = lua_gettop(L);
-	lua_getglobal(L, "tostring");
-	for (i=1; i<=n; i++) {
-		const char *s;
-		lua_pushvalue(L, -1); /* tostring */
-		lua_pushvalue(L, i); /* value to print */
-		lua_call(L, 1, 1);
-		s = lua_tostring(L, -1); /* get result */
-		if (!s) return luaL_error(L, "'tostring' must return a string to 'print'");
-		if (i > 1) console_print("\t");
-		console_print(s);
-		lua_pop(L, 1); /* pop result */
-	}
-	console_printnl("");
-	return 0;
-}
-
-void console_init(void)
-{
-	if (!L) {
-		L = luaL_newstate();
-		luaL_openlibs(L);
-	}
-
-	lua_register(L, "print", ffi_print);
 }
 
 static void console_history_push(char *s)
@@ -149,51 +114,14 @@ static void console_history_next(void)
 	}
 }
 
-
-void console_run_string(const char *cmd)
-{
-	int status;
-	status = luaL_dostring(L, cmd);
-	if (status && !lua_isnil(L, -1)) {
-		const char *msg = lua_tostring(L, -1);
-		if (msg == NULL) msg = "(error object is not a string)";
-		console_printnl(msg);
-		lua_pop(L, 1);
-	}
-	if (lua_gettop(L) > 0) {
-		lua_getglobal(L, "print");
-		lua_insert(L, 1);
-		lua_pcall(L, lua_gettop(L)-1, 0, 0);
-	}
-}
-
-void console_run_file(const char *filename)
-{
-	int status;
-
-	console_printf(PS1 "dofile '%s'\n", filename);
-
-	status = luaL_dofile(L, filename);
-	if (status && !lua_isnil(L, -1)) {
-		const char *msg = lua_tostring(L, -1);
-		if (msg == NULL) msg = "(error object is not a string)";
-		console_printnl(msg);
-		lua_pop(L, 1);
-	}
-	if (lua_gettop(L) > 0) {
-		lua_getglobal(L, "print");
-		lua_insert(L, 1);
-		lua_pcall(L, lua_gettop(L)-1, 0, 0);
-	}
-}
-
 static void console_enter(void)
 {
 	char cmd[INPUT];
 
 	console_history_push(input);
 	console_print(PS1);
-	console_printnl(input);
+	console_print(input);
+	console_print("\n");
 
 	if (input[0] == '=') {
 		strlcpy(cmd, "return ", sizeof cmd);
@@ -205,7 +133,7 @@ static void console_enter(void)
 	input[0] = 0;
 	cursor = end = 0;
 
-	console_run_string(cmd);
+	run_string(cmd);
 }
 
 static void console_insert(int c)
