@@ -114,7 +114,9 @@ static void display(void)
 
 	// update world
 
-	update_scene(scene);
+	static float time = 0;
+	update_scene(scene, time);
+	time += 0.5;
 
 	glViewport(0, 0, screenw, screenh);
 

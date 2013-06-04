@@ -289,7 +289,7 @@ struct object
 
 	struct armature *parent;
 	int parent_tag;
-	unsigned char parent_map[MAXBONE];
+	unsigned char parent_map[MAXBONE]; // TODO: move into mesh, like for anim_map
 
 	int dirty;
 	vec3 location;
@@ -299,7 +299,7 @@ struct object
 
 	vec3 color;
 
-	mat4 skin_matrix[MAXBONE];
+	mat4 *skin_matrix;
 };
 
 enum { LIGHT_POINT, LIGHT_SPOT, LIGHT_SUN };
@@ -354,7 +354,7 @@ void light_clear_parent(struct light *node);
 void play_anim(struct armature *node, struct anim *anim, float time);
 void stop_anim(struct armature *node);
 
-void update_scene(struct scene *scene);
+void update_scene(struct scene *scene, float time);
 void draw_scene(struct scene *scene, mat4 projection, mat4 view);
 
 /* deferred shading */

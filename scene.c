@@ -216,15 +216,15 @@ void stop_anim(struct armature *node)
 	node->dirty = 1;
 }
 
-static int update_armature(struct armature *node)
+static int update_armature(struct armature *node, float time)
 {
 	if (node->anim) {
-		node->time += 0.5;
+		node->time = time;
 		node->dirty = 1;
 	}
 
 	if (node->parent)
-		node->dirty |= update_armature(node->parent);
+		node->dirty |= update_armature(node->parent, time);
 
 	if (node->dirty) {
 		mat4 local_pose[MAXBONE];
@@ -277,14 +277,16 @@ static void update_object_skin(struct object *node)
 		mat_mul(skin_matrix[i], pose_matrix[parent_map[i]], inv_bind_matrix[i]);
 }
 
-static void update_object(struct object *node)
+static void update_object(struct object *node, float time)
 {
 	if (node->parent)
-		node->dirty |= update_armature(node->parent);
+		node->dirty |= update_armature(node->parent, time);
 
 	if (node->dirty) {
 		if (node->parent) {
 			if (node->mesh->skel) {
+				if (!node->skin_matrix)
+					node->skin_matrix = malloc(node->mesh->skel->count * sizeof(mat4));
 				update_object_skin(node);
 				mat_copy(node->transform, node->parent->transform);
 			} else {
@@ -301,10 +303,10 @@ static void update_object(struct object *node)
 	node->dirty = 0;
 }
 
-static void update_light(struct light *node)
+static void update_light(struct light *node, float time)
 {
 	if (node->parent)
-		node->dirty |= update_armature(node->parent);
+		node->dirty |= update_armature(node->parent, time);
 
 	if (node->dirty) {
 		if (node->parent) {
@@ -320,18 +322,18 @@ static void update_light(struct light *node)
 	node->dirty = 0;
 }
 
-void update_scene(struct scene *scene)
+void update_scene(struct scene *scene, float time)
 {
 	struct object *obj;
 	struct armature *amt;
 	struct light *light;
 
 	LIST_FOREACH(amt, &scene->armatures, list)
-		update_armature(amt);
+		update_armature(amt, time);
 	LIST_FOREACH(obj, &scene->objects, list)
-		update_object(obj);
+		update_object(obj, time);
 	LIST_FOREACH(light, &scene->lights, list)
-		update_light(light);
+		update_light(light, time);
 
 	LIST_FOREACH(amt, &scene->armatures, list)
 		amt->dirty = 0;
