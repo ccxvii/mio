@@ -270,11 +270,11 @@ static void update_object_skin(struct object *node)
 {
 	mat4 *pose_matrix = node->parent->model_pose;
 	mat4 *inv_bind_matrix = node->mesh->inv_bind_matrix;
-	mat4 *skin_matrix = node->skin_matrix;
+	mat4 *model_from_bind_pose = node->model_from_bind_pose;
 	unsigned char *parent_map = node->parent_map;
 	int i, count = node->mesh->skel->count;
 	for (i = 0; i < count; i++)
-		mat_mul(skin_matrix[i], pose_matrix[parent_map[i]], inv_bind_matrix[i]);
+		mat_mul(model_from_bind_pose[i], pose_matrix[parent_map[i]], inv_bind_matrix[i]);
 }
 
 static void update_object(struct object *node, float time)
@@ -285,8 +285,8 @@ static void update_object(struct object *node, float time)
 	if (node->dirty) {
 		if (node->parent) {
 			if (node->mesh->skel) {
-				if (!node->skin_matrix)
-					node->skin_matrix = malloc(node->mesh->skel->count * sizeof(mat4));
+				if (!node->model_from_bind_pose)
+					node->model_from_bind_pose = malloc(node->mesh->skel->count * sizeof(mat4));
 				update_object_skin(node);
 				mat_copy(node->transform, node->parent->transform);
 			} else {
@@ -339,45 +339,56 @@ void update_scene(struct scene *scene, float time)
 		amt->dirty = 0;
 }
 
-void draw_armature(struct scene *scene, struct armature *node, mat4 projection, mat4 view)
+void draw_armature(struct scene *scene, struct armature *node, mat4 proj, mat4 view)
 {
 	mat4 model_view;
 
 	mat_mul(model_view, view, node->transform);
 
-	draw_begin(projection, model_view);
+	draw_begin(proj, model_view);
 	draw_set_color(1, 1, 1, 1);
 	draw_skel(node->model_pose, node->skel->parent, node->skel->count);
 	draw_end();
 }
 
-void draw_object(struct scene *scene, struct object *node, mat4 projection, mat4 view)
+void render_object(struct scene *scene, struct object *node, mat4 proj, mat4 view)
 {
 	mat4 model_view;
 
 	mat_mul(model_view, view, node->transform);
 
 	if (node->mesh->skel && node->parent)
-		draw_mesh_with_pose(node->mesh, projection, model_view, node->skin_matrix);
+		render_skinned_mesh(node->mesh, proj, model_view, node->model_from_bind_pose);
 	else
-		draw_mesh(node->mesh, projection, model_view);
+		render_static_mesh(node->mesh, proj, model_view);
 }
 
-void draw_scene(struct scene *scene, mat4 projection, mat4 view)
+void render_scene_geometry(struct scene *scene, mat4 proj, mat4 view)
 {
 	struct object *obj;
-
 	LIST_FOREACH(obj, &scene->objects, list)
-		draw_object(scene, obj, projection, view);
+		render_object(scene, obj, proj, view);
 }
 
-void draw_scene_debug(struct scene *scene, mat4 projection, mat4 view)
+void render_scene_light(struct scene *scene, mat4 proj, mat4 view)
+{
+	struct light *light;
+	LIST_FOREACH(light, &scene->lights, list) {
+		switch (light->type) {
+		case LIGHT_POINT: render_point_light(light, proj, view); break;
+		case LIGHT_SPOT: render_spot_light(light, proj, view); break;
+		case LIGHT_SUN: render_sun_light(light, proj, view); break;
+		}
+	}
+}
+
+void draw_scene_debug(struct scene *scene, mat4 proj, mat4 view)
 {
 	struct armature *amt;
 
 	glDisable(GL_DEPTH_TEST);
 	LIST_FOREACH(amt, &scene->armatures, list) {
-		draw_armature(scene, amt, projection, view);
+		draw_armature(scene, amt, proj, view);
 	}
 	glEnable(GL_DEPTH_TEST);
 }

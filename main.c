@@ -93,6 +93,7 @@ static void reshape(int w, int h)
 	screenw = w;
 	screenh = h;
 	glViewport(0, 0, w, h);
+	render_reshape(w, h);
 }
 
 static void display(void)
@@ -108,14 +109,9 @@ static void display(void)
 
 	// update world
 
-	static float time = 0;
-	update_scene(scene, time);
-	time += 0.5;
+	update_scene(scene, thistime * 30 * 0.001);
 
-	glViewport(0, 0, screenw, screenh);
-
-	glClearColor(0.05, 0.05, 0.05, 1.0);
-	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	// draw world
 
 	mat_perspective(projection, 75, (float)screenw / screenh, 0.1, 1000);
 	mat_identity(view);
@@ -125,18 +121,27 @@ static void display(void)
 	mat_rotate_x(view, -cam_pitch);
 	mat_rotate_z(view, -cam_yaw);
 
-	// draw world
+	render_geometry_pass();
+	render_scene_geometry(scene, projection, view);
 
-	glEnable(GL_DEPTH_TEST);
+	render_light_pass();
+	render_scene_light(scene, projection, view);
 
-	draw_scene(scene, projection, view);
-
-	glDisable(GL_DEPTH_TEST);
+	render_forward_pass();
+	render_finish();
 
 	// draw ui
 
+	glViewport(0, 0, screenw, screenh);
+	glClearColor(0.05, 0.05, 0.05, 1.0);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
 	mat_ortho(projection, 0, screenw, screenh, 0, -1, 1);
 	mat_identity(view);
+
+	// copy forward buffer to screen
+	//render_blit(projection, view, screenw, screenh);
+	render_debug_buffers(projection, view);
 
 	if (showconsole)
 		console_draw(projection, view, droid_sans_mono, 15);

@@ -71,7 +71,7 @@ struct pose {
 	vec3 scale;
 };
 
-void calc_mul_matrix(mat4 *skin_matrix, mat4 *abs_pose_matrix, mat4 *inv_bind_matrix, int count);
+void calc_mul_matrix(mat4 *model_from_bind_pose, mat4 *abs_pose_matrix, mat4 *inv_bind_matrix, int count);
 void calc_inv_matrix(mat4 *inv_bind_matrix, mat4 *abs_bind_matrix, int count);
 void calc_abs_matrix(mat4 *abs_pose_matrix, mat4 *pose_matrix, int *parent, int count);
 void calc_matrix_from_pose(mat4 *pose_matrix, struct pose *pose, int count);
@@ -248,8 +248,6 @@ struct anim *load_anim(const char *filename);
 
 void extract_frame(struct pose *pose, struct anim *anim, int frame);
 void draw_skel(mat4 *abs_pose_matrix, int *parent, int count);
-void draw_mesh(struct mesh *mesh, mat4 clip_from_view, mat4 view_from_world);
-void draw_mesh_with_pose(struct mesh *mesh, mat4 clip_from_view, mat4 view_from_world, mat4 *skin_matrix);
 
 /* scene graph */
 
@@ -299,7 +297,7 @@ struct object
 
 	vec3 color;
 
-	mat4 *skin_matrix;
+	mat4 *model_from_bind_pose;
 };
 
 enum { LIGHT_POINT, LIGHT_SPOT, LIGHT_SUN };
@@ -357,25 +355,23 @@ void stop_anim(struct armature *node);
 void update_scene(struct scene *scene, float time);
 void draw_scene(struct scene *scene, mat4 projection, mat4 view);
 
+void render_scene_geometry(struct scene *scene, mat4 proj, mat4 view);
+void render_scene_light(struct scene *scene, mat4 proj, mat4 view);
+
 /* deferred shading */
 
-int alloc_shadow_map(void);
-void render_spot_shadow(int map, vec3 spot_position, vec3 spot_direction, float spot_angle, float distance);
-void render_sun_shadow(int map, vec3 sun_position, vec3 sun_direction, float width, float depth);
+void render_static_mesh(struct mesh *mesh, mat4 clip_from_view, mat4 view_from_model);
+void render_skinned_mesh(struct mesh *mesh, mat4 clip_from_view, mat4 view_from_model, mat4 *model_from_bind_pose);
+
+void render_point_light(struct light *light, mat4 clip_from_view, mat4 view_from_world);
+void render_spot_light(struct light *light, mat4 clip_from_view, mat4 view_from_world);
+void render_sun_light(struct light *light, mat4 clip_from_view, mat4 view_from_world);
 
 void render_reshape(int w, int h);
-
 void render_geometry_pass(void);
 void render_light_pass(void);
 void render_forward_pass(void);
 void render_finish(void);
-
-void render_sun_light(int shadow_map, mat4 projection, mat4 model_view, vec3 sun_position, vec3 sun_direction, float w, float d, vec3 color);
-void render_point_light(mat4 projection, mat4 model_view, vec3 point_position, vec3 color, float distance);
-void render_spot_light(int map, mat4 projection, mat4 model_view, vec3 spot_position, vec3 spot_direction, float angle, vec3 color, float distance);
-
-void render_mesh_shadow(struct mesh *mesh);
-void render_mesh(struct mesh *mesh, mat4 projection, mat4 model_view);
 
 void render_blit(mat4 proj, mat4 view, int w, int h);
 void render_debug_buffers(mat4 proj, mat4 view);
