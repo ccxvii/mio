@@ -1,37 +1,50 @@
 #include "mio.h"
 
+struct {
+	const char *suffix;
+	struct model *(*load)(const char *filename, unsigned char *data, int len);
+} formats[] = {
+	{ ".iqm", load_iqm_from_memory },
+	{ ".iqe", load_iqe_from_memory },
+	{ ".obj", load_obj_from_memory },
+};
+
 static struct cache *model_cache = NULL;
 
-struct model *load_model(const char *filename)
+struct model *load_model(const char *name)
 {
+	char filename[1024];
+	unsigned char *data = NULL;
 	struct model *model;
-	unsigned char *data;
-	int len;
+	int i, len;
 
-	model = lookup(model_cache, filename);
+	model = lookup(model_cache, name);
 	if (model)
 		return model;
 
-	data = load_file(filename, &len);
+	for (i = 0; i < nelem(formats); i++) {
+		strlcpy(filename, name, sizeof filename);
+		strlcat(filename, formats[i].suffix, sizeof filename);
+		data = load_file(filename, &len);
+		if (data)
+			break;
+	}
+
 	if (!data) {
-		warn("error: cannot load model file: '%s'", filename);
+		warn("error: cannot find model: '%s'", name);
 		return NULL;
 	}
 
-	model = NULL;
-	if (strstr(filename, ".iqm")) model = load_iqm_from_memory(filename, data, len);
-	if (strstr(filename, ".iqe")) model = load_iqe_from_memory(filename, data, len);
-	if (strstr(filename, ".obj")) model = load_obj_from_memory(filename, data, len);
+	model = formats[i].load(filename, data, len);
 	if (!model)
 		warn("error: cannot load model: '%s'", filename);
 
 	free(data);
 
 	if (model)
-		model_cache = insert(model_cache, filename, model);
+		model_cache = insert(model_cache, name, model);
 
 	return model;
-
 }
 
 struct skel *load_skel(const char *filename)

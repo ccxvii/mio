@@ -70,17 +70,11 @@ static void keyboard(unsigned char key, int x, int y)
 	int mod = glutGetModifiers();
 	if ((mod & GLUT_ACTIVE_ALT) && key == '\r')
 		togglefullscreen();
-	else if (key ==	'`')
+	else if (key ==	27)
 		showconsole = !showconsole;
 	else if (showconsole)
 		console_keyboard(key, mod);
-	else switch (key) {
-		case 27: case 'q': exit(0); break;
-		case 'f': togglefullscreen(); break;
-	}
-
 	lasttime = glutGet(GLUT_ELAPSED_TIME);
-
 	glutPostRedisplay();
 }
 

@@ -258,8 +258,6 @@ int main(int argc, char **argv)
 	if (!droid_sans_mono)
 		exit(1);
 
-	console_init();
-
 	if (argc > 1)
 		mesh = load_mesh(argv[1]);
 	else

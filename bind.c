@@ -30,8 +30,10 @@ static int ffi_print(lua_State *L)
 static int ffi_traceback(lua_State *L)
 {
 	const char *msg = lua_tostring(L, 1);
-	if (msg)
+	if (msg) {
+		fprintf(stderr, "%s\n", msg);
 		luaL_traceback(L, L, msg, 1);
+	}
 	else if (!lua_isnoneornil(L, 1)) { /* is there an error object? */
 		if (!luaL_callmeta(L, 1, "__tostring")) /* try its 'tostring' metamethod */
 			lua_pushliteral(L, "(no error message)");
@@ -428,21 +430,21 @@ static int ffi_light_set_spot_blend(lua_State *L)
 static int ffi_light_set_use_sphere(lua_State *L)
 {
 	struct light *light = checktag(L, 1, TAG_LIGHT);
-	light->use_sphere = luaL_checkint(L, 2);
+	light->use_sphere = lua_tointeger(L, 2);
 	return 0;
 }
 
 static int ffi_light_set_use_square(lua_State *L)
 {
 	struct light *light = checktag(L, 1, TAG_LIGHT);
-	light->use_square = luaL_checkint(L, 2);
+	light->use_square = lua_tointeger(L, 2);
 	return 0;
 }
 
 static int ffi_light_set_use_shadow(lua_State *L)
 {
 	struct light *light = checktag(L, 1, TAG_LIGHT);
-	light->use_shadow = luaL_checkint(L, 2);
+	light->use_shadow = lua_tointeger(L, 2);
 	return 0;
 }
 

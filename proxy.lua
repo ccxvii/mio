@@ -94,6 +94,8 @@ end
 
 instance = object
 
+function empty(data) end
+
 -- Lights
 
 local mt_light = {}
@@ -127,11 +129,11 @@ function light(data)
 	if data.energy then light_set_energy(light, data.energy) end
 	if data.color then light_set_color(light, table_unpack(data.color)) end
 	if data.distance then light_set_distance(light, data.distance) end
-	if data.use_sphere then light_set_use_sphere(light, data.use_sphere) end
 	if data.spot_size then light_set_spot_size(light, data.spot_size) end
 	if data.spot_blend then light_set_spot_blend(light, data.spot_blend) end
-	if data.use_square then light_set_use_square(light, data.use_square) end
-	if data.use_shadow then light_set_use_shadow(light, data.use_shadow) end
+	light_set_use_sphere(light, data.use_sphere)
+	light_set_use_square(light, data.use_square)
+	light_set_use_shadow(light, data.use_shadow)
 	return setmetatable({user=light}, mt_light)
 end
 
