@@ -18,8 +18,8 @@ function mt_amt:attach(child, tagname)
 	child:set_parent(self, tagname)
 end
 
-function mt_amt:set_location(x, y, z)
-	amt_set_location(self.user, x, y, z)
+function mt_amt:set_position(x, y, z)
+	amt_set_position(self.user, x, y, z)
 end
 
 function mt_amt:set_rotation(x, y, z, w)
@@ -30,7 +30,7 @@ function mt_amt:set_scale(x, y, z)
 	amt_set_scale(self.user, x, y, z)
 end
 
-function mt_amt:location() return amt_location(self.user) end
+function mt_amt:position() return amt_position(self.user) end
 function mt_amt:rotation() return amt_rotation(self.user) end
 function mt_amt:scale() return amt_scale(self.user) end
 
@@ -45,7 +45,7 @@ end
 function armature(data)
 	if type(data) == 'string' then return armature {skel=data} end
 	local amt = amt_new(data.skel)
-	if data.location then amt_set_location(amt, table_unpack(data.location)) end
+	if data.position then amt_set_position(amt, table_unpack(data.position)) end
 	if data.rotation then amt_set_rotation(amt, table_unpack(data.rotation)) end
 	if data.scale then amt_set_scale(amt, table_unpack(data.scale)) end
 	if data.color then amt_set_color(amt, table_unpack(data.color)) end
@@ -66,8 +66,8 @@ function mt_obj:clear_parent()
 	obj_clear_parent(self.user)
 end
 
-function mt_obj:set_location(x, y, z)
-	obj_set_location(self.user, x, y, z)
+function mt_obj:set_position(x, y, z)
+	obj_set_position(self.user, x, y, z)
 end
 
 function mt_obj:set_rotation(x, y, z, w)
@@ -78,14 +78,14 @@ function mt_obj:set_scale(x, y, z)
 	obj_set_scale(self.user, x, y, z)
 end
 
-function mt_obj:location() return obj_location(self.user) end
+function mt_obj:position() return obj_position(self.user) end
 function mt_obj:rotation() return obj_rotation(self.user) end
 function mt_obj:scale() return obj_scale(self.user) end
 
 function object(data)
 	if type(data) == 'string' then return object {mesh=data} end
 	local obj = obj_new(data.mesh)
-	if data.location then obj_set_location(obj, table_unpack(data.location)) end
+	if data.position then obj_set_position(obj, table_unpack(data.position)) end
 	if data.rotation then obj_set_rotation(obj, table_unpack(data.rotation)) end
 	if data.scale then obj_set_scale(obj, table_unpack(data.scale)) end
 	if data.color then obj_set_color(obj, table_unpack(data.color)) end
@@ -110,20 +110,20 @@ function mt_light:clear_parent()
 	light_clear_parent(self.user)
 end
 
-function mt_light:set_location(x, y, z)
-	light_set_location(self.user, x, y, z)
+function mt_light:set_position(x, y, z)
+	light_set_position(self.user, x, y, z)
 end
 
 function mt_light:set_rotation(x, y, z, w)
 	light_set_rotation(self.user, x, y, z, w)
 end
 
-function mt_light:location() return light_location(self.user) end
+function mt_light:position() return light_position(self.user) end
 function mt_light:rotation() return light_rotation(self.user) end
 
 function light(data)
 	light = light_new()
-	if data.location then light_set_location(light, table_unpack(data.location)) end
+	if data.position then light_set_position(light, table_unpack(data.position)) end
 	if data.rotation then light_set_rotation(light, table_unpack(data.rotation)) end
 	if data.type then light_set_type(light, data.type) end
 	if data.energy then light_set_energy(light, data.energy) end

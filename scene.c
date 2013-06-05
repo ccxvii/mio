@@ -22,7 +22,7 @@ struct armature *new_armature(struct scene *scene, const char *skelname)
 	amt->skel = skel;
 
 	amt->dirty = 1;
-	vec_init(amt->location, 0, 0, 0);
+	vec_init(amt->position, 0, 0, 0);
 	quat_init(amt->rotation, 0, 0, 0, 1);
 	vec_init(amt->scale, 1, 1, 1);
 
@@ -43,7 +43,7 @@ struct object *new_object(struct scene *scene, const char *meshname)
 	obj->mesh = mesh;
 
 	obj->dirty = 1;
-	vec_init(obj->location, 0, 0, 0);
+	vec_init(obj->position, 0, 0, 0);
 	quat_init(obj->rotation, 0, 0, 0, 1);
 	vec_init(obj->scale, 1, 1, 1);
 
@@ -58,7 +58,7 @@ struct light *new_light(struct scene *scene)
 	light->tag = TAG_LIGHT;
 
 	light->dirty = 1;
-	vec_init(light->location, 0, 0, 0);
+	vec_init(light->position, 0, 0, 0);
 	quat_init(light->rotation, 0, 0, 0, 1);
 	vec_init(light->scale, 1, 1, 1);
 
@@ -240,9 +240,9 @@ static int update_armature(struct armature *node, float time)
 			for (i = 0; i < node->skel->count; i++) {
 				int k = node->anim_map[i];
 				if (k >= 0)
-					mat_from_pose(local_pose[i], anim_pose[k].location, anim_pose[k].rotation, anim_pose[k].scale);
+					mat_from_pose(local_pose[i], anim_pose[k].position, anim_pose[k].rotation, anim_pose[k].scale);
 				else
-					mat_from_pose(local_pose[i], skel_pose[i].location, skel_pose[i].rotation, skel_pose[i].scale);
+					mat_from_pose(local_pose[i], skel_pose[i].position, skel_pose[i].rotation, skel_pose[i].scale);
 			}
 
 			calc_abs_matrix(node->model_pose, local_pose, node->skel->parent, node->skel->count);
@@ -253,11 +253,11 @@ static int update_armature(struct armature *node, float time)
 
 		if (node->parent) {
 			mat4 parent, local;
-			mat_from_pose(local, node->location, node->rotation, node->scale);
+			mat_from_pose(local, node->position, node->rotation, node->scale);
 			mat_mul(parent, node->parent->transform, node->parent->model_pose[node->parent_tag]);
 			mat_mul(node->transform, parent, local);
 		} else {
-			mat_from_pose(node->transform, node->location, node->rotation, node->scale);
+			mat_from_pose(node->transform, node->position, node->rotation, node->scale);
 		}
 
 		return 1;
@@ -291,12 +291,12 @@ static void update_object(struct object *node, float time)
 				mat_copy(node->transform, node->parent->transform);
 			} else {
 				mat4 parent, local;
-				mat_from_pose(local, node->location, node->rotation, node->scale);
+				mat_from_pose(local, node->position, node->rotation, node->scale);
 				mat_mul(parent, node->parent->transform, node->parent->model_pose[node->parent_tag]);
 				mat_mul(node->transform, parent, local);
 			}
 		} else {
-			mat_from_pose(node->transform, node->location, node->rotation, node->scale);
+			mat_from_pose(node->transform, node->position, node->rotation, node->scale);
 		}
 	}
 
@@ -311,11 +311,11 @@ static void update_light(struct light *node, float time)
 	if (node->dirty) {
 		if (node->parent) {
 			mat4 parent, local;
-			mat_from_pose(local, node->location, node->rotation, node->scale);
+			mat_from_pose(local, node->position, node->rotation, node->scale);
 			mat_mul(parent, node->parent->transform, node->parent->model_pose[node->parent_tag]);
 			mat_mul(node->transform, parent, local);
 		} else {
-			mat_from_pose(node->transform, node->location, node->rotation, node->scale);
+			mat_from_pose(node->transform, node->position, node->rotation, node->scale);
 		}
 	}
 

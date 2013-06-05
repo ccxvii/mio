@@ -66,7 +66,7 @@ int xstrlcat(char *dst, const char *src, int siz);
 #include "vector.h"
 
 struct pose {
-	vec3 location;
+	vec3 position;
 	vec4 rotation;
 	vec3 scale;
 };
@@ -265,7 +265,7 @@ struct armature
 	int parent_tag;
 
 	int dirty;
-	vec3 location;
+	vec3 position;
 	vec4 rotation;
 	vec3 scale;
 	mat4 transform;
@@ -290,7 +290,7 @@ struct object
 	unsigned char parent_map[MAXBONE]; // TODO: move into mesh, like for anim_map
 
 	int dirty;
-	vec3 location;
+	vec3 position;
 	vec4 rotation;
 	vec3 scale;
 	mat4 transform;
@@ -312,7 +312,7 @@ struct light
 	int parent_tag;
 
 	int dirty;
-	vec3 location;
+	vec3 position;
 	vec4 rotation;
 	vec3 scale;
 	mat4 transform;

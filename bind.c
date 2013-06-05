@@ -144,12 +144,12 @@ static int ffi_amt_clear_parent(lua_State *L)
 	return 0;
 }
 
-static int ffi_amt_set_location(lua_State *L)
+static int ffi_amt_set_position(lua_State *L)
 {
 	struct armature *amt = checktag(L, 1, TAG_ARMATURE);
-	amt->location[0] = luaL_checknumber(L, 2);
-	amt->location[1] = luaL_checknumber(L, 3);
-	amt->location[2] = luaL_checknumber(L, 4);
+	amt->position[0] = luaL_checknumber(L, 2);
+	amt->position[1] = luaL_checknumber(L, 3);
+	amt->position[2] = luaL_checknumber(L, 4);
 	amt->dirty = 1;
 	return 0;
 }
@@ -175,12 +175,12 @@ static int ffi_amt_set_scale(lua_State *L)
 	return 0;
 }
 
-static int ffi_amt_location(lua_State *L)
+static int ffi_amt_position(lua_State *L)
 {
 	struct armature *amt = checktag(L, 1, TAG_ARMATURE);
-	lua_pushnumber(L, amt->location[0]);
-	lua_pushnumber(L, amt->location[1]);
-	lua_pushnumber(L, amt->location[2]);
+	lua_pushnumber(L, amt->position[0]);
+	lua_pushnumber(L, amt->position[1]);
+	lua_pushnumber(L, amt->position[2]);
 	return 3;
 }
 
@@ -255,12 +255,12 @@ static int ffi_obj_clear_parent(lua_State *L)
 	return 0;
 }
 
-static int ffi_obj_set_location(lua_State *L)
+static int ffi_obj_set_position(lua_State *L)
 {
 	struct object *obj = checktag(L, 1, TAG_OBJECT);
-	obj->location[0] = luaL_checknumber(L, 2);
-	obj->location[1] = luaL_checknumber(L, 3);
-	obj->location[2] = luaL_checknumber(L, 4);
+	obj->position[0] = luaL_checknumber(L, 2);
+	obj->position[1] = luaL_checknumber(L, 3);
+	obj->position[2] = luaL_checknumber(L, 4);
 	obj->dirty = 1;
 	return 0;
 }
@@ -295,12 +295,12 @@ static int ffi_obj_set_color(lua_State *L)
 	return 0;
 }
 
-static int ffi_obj_location(lua_State *L)
+static int ffi_obj_position(lua_State *L)
 {
 	struct object *obj = checktag(L, 1, TAG_OBJECT);
-	lua_pushnumber(L, obj->location[0]);
-	lua_pushnumber(L, obj->location[1]);
-	lua_pushnumber(L, obj->location[2]);
+	lua_pushnumber(L, obj->position[0]);
+	lua_pushnumber(L, obj->position[1]);
+	lua_pushnumber(L, obj->position[2]);
 	return 3;
 }
 
@@ -362,12 +362,12 @@ static int ffi_light_clear_parent(lua_State *L)
 	return 0;
 }
 
-static int ffi_light_set_location(lua_State *L)
+static int ffi_light_set_position(lua_State *L)
 {
 	struct light *light = checktag(L, 1, TAG_LIGHT);
-	light->location[0] = luaL_checknumber(L, 2);
-	light->location[1] = luaL_checknumber(L, 3);
-	light->location[2] = luaL_checknumber(L, 4);
+	light->position[0] = luaL_checknumber(L, 2);
+	light->position[1] = luaL_checknumber(L, 3);
+	light->position[2] = luaL_checknumber(L, 4);
 	light->dirty = 1;
 	return 0;
 }
@@ -448,12 +448,12 @@ static int ffi_light_set_use_shadow(lua_State *L)
 	return 0;
 }
 
-static int ffi_light_location(lua_State *L)
+static int ffi_light_position(lua_State *L)
 {
 	struct light *light = checktag(L, 1, TAG_LIGHT);
-	lua_pushnumber(L, light->location[0]);
-	lua_pushnumber(L, light->location[1]);
-	lua_pushnumber(L, light->location[2]);
+	lua_pushnumber(L, light->position[0]);
+	lua_pushnumber(L, light->position[1]);
+	lua_pushnumber(L, light->position[2]);
 	return 3;
 }
 
@@ -559,10 +559,10 @@ void init_lua(void)
 	lua_register(L, "amt_new", ffi_amt_new);
 	lua_register(L, "amt_set_parent", ffi_amt_set_parent);
 	lua_register(L, "amt_clear_parent", ffi_amt_clear_parent);
-	lua_register(L, "amt_set_location", ffi_amt_set_location);
+	lua_register(L, "amt_set_position", ffi_amt_set_position);
 	lua_register(L, "amt_set_rotation", ffi_amt_set_rotation);
 	lua_register(L, "amt_set_scale", ffi_amt_set_scale);
-	lua_register(L, "amt_location", ffi_amt_location);
+	lua_register(L, "amt_position", ffi_amt_position);
 	lua_register(L, "amt_rotation", ffi_amt_rotation);
 	lua_register(L, "amt_scale", ffi_amt_scale);
 	lua_register(L, "amt_play_anim", ffi_amt_play_anim);
@@ -571,11 +571,11 @@ void init_lua(void)
 	lua_register(L, "obj_new", ffi_obj_new);
 	lua_register(L, "obj_set_parent", ffi_obj_set_parent);
 	lua_register(L, "obj_clear_parent", ffi_obj_clear_parent);
-	lua_register(L, "obj_set_location", ffi_obj_set_location);
+	lua_register(L, "obj_set_position", ffi_obj_set_position);
 	lua_register(L, "obj_set_rotation", ffi_obj_set_rotation);
 	lua_register(L, "obj_set_scale", ffi_obj_set_scale);
 	lua_register(L, "obj_set_color", ffi_obj_set_color);
-	lua_register(L, "obj_location", ffi_obj_location);
+	lua_register(L, "obj_position", ffi_obj_position);
 	lua_register(L, "obj_rotation", ffi_obj_rotation);
 	lua_register(L, "obj_scale", ffi_obj_scale);
 	lua_register(L, "obj_color", ffi_obj_color);
@@ -583,7 +583,7 @@ void init_lua(void)
 	lua_register(L, "light_new", ffi_light_new);
 	lua_register(L, "light_set_parent", ffi_light_set_parent);
 	lua_register(L, "light_clear_parent", ffi_light_clear_parent);
-	lua_register(L, "light_set_location", ffi_light_set_location);
+	lua_register(L, "light_set_position", ffi_light_set_position);
 	lua_register(L, "light_set_rotation", ffi_light_set_rotation);
 	lua_register(L, "light_set_type", ffi_light_set_type);
 	lua_register(L, "light_set_color", ffi_light_set_color);
@@ -594,7 +594,7 @@ void init_lua(void)
 	lua_register(L, "light_set_use_sphere", ffi_light_set_use_sphere);
 	lua_register(L, "light_set_use_square", ffi_light_set_use_square);
 	lua_register(L, "light_set_use_shadow", ffi_light_set_use_shadow);
-	lua_register(L, "light_location", ffi_light_location);
+	lua_register(L, "light_position", ffi_light_position);
 	lua_register(L, "light_rotation", ffi_light_rotation);
 	lua_register(L, "light_type", ffi_light_type);
 	lua_register(L, "light_color", ffi_light_color);

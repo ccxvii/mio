@@ -116,7 +116,7 @@ struct model *load_iqm_from_memory(const char *filename, unsigned char *data, in
 		for (i = 0; i < iqm->num_joints; i++) {
 			strlcpy(skel->name[i], text + iqjoint[i].name, sizeof skel->name[0]);
 			skel->parent[i] = iqjoint[i].parent;
-			memcpy(skel->pose[i].location, iqjoint[i].translate, 3 * sizeof(float));
+			memcpy(skel->pose[i].position, iqjoint[i].translate, 3 * sizeof(float));
 			memcpy(skel->pose[i].rotation, iqjoint[i].rotate, 4 * sizeof(float));
 			memcpy(skel->pose[i].scale, iqjoint[i].scale, 3 * sizeof(float));
 		}
@@ -195,9 +195,9 @@ struct model *load_iqm_from_memory(const char *filename, unsigned char *data, in
 
 		for (i = 0; i < iqm->num_joints; i++) {
 			anim->mask[i] = iqpose[i].mask;
-			anim->pose[i].location[0] = iqpose[i].channeloffset[0];
-			anim->pose[i].location[1] = iqpose[i].channeloffset[1];
-			anim->pose[i].location[2] = iqpose[i].channeloffset[2];
+			anim->pose[i].position[0] = iqpose[i].channeloffset[0];
+			anim->pose[i].position[1] = iqpose[i].channeloffset[1];
+			anim->pose[i].position[2] = iqpose[i].channeloffset[2];
 			anim->pose[i].rotation[0] = iqpose[i].channeloffset[3];
 			anim->pose[i].rotation[1] = iqpose[i].channeloffset[4];
 			anim->pose[i].rotation[2] = iqpose[i].channeloffset[5];

@@ -347,7 +347,7 @@ static const char *point_frag_src =
 	"uniform sampler2D map_depth;\n"
 	"uniform vec2 viewport;\n"
 	"uniform mat4 view_from_clip;\n"
-	"uniform vec3 light_location;\n"
+	"uniform vec3 light_position;\n"
 	"uniform vec3 light_color;\n"
 	"uniform float light_energy;\n"
 	"uniform float light_distance;\n"
@@ -361,7 +361,7 @@ static const char *point_frag_src =
 	"	vec3 normal = texture(map_normal, texcoord).xyz;\n"
 	"	vec3 albedo = texture(map_color, texcoord).rgb;\n"
 
-	"	vec3 direction = light_location - position;\n"
+	"	vec3 direction = light_position - position;\n"
 	"	float dist2 = dot(direction, direction);\n"
 	"	float falloff = light_distance / (light_distance + dist2);\n"
 	"	falloff = falloff * max(light_distance - sqrt(dist2), 0.0) / light_distance;\n"
@@ -377,20 +377,20 @@ void render_point_light(struct light *light, mat4 clip_from_view, mat4 view_from
 	static int prog = 0;
 	static int uni_viewport;
 	static int uni_view_from_clip;
-	static int uni_light_location;
+	static int uni_light_position;
 	static int uni_light_color;
 	static int uni_light_distance;
 
 	mat4 view_from_clip;
 	vec2 viewport;
-	vec3 location;
+	vec3 position;
 	vec3 color;
 
 	if (!prog) {
 		prog = compile_shader(quad_vert_src, point_frag_src);
 		uni_viewport = glGetUniformLocation(prog, "viewport");
 		uni_view_from_clip = glGetUniformLocation(prog, "view_from_clip");
-		uni_light_location = glGetUniformLocation(prog, "light_location");
+		uni_light_position = glGetUniformLocation(prog, "light_position");
 		uni_light_color = glGetUniformLocation(prog, "light_color");
 		uni_light_distance = glGetUniformLocation(prog, "light_distance");
 	}
@@ -400,13 +400,13 @@ void render_point_light(struct light *light, mat4 clip_from_view, mat4 view_from
 	viewport[0] = fbo_w;
 	viewport[1] = fbo_h;
 
-	mat_vec_mul(location, view_from_world, light->transform + 12);
+	mat_vec_mul(position, view_from_world, light->transform + 12);
 	vec_scale(color, light->color, light->energy);
 
 	glUseProgram(prog);
 	glUniform2fv(uni_viewport, 1, viewport);
 	glUniformMatrix4fv(uni_view_from_clip, 1, 0, view_from_clip);
-	glUniform3fv(uni_light_location, 1, location);
+	glUniform3fv(uni_light_position, 1, position);
 	glUniform3fv(uni_light_color, 1, color);
 	glUniform1f(uni_light_distance, light->distance);
 
