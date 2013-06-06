@@ -140,8 +140,8 @@ static void display(void)
 	mat_identity(view);
 
 	// copy forward buffer to screen
-	//render_blit(projection, view, screenw, screenh);
-	render_debug_buffers(projection, view);
+	render_blit(projection, view, screenw, screenh);
+	//render_debug_buffers(projection, view);
 
 	if (showconsole)
 		console_draw(projection, view, droid_sans_mono, 15);
