@@ -122,14 +122,14 @@ function mt_light:position() return light_position(self.user) end
 function mt_light:rotation() return light_rotation(self.user) end
 
 function light(data)
-	light = light_new()
+	local light = light_new()
 	if data.position then light_set_position(light, table_unpack(data.position)) end
 	if data.rotation then light_set_rotation(light, table_unpack(data.rotation)) end
 	if data.type then light_set_type(light, data.type) end
 	if data.energy then light_set_energy(light, data.energy) end
 	if data.color then light_set_color(light, table_unpack(data.color)) end
 	if data.distance then light_set_distance(light, data.distance) end
-	if data.spot_size then light_set_spot_size(light, data.spot_size) end
+	if data.spot_angle then light_set_spot_angle(light, data.spot_angle) end
 	if data.spot_blend then light_set_spot_blend(light, data.spot_blend) end
 	light_set_use_sphere(light, data.use_sphere)
 	light_set_use_square(light, data.use_square)

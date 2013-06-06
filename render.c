@@ -349,8 +349,83 @@ static const char *point_frag_src =
 	"uniform mat4 view_from_clip;\n"
 	"uniform vec3 light_position;\n"
 	"uniform vec3 light_color;\n"
-	"uniform float light_energy;\n"
 	"uniform float light_distance;\n"
+	"out vec4 frag_color;\n"
+
+	"void main() {\n"
+	"	vec2 texcoord = gl_FragCoord.xy / viewport.xy;\n"
+	"	float depth = texture(map_depth, texcoord).x;\n"
+	"	vec4 pos_clip = 2.0 * vec4(texcoord, depth, 1.0) - 1.0;\n"
+	"	vec4 pos_view = view_from_clip * pos_clip;\n"
+	"	vec3 position = pos_view.xyz / pos_view.w;\n"
+	"	vec3 normal = texture(map_normal, texcoord).xyz;\n"
+	"	vec3 albedo = texture(map_color, texcoord).rgb;\n"
+
+	"	vec3 direction = light_position - position;\n"
+	"	float dist2 = dot(direction, direction);\n"
+	"	float falloff = light_distance / (light_distance + dist2);\n"
+	"	falloff = falloff * max(light_distance - sqrt(dist2), 0.0) / light_distance;\n"
+	"	vec3 L = normalize(direction);\n"
+	"	float diffuse = max(dot(normal, L), 0.0) * falloff;\n"
+
+	"	frag_color = vec4(albedo * diffuse * light_color, 0);\n"
+	"}\n"
+;
+
+void render_point_light(struct light *light, mat4 clip_from_view, mat4 view_from_world)
+{
+	static int prog = 0;
+	static int uni_viewport;
+	static int uni_view_from_clip;
+	static int uni_light_position;
+	static int uni_light_color;
+	static int uni_light_distance;
+
+	mat4 view_from_clip;
+	vec2 viewport;
+	vec3 light_position;
+	vec3 light_color;
+
+	if (!prog) {
+		prog = compile_shader(quad_vert_src, point_frag_src);
+		uni_viewport = glGetUniformLocation(prog, "viewport");
+		uni_view_from_clip = glGetUniformLocation(prog, "view_from_clip");
+		uni_light_position = glGetUniformLocation(prog, "light_position");
+		uni_light_color = glGetUniformLocation(prog, "light_color");
+		uni_light_distance = glGetUniformLocation(prog, "light_distance");
+	}
+
+	mat_invert(view_from_clip, clip_from_view);
+
+	viewport[0] = fbo_w;
+	viewport[1] = fbo_h;
+
+	mat_vec_mul(light_position, view_from_world, light->transform + 12);
+	vec_scale(light_color, light->color, light->energy);
+
+	glUseProgram(prog);
+	glUniform2fv(uni_viewport, 1, viewport);
+	glUniformMatrix4fv(uni_view_from_clip, 1, 0, view_from_clip);
+	glUniform3fv(uni_light_position, 1, light_position);
+	glUniform3fv(uni_light_color, 1, light_color);
+	glUniform1f(uni_light_distance, light->distance);
+
+	draw_fullscreen_quad();
+}
+
+/* Spot light */
+
+static const char *spot_frag_src =
+	"uniform sampler2D map_color;\n"
+	"uniform sampler2D map_normal;\n"
+	"uniform sampler2D map_depth;\n"
+	"uniform vec2 viewport;\n"
+	"uniform mat4 view_from_clip;\n"
+	"uniform vec3 light_position;\n"
+	"uniform vec3 light_direction;\n"
+	"uniform vec3 light_color;\n"
+	"uniform float light_distance;\n"
+	"uniform float light_angle;\n"
 	"out vec4 frag_color;\n"
 	"void main() {\n"
 	"	vec2 texcoord = gl_FragCoord.xy / viewport.xy;\n"
@@ -368,29 +443,42 @@ static const char *point_frag_src =
 	"	vec3 L = normalize(direction);\n"
 	"	float diffuse = max(dot(normal, L), 0.0) * falloff;\n"
 
-	"	frag_color = vec4(albedo * diffuse * light_color, 1);\n"
+	"	float spot = dot(light_direction, L);\n"
+	"	float shadow = 1.0;\n"
+	"	if (spot <= light_angle) { shadow = 0.0; }\n"
+
+	"	frag_color = vec4(albedo * diffuse * light_color * shadow, 0);\n"
 	"}\n"
 ;
 
-void render_point_light(struct light *light, mat4 clip_from_view, mat4 view_from_world)
+void render_spot_light(struct light *light, mat4 clip_from_view, mat4 view_from_world)
 {
 	static int prog = 0;
 	static int uni_viewport;
 	static int uni_view_from_clip;
 	static int uni_light_position;
+	static int uni_light_direction;
+	static int uni_light_angle;
 	static int uni_light_color;
 	static int uni_light_distance;
 
+	static const vec3 light_direction_init = { 0, 0, 1 };
+
 	mat4 view_from_clip;
 	vec2 viewport;
-	vec3 position;
-	vec3 color;
+	vec3 light_position;
+	vec3 light_direction_world;
+	vec3 light_direction_view;
+	vec3 light_direction;
+	vec3 light_color;
 
 	if (!prog) {
-		prog = compile_shader(quad_vert_src, point_frag_src);
+		prog = compile_shader(quad_vert_src, spot_frag_src);
 		uni_viewport = glGetUniformLocation(prog, "viewport");
 		uni_view_from_clip = glGetUniformLocation(prog, "view_from_clip");
 		uni_light_position = glGetUniformLocation(prog, "light_position");
+		uni_light_direction = glGetUniformLocation(prog, "light_direction");
+		uni_light_angle = glGetUniformLocation(prog, "light_angle");
 		uni_light_color = glGetUniformLocation(prog, "light_color");
 		uni_light_distance = glGetUniformLocation(prog, "light_distance");
 	}
@@ -400,21 +488,24 @@ void render_point_light(struct light *light, mat4 clip_from_view, mat4 view_from
 	viewport[0] = fbo_w;
 	viewport[1] = fbo_h;
 
-	mat_vec_mul(position, view_from_world, light->transform + 12);
-	vec_scale(color, light->color, light->energy);
+	mat_vec_mul(light_position, view_from_world, light->transform + 12);
+
+	mat_vec_mul_n(light_direction_world, light->transform, light_direction_init);
+	mat_vec_mul_n(light_direction_view, view_from_world, light_direction_world);
+	vec_normalize(light_direction, light_direction_view);
+
+	vec_scale(light_color, light->color, light->energy);
 
 	glUseProgram(prog);
 	glUniform2fv(uni_viewport, 1, viewport);
 	glUniformMatrix4fv(uni_view_from_clip, 1, 0, view_from_clip);
-	glUniform3fv(uni_light_position, 1, position);
-	glUniform3fv(uni_light_color, 1, color);
+	glUniform3fv(uni_light_position, 1, light_position);
+	glUniform3fv(uni_light_direction, 1, light_direction);
+	glUniform3fv(uni_light_color, 1, light_color);
 	glUniform1f(uni_light_distance, light->distance);
+	glUniform1f(uni_light_angle, cos(light->spot_angle * 0.5 * 3.14157 / 180.0));
 
 	draw_fullscreen_quad();
-}
-
-void render_spot_light(struct light *light, mat4 clip_from_view, mat4 view_from_world)
-{
 }
 
 void render_sun_light(struct light *light, mat4 clip_from_view, mat4 view_from_world)
