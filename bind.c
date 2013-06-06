@@ -430,21 +430,14 @@ static int ffi_lamp_set_spot_blend(lua_State *L)
 static int ffi_lamp_set_use_sphere(lua_State *L)
 {
 	struct lamp *lamp = checktag(L, 1, TAG_LAMP);
-	lamp->use_sphere = lua_tointeger(L, 2);
-	return 0;
-}
-
-static int ffi_lamp_set_use_square(lua_State *L)
-{
-	struct lamp *lamp = checktag(L, 1, TAG_LAMP);
-	lamp->use_square = lua_tointeger(L, 2);
+	lamp->use_sphere = lua_toboolean(L, 2);
 	return 0;
 }
 
 static int ffi_lamp_set_use_shadow(lua_State *L)
 {
 	struct lamp *lamp = checktag(L, 1, TAG_LAMP);
-	lamp->use_shadow = lua_tointeger(L, 2);
+	lamp->use_shadow = lua_toboolean(L, 2);
 	return 0;
 }
 
@@ -518,13 +511,6 @@ static int ffi_lamp_use_sphere(lua_State *L)
 	return 1;
 }
 
-static int ffi_lamp_use_square(lua_State *L)
-{
-	struct lamp *lamp = checktag(L, 1, TAG_LAMP);
-	lua_pushboolean(L, lamp->use_square);
-	return 1;
-}
-
 static int ffi_lamp_use_shadow(lua_State *L)
 {
 	struct lamp *lamp = checktag(L, 1, TAG_LAMP);
@@ -592,7 +578,6 @@ void init_lua(void)
 	lua_register(L, "lamp_set_spot_angle", ffi_lamp_set_spot_angle);
 	lua_register(L, "lamp_set_spot_blend", ffi_lamp_set_spot_blend);
 	lua_register(L, "lamp_set_use_sphere", ffi_lamp_set_use_sphere);
-	lua_register(L, "lamp_set_use_square", ffi_lamp_set_use_square);
 	lua_register(L, "lamp_set_use_shadow", ffi_lamp_set_use_shadow);
 	lua_register(L, "lamp_position", ffi_lamp_position);
 	lua_register(L, "lamp_rotation", ffi_lamp_rotation);
@@ -603,6 +588,5 @@ void init_lua(void)
 	lua_register(L, "lamp_spot_angle", ffi_lamp_spot_angle);
 	lua_register(L, "lamp_spot_blend", ffi_lamp_spot_blend);
 	lua_register(L, "lamp_use_sphere", ffi_lamp_use_sphere);
-	lua_register(L, "lamp_use_square", ffi_lamp_use_square);
 	lua_register(L, "lamp_use_shadow", ffi_lamp_use_shadow);
 }

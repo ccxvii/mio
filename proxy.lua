@@ -123,6 +123,22 @@ end
 function mt_lamp:position() return lamp_position(self.user) end
 function mt_lamp:rotation() return lamp_rotation(self.user) end
 
+function mt_lamp:set_distance(v) lamp_set_distance(self.user, v) end
+function mt_lamp:set_energy(v) lamp_set_energy(self.user, v) end
+function mt_lamp:set_color(r,g,b) lamp_set_color(self.user, r, g, b) end
+function mt_lamp:set_spot_angle(v) lamp_set_spot_angle(self.user, v) end
+function mt_lamp:set_spot_blend(v) lamp_set_spot_blend(self.user, v) end
+function mt_lamp:set_use_sphere(v) lamp_set_use_sphere(self.user, v) end
+function mt_lamp:set_use_shadow(v) lamp_set_use_shadow(self.user, v) end
+
+function mt_lamp:distance() return lamp_distance(self.user) end
+function mt_lamp:energy() return lamp_energy(self.user) end
+function mt_lamp:color() return lamp_color(self.user) end
+function mt_lamp:spot_angle() return lamp_spot_angle(self.user) end
+function mt_lamp:spot_blend() return lamp_spot_blend(self.user) end
+function mt_lamp:use_sphere() return lamp_use_sphere(self.user) end
+function mt_lamp:use_shadow() return lamp_use_shadow(self.user) end
+
 function lamp(data)
 	if type(data) == 'string' then return lamp {type=data} end
 	local lamp = lamp_new()
@@ -134,9 +150,8 @@ function lamp(data)
 	if data.distance then lamp_set_distance(lamp, data.distance) end
 	if data.spot_angle then lamp_set_spot_angle(lamp, data.spot_angle) end
 	if data.spot_blend then lamp_set_spot_blend(lamp, data.spot_blend) end
-	lamp_set_use_sphere(lamp, data.use_sphere)
-	lamp_set_use_square(lamp, data.use_square)
-	lamp_set_use_shadow(lamp, data.use_shadow)
+	if type(data.use_sphere) == 'boolean' then lamp_set_use_sphere(lamp, data.use_sphere) end
+	if type(data.use_shadow) == 'boolean' then lamp_set_use_shadow(lamp, data.use_shadow) end
 	return setmetatable({user=lamp}, mt_lamp)
 end
 

@@ -324,7 +324,6 @@ struct lamp
 	float spot_angle;
 	float spot_blend;
 	int use_sphere;
-	int use_square;
 	int use_shadow;
 };
 

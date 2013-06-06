@@ -350,6 +350,7 @@ static const char *point_frag_src =
 	"uniform vec3 lamp_position;\n"
 	"uniform vec3 lamp_color;\n"
 	"uniform float lamp_distance;\n"
+	"uniform bool use_sphere;\n"
 	"out vec4 frag_color;\n"
 	"void main() {\n"
 	"	vec2 texcoord = gl_FragCoord.xy / viewport.xy;\n"
@@ -362,10 +363,10 @@ static const char *point_frag_src =
 	"	vec3 direction = lamp_position - position;\n"
 	"	float dist2 = dot(direction, direction);\n"
 	"	float falloff = lamp_distance / (lamp_distance + dist2);\n"
-	"	falloff = falloff * max(lamp_distance - sqrt(dist2), 0.0) / lamp_distance;\n"
+	"	if (use_sphere) falloff *= max(lamp_distance - sqrt(dist2), 0.0) / lamp_distance;\n"
 	"	vec3 L = normalize(direction);\n"
-	"	float diffuse = max(dot(normal, L), 0.0) * falloff;\n"
-	"	frag_color = vec4(albedo * diffuse * lamp_color, 0);\n"
+	"	float diffuse = max(dot(normal, L), 0.0);\n"
+	"	frag_color = vec4(albedo * lamp_color * diffuse * falloff, 0);\n"
 	"}\n"
 ;
 
@@ -377,6 +378,7 @@ void render_point_lamp(struct lamp *lamp, mat4 clip_from_view, mat4 view_from_wo
 	static int uni_lamp_position;
 	static int uni_lamp_color;
 	static int uni_lamp_distance;
+	static int uni_use_sphere;
 
 	mat4 view_from_clip;
 	vec2 viewport;
@@ -390,6 +392,7 @@ void render_point_lamp(struct lamp *lamp, mat4 clip_from_view, mat4 view_from_wo
 		uni_lamp_position = glGetUniformLocation(prog, "lamp_position");
 		uni_lamp_color = glGetUniformLocation(prog, "lamp_color");
 		uni_lamp_distance = glGetUniformLocation(prog, "lamp_distance");
+		uni_use_sphere = glGetUniformLocation(prog, "use_sphere");
 	}
 
 	mat_invert(view_from_clip, clip_from_view);
@@ -406,6 +409,7 @@ void render_point_lamp(struct lamp *lamp, mat4 clip_from_view, mat4 view_from_wo
 	glUniform3fv(uni_lamp_position, 1, lamp_position);
 	glUniform3fv(uni_lamp_color, 1, lamp_color);
 	glUniform1f(uni_lamp_distance, lamp->distance);
+	glUniform1i(uni_use_sphere, lamp->use_sphere);
 
 	draw_fullscreen_quad();
 }
@@ -424,6 +428,7 @@ static const char *spot_frag_src =
 	"uniform float lamp_distance;\n"
 	"uniform float spot_size;\n"
 	"uniform float spot_blend;\n"
+	"uniform bool use_sphere;\n"
 	"out vec4 frag_color;\n"
 	"void main() {\n"
 	"	vec2 texcoord = gl_FragCoord.xy / viewport.xy;\n"
@@ -436,7 +441,7 @@ static const char *spot_frag_src =
 	"	vec3 direction = lamp_position - position;\n"
 	"	float dist2 = dot(direction, direction);\n"
 	"	float falloff = lamp_distance / (lamp_distance + dist2);\n"
-	"	falloff = falloff * max(lamp_distance - sqrt(dist2), 0.0) / lamp_distance;\n"
+	"	if (use_sphere) falloff *= max(lamp_distance - sqrt(dist2), 0.0) / lamp_distance;\n"
 	"	vec3 L = normalize(direction);\n"
 	"	float diffuse = max(dot(normal, L), 0.0) * falloff;\n"
 	"	float spot_dot = dot(lamp_direction, L);\n"
@@ -458,6 +463,7 @@ void render_spot_lamp(struct lamp *lamp, mat4 clip_from_view, mat4 view_from_wor
 	static int uni_lamp_distance;
 	static int uni_spot_size;
 	static int uni_spot_blend;
+	static int uni_use_sphere;
 
 	static const vec3 lamp_direction_init = { 0, 0, 1 };
 
@@ -481,6 +487,7 @@ void render_spot_lamp(struct lamp *lamp, mat4 clip_from_view, mat4 view_from_wor
 		uni_lamp_distance = glGetUniformLocation(prog, "lamp_distance");
 		uni_spot_size = glGetUniformLocation(prog, "spot_size");
 		uni_spot_blend = glGetUniformLocation(prog, "spot_blend");
+		uni_use_sphere = glGetUniformLocation(prog, "use_sphere");
 	}
 
 	mat_invert(view_from_clip, clip_from_view);
@@ -508,6 +515,7 @@ void render_spot_lamp(struct lamp *lamp, mat4 clip_from_view, mat4 view_from_wor
 	glUniform1f(uni_lamp_distance, lamp->distance);
 	glUniform1f(uni_spot_size, spot_size);
 	glUniform1f(uni_spot_blend, spot_blend);
+	glUniform1i(uni_use_sphere, lamp->use_sphere);
 
 	draw_fullscreen_quad();
 }
