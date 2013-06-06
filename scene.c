@@ -6,7 +6,7 @@ struct scene *new_scene(void)
 	scene->tag = TAG_SCENE;
 	LIST_INIT(&scene->armatures);
 	LIST_INIT(&scene->objects);
-	LIST_INIT(&scene->lights);
+	LIST_INIT(&scene->lamps);
 	return scene;
 }
 
@@ -51,25 +51,25 @@ struct object *new_object(struct scene *scene, const char *meshname)
 	return obj;
 }
 
-struct light *new_light(struct scene *scene)
+struct lamp *new_lamp(struct scene *scene)
 {
-	struct light *light = malloc(sizeof(*light));
-	memset(light, 0, sizeof(*light));
-	light->tag = TAG_LIGHT;
+	struct lamp *lamp = malloc(sizeof(*lamp));
+	memset(lamp, 0, sizeof(*lamp));
+	lamp->tag = TAG_LAMP;
 
-	light->dirty = 1;
-	vec_init(light->position, 0, 0, 0);
-	quat_init(light->rotation, 0, 0, 0, 1);
-	vec_init(light->scale, 1, 1, 1);
+	lamp->dirty = 1;
+	vec_init(lamp->position, 0, 0, 0);
+	quat_init(lamp->rotation, 0, 0, 0, 1);
+	vec_init(lamp->scale, 1, 1, 1);
 
-	light->type = LIGHT_POINT;
-	vec_init(light->color, 1, 1, 1);
-	light->energy = 1;
-	light->distance = 25;
-	light->spot_angle = 45;
+	lamp->type = LAMP_POINT;
+	vec_init(lamp->color, 1, 1, 1);
+	lamp->energy = 1;
+	lamp->distance = 25;
+	lamp->spot_angle = 45;
 
-	LIST_INSERT_HEAD(&scene->lights, light, list);
-	return light;
+	LIST_INSERT_HEAD(&scene->lamps, lamp, list);
+	return lamp;
 }
 
 int armature_set_parent(struct armature *node, struct armature *parent, const char *tagname)
@@ -131,7 +131,7 @@ int object_set_parent(struct object *node, struct armature *parent, const char *
 	return -1; /* no tag, no skin */
 }
 
-int light_set_parent(struct light *node, struct armature *parent, const char *tagname)
+int lamp_set_parent(struct lamp *node, struct armature *parent, const char *tagname)
 {
 	struct skel *skel = parent->skel;
 	int i;
@@ -165,7 +165,7 @@ void object_clear_parent(struct object *node)
 	node->parent_tag = 0;
 }
 
-void light_clear_parent(struct light *node)
+void lamp_clear_parent(struct lamp *node)
 {
 	node->dirty = 1;
 	node->parent = NULL;
@@ -303,7 +303,7 @@ static void update_object(struct object *node, float time)
 	node->dirty = 0;
 }
 
-static void update_light(struct light *node, float time)
+static void update_lamp(struct lamp *node, float time)
 {
 	if (node->parent)
 		node->dirty |= update_armature(node->parent, time);
@@ -326,14 +326,14 @@ void update_scene(struct scene *scene, float time)
 {
 	struct object *obj;
 	struct armature *amt;
-	struct light *light;
+	struct lamp *lamp;
 
 	LIST_FOREACH(amt, &scene->armatures, list)
 		update_armature(amt, time);
 	LIST_FOREACH(obj, &scene->objects, list)
 		update_object(obj, time);
-	LIST_FOREACH(light, &scene->lights, list)
-		update_light(light, time);
+	LIST_FOREACH(lamp, &scene->lamps, list)
+		update_lamp(lamp, time);
 
 	LIST_FOREACH(amt, &scene->armatures, list)
 		amt->dirty = 0;
@@ -372,12 +372,12 @@ void render_scene_geometry(struct scene *scene, mat4 proj, mat4 view)
 
 void render_scene_light(struct scene *scene, mat4 proj, mat4 view)
 {
-	struct light *light;
-	LIST_FOREACH(light, &scene->lights, list) {
-		switch (light->type) {
-		case LIGHT_POINT: render_point_light(light, proj, view); break;
-		case LIGHT_SPOT: render_spot_light(light, proj, view); break;
-		case LIGHT_SUN: render_sun_light(light, proj, view); break;
+	struct lamp *lamp;
+	LIST_FOREACH(lamp, &scene->lamps, list) {
+		switch (lamp->type) {
+		case LAMP_POINT: render_point_lamp(lamp, proj, view); break;
+		case LAMP_SPOT: render_spot_lamp(lamp, proj, view); break;
+		case LAMP_SUN: render_sun_lamp(lamp, proj, view); break;
 		}
 	}
 }

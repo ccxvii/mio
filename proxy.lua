@@ -27,6 +27,7 @@ function mt_amt:set_rotation(x, y, z, w)
 end
 
 function mt_amt:set_scale(x, y, z)
+	if not y or not z then y = x; z = x end
 	amt_set_scale(self.user, x, y, z)
 end
 
@@ -75,6 +76,7 @@ function mt_obj:set_rotation(x, y, z, w)
 end
 
 function mt_obj:set_scale(x, y, z)
+	if not y or not z then y = x; z = x end
 	obj_set_scale(self.user, x, y, z)
 end
 
@@ -98,43 +100,44 @@ function empty(data) end
 
 -- Lights
 
-local mt_light = {}
+local mt_lamp = {}
 
-mt_light.__index = mt_light
+mt_lamp.__index = mt_lamp
 
-function mt_light:set_parent(parent, tagname)
-	light_set_parent(self.user, parent.user, tagname)
+function mt_lamp:set_parent(parent, tagname)
+	lamp_set_parent(self.user, parent.user, tagname)
 end
 
-function mt_light:clear_parent()
-	light_clear_parent(self.user)
+function mt_lamp:clear_parent()
+	lamp_clear_parent(self.user)
 end
 
-function mt_light:set_position(x, y, z)
-	light_set_position(self.user, x, y, z)
+function mt_lamp:set_position(x, y, z)
+	lamp_set_position(self.user, x, y, z)
 end
 
-function mt_light:set_rotation(x, y, z, w)
-	light_set_rotation(self.user, x, y, z, w)
+function mt_lamp:set_rotation(x, y, z, w)
+	lamp_set_rotation(self.user, x, y, z, w)
 end
 
-function mt_light:position() return light_position(self.user) end
-function mt_light:rotation() return light_rotation(self.user) end
+function mt_lamp:position() return lamp_position(self.user) end
+function mt_lamp:rotation() return lamp_rotation(self.user) end
 
-function light(data)
-	local light = light_new()
-	if data.position then light_set_position(light, table_unpack(data.position)) end
-	if data.rotation then light_set_rotation(light, table_unpack(data.rotation)) end
-	if data.type then light_set_type(light, data.type) end
-	if data.energy then light_set_energy(light, data.energy) end
-	if data.color then light_set_color(light, table_unpack(data.color)) end
-	if data.distance then light_set_distance(light, data.distance) end
-	if data.spot_angle then light_set_spot_angle(light, data.spot_angle) end
-	if data.spot_blend then light_set_spot_blend(light, data.spot_blend) end
-	light_set_use_sphere(light, data.use_sphere)
-	light_set_use_square(light, data.use_square)
-	light_set_use_shadow(light, data.use_shadow)
-	return setmetatable({user=light}, mt_light)
+function lamp(data)
+	if type(data) == 'string' then return lamp {type=data} end
+	local lamp = lamp_new()
+	if data.type then lamp_set_type(lamp, data.type) end
+	if data.position then lamp_set_position(lamp, table_unpack(data.position)) end
+	if data.rotation then lamp_set_rotation(lamp, table_unpack(data.rotation)) end
+	if data.energy then lamp_set_energy(lamp, data.energy) end
+	if data.color then lamp_set_color(lamp, table_unpack(data.color)) end
+	if data.distance then lamp_set_distance(lamp, data.distance) end
+	if data.spot_angle then lamp_set_spot_angle(lamp, data.spot_angle) end
+	if data.spot_blend then lamp_set_spot_blend(lamp, data.spot_blend) end
+	lamp_set_use_sphere(lamp, data.use_sphere)
+	lamp_set_use_square(lamp, data.use_square)
+	lamp_set_use_shadow(lamp, data.use_shadow)
+	return setmetatable({user=lamp}, mt_lamp)
 end
 
 -- Utilities

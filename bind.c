@@ -334,201 +334,201 @@ static int ffi_obj_color(lua_State *L)
 
 /* Light */
 
-static const char *light_type_enum[] = { "POINT", "SPOT", "SUN", 0 };
+static const char *lamp_type_enum[] = { "POINT", "SPOT", "SUN", 0 };
 
-static int ffi_light_new(lua_State *L)
+static int ffi_lamp_new(lua_State *L)
 {
-	struct light *light = new_light(scene);
-	if (!light)
-		return luaL_error(L, "cannot create light");
-	lua_pushlightuserdata(L, light);
+	struct lamp *lamp = new_lamp(scene);
+	if (!lamp)
+		return luaL_error(L, "cannot create lamp");
+	lua_pushlightuserdata(L, lamp);
 	return 1;
 }
 
-static int ffi_light_set_parent(lua_State *L)
+static int ffi_lamp_set_parent(lua_State *L)
 {
-	struct light *light = checktag(L, 1, TAG_LIGHT);
+	struct lamp *lamp = checktag(L, 1, TAG_LAMP);
 	struct armature *parent = checktag(L, 2, TAG_ARMATURE);
 	const char *tagname = luaL_checkstring(L, 3);
-	if (light_set_parent(light, parent, tagname))
+	if (lamp_set_parent(lamp, parent, tagname))
 		return luaL_error(L, "cannot find bone: %s", tagname);
 	return 0;
 }
 
-static int ffi_light_clear_parent(lua_State *L)
+static int ffi_lamp_clear_parent(lua_State *L)
 {
-	struct light *light = checktag(L, 1, TAG_LIGHT);
-	light_clear_parent(light);
+	struct lamp *lamp = checktag(L, 1, TAG_LAMP);
+	lamp_clear_parent(lamp);
 	return 0;
 }
 
-static int ffi_light_set_position(lua_State *L)
+static int ffi_lamp_set_position(lua_State *L)
 {
-	struct light *light = checktag(L, 1, TAG_LIGHT);
-	light->position[0] = luaL_checknumber(L, 2);
-	light->position[1] = luaL_checknumber(L, 3);
-	light->position[2] = luaL_checknumber(L, 4);
-	light->dirty = 1;
+	struct lamp *lamp = checktag(L, 1, TAG_LAMP);
+	lamp->position[0] = luaL_checknumber(L, 2);
+	lamp->position[1] = luaL_checknumber(L, 3);
+	lamp->position[2] = luaL_checknumber(L, 4);
+	lamp->dirty = 1;
 	return 0;
 }
 
-static int ffi_light_set_rotation(lua_State *L)
+static int ffi_lamp_set_rotation(lua_State *L)
 {
-	struct light *light = checktag(L, 1, TAG_LIGHT);
-	light->rotation[0] = luaL_checknumber(L, 2);
-	light->rotation[1] = luaL_checknumber(L, 3);
-	light->rotation[2] = luaL_checknumber(L, 4);
-	light->rotation[3] = luaL_checknumber(L, 5);
-	light->dirty = 1;
+	struct lamp *lamp = checktag(L, 1, TAG_LAMP);
+	lamp->rotation[0] = luaL_checknumber(L, 2);
+	lamp->rotation[1] = luaL_checknumber(L, 3);
+	lamp->rotation[2] = luaL_checknumber(L, 4);
+	lamp->rotation[3] = luaL_checknumber(L, 5);
+	lamp->dirty = 1;
 	return 0;
 }
 
-static int ffi_light_set_color(lua_State *L)
+static int ffi_lamp_set_color(lua_State *L)
 {
-	struct light *light = checktag(L, 1, TAG_LIGHT);
-	light->color[0] = luaL_checknumber(L, 2);
-	light->color[1] = luaL_checknumber(L, 3);
-	light->color[2] = luaL_checknumber(L, 4);
+	struct lamp *lamp = checktag(L, 1, TAG_LAMP);
+	lamp->color[0] = luaL_checknumber(L, 2);
+	lamp->color[1] = luaL_checknumber(L, 3);
+	lamp->color[2] = luaL_checknumber(L, 4);
 	return 0;
 }
 
-static int ffi_light_set_type(lua_State *L)
+static int ffi_lamp_set_type(lua_State *L)
 {
-	struct light *light = checktag(L, 1, TAG_LIGHT);
-	light->type = luaL_checkoption(L, 2, NULL, light_type_enum);
+	struct lamp *lamp = checktag(L, 1, TAG_LAMP);
+	lamp->type = luaL_checkoption(L, 2, NULL, lamp_type_enum);
 	return 0;
 }
 
-static int ffi_light_set_energy(lua_State *L)
+static int ffi_lamp_set_energy(lua_State *L)
 {
-	struct light *light = checktag(L, 1, TAG_LIGHT);
-	light->energy = luaL_checknumber(L, 2);
+	struct lamp *lamp = checktag(L, 1, TAG_LAMP);
+	lamp->energy = luaL_checknumber(L, 2);
 	return 0;
 }
 
-static int ffi_light_set_distance(lua_State *L)
+static int ffi_lamp_set_distance(lua_State *L)
 {
-	struct light *light = checktag(L, 1, TAG_LIGHT);
-	light->distance = luaL_checknumber(L, 2);
+	struct lamp *lamp = checktag(L, 1, TAG_LAMP);
+	lamp->distance = luaL_checknumber(L, 2);
 	return 0;
 }
 
-static int ffi_light_set_spot_angle(lua_State *L)
+static int ffi_lamp_set_spot_angle(lua_State *L)
 {
-	struct light *light = checktag(L, 1, TAG_LIGHT);
-	light->spot_angle = luaL_checknumber(L, 2);
+	struct lamp *lamp = checktag(L, 1, TAG_LAMP);
+	lamp->spot_angle = luaL_checknumber(L, 2);
 	return 0;
 }
 
-static int ffi_light_set_spot_blend(lua_State *L)
+static int ffi_lamp_set_spot_blend(lua_State *L)
 {
-	struct light *light = checktag(L, 1, TAG_LIGHT);
-	light->spot_blend = luaL_checknumber(L, 2);
+	struct lamp *lamp = checktag(L, 1, TAG_LAMP);
+	lamp->spot_blend = luaL_checknumber(L, 2);
 	return 0;
 }
 
-static int ffi_light_set_use_sphere(lua_State *L)
+static int ffi_lamp_set_use_sphere(lua_State *L)
 {
-	struct light *light = checktag(L, 1, TAG_LIGHT);
-	light->use_sphere = lua_tointeger(L, 2);
+	struct lamp *lamp = checktag(L, 1, TAG_LAMP);
+	lamp->use_sphere = lua_tointeger(L, 2);
 	return 0;
 }
 
-static int ffi_light_set_use_square(lua_State *L)
+static int ffi_lamp_set_use_square(lua_State *L)
 {
-	struct light *light = checktag(L, 1, TAG_LIGHT);
-	light->use_square = lua_tointeger(L, 2);
+	struct lamp *lamp = checktag(L, 1, TAG_LAMP);
+	lamp->use_square = lua_tointeger(L, 2);
 	return 0;
 }
 
-static int ffi_light_set_use_shadow(lua_State *L)
+static int ffi_lamp_set_use_shadow(lua_State *L)
 {
-	struct light *light = checktag(L, 1, TAG_LIGHT);
-	light->use_shadow = lua_tointeger(L, 2);
+	struct lamp *lamp = checktag(L, 1, TAG_LAMP);
+	lamp->use_shadow = lua_tointeger(L, 2);
 	return 0;
 }
 
-static int ffi_light_position(lua_State *L)
+static int ffi_lamp_position(lua_State *L)
 {
-	struct light *light = checktag(L, 1, TAG_LIGHT);
-	lua_pushnumber(L, light->position[0]);
-	lua_pushnumber(L, light->position[1]);
-	lua_pushnumber(L, light->position[2]);
+	struct lamp *lamp = checktag(L, 1, TAG_LAMP);
+	lua_pushnumber(L, lamp->position[0]);
+	lua_pushnumber(L, lamp->position[1]);
+	lua_pushnumber(L, lamp->position[2]);
 	return 3;
 }
 
-static int ffi_light_rotation(lua_State *L)
+static int ffi_lamp_rotation(lua_State *L)
 {
-	struct light *light = checktag(L, 1, TAG_LIGHT);
-	lua_pushnumber(L, light->rotation[0]);
-	lua_pushnumber(L, light->rotation[1]);
-	lua_pushnumber(L, light->rotation[2]);
-	lua_pushnumber(L, light->rotation[3]);
+	struct lamp *lamp = checktag(L, 1, TAG_LAMP);
+	lua_pushnumber(L, lamp->rotation[0]);
+	lua_pushnumber(L, lamp->rotation[1]);
+	lua_pushnumber(L, lamp->rotation[2]);
+	lua_pushnumber(L, lamp->rotation[3]);
 	return 4;
 }
 
-static int ffi_light_color(lua_State *L)
+static int ffi_lamp_color(lua_State *L)
 {
-	struct light *light = checktag(L, 1, TAG_LIGHT);
-	lua_pushnumber(L, light->color[0]);
-	lua_pushnumber(L, light->color[1]);
-	lua_pushnumber(L, light->color[2]);
+	struct lamp *lamp = checktag(L, 1, TAG_LAMP);
+	lua_pushnumber(L, lamp->color[0]);
+	lua_pushnumber(L, lamp->color[1]);
+	lua_pushnumber(L, lamp->color[2]);
 	return 3;
 }
 
-static int ffi_light_type(lua_State *L)
+static int ffi_lamp_type(lua_State *L)
 {
-	struct light *light = checktag(L, 1, TAG_LIGHT);
-	lua_pushstring(L, light_type_enum[light->type]);
+	struct lamp *lamp = checktag(L, 1, TAG_LAMP);
+	lua_pushstring(L, lamp_type_enum[lamp->type]);
 	return 1;
 }
 
-static int ffi_light_energy(lua_State *L)
+static int ffi_lamp_energy(lua_State *L)
 {
-	struct light *light = checktag(L, 1, TAG_LIGHT);
-	lua_pushnumber(L, light->energy);
+	struct lamp *lamp = checktag(L, 1, TAG_LAMP);
+	lua_pushnumber(L, lamp->energy);
 	return 1;
 }
 
-static int ffi_light_distance(lua_State *L)
+static int ffi_lamp_distance(lua_State *L)
 {
-	struct light *light = checktag(L, 1, TAG_LIGHT);
-	lua_pushnumber(L, light->distance);
+	struct lamp *lamp = checktag(L, 1, TAG_LAMP);
+	lua_pushnumber(L, lamp->distance);
 	return 1;
 }
 
-static int ffi_light_spot_angle(lua_State *L)
+static int ffi_lamp_spot_angle(lua_State *L)
 {
-	struct light *light = checktag(L, 1, TAG_LIGHT);
-	lua_pushnumber(L, light->spot_angle);
+	struct lamp *lamp = checktag(L, 1, TAG_LAMP);
+	lua_pushnumber(L, lamp->spot_angle);
 	return 1;
 }
 
-static int ffi_light_spot_blend(lua_State *L)
+static int ffi_lamp_spot_blend(lua_State *L)
 {
-	struct light *light = checktag(L, 1, TAG_LIGHT);
-	lua_pushnumber(L, light->spot_blend);
+	struct lamp *lamp = checktag(L, 1, TAG_LAMP);
+	lua_pushnumber(L, lamp->spot_blend);
 	return 1;
 }
 
-static int ffi_light_use_sphere(lua_State *L)
+static int ffi_lamp_use_sphere(lua_State *L)
 {
-	struct light *light = checktag(L, 1, TAG_LIGHT);
-	lua_pushboolean(L, light->use_sphere);
+	struct lamp *lamp = checktag(L, 1, TAG_LAMP);
+	lua_pushboolean(L, lamp->use_sphere);
 	return 1;
 }
 
-static int ffi_light_use_square(lua_State *L)
+static int ffi_lamp_use_square(lua_State *L)
 {
-	struct light *light = checktag(L, 1, TAG_LIGHT);
-	lua_pushboolean(L, light->use_square);
+	struct lamp *lamp = checktag(L, 1, TAG_LAMP);
+	lua_pushboolean(L, lamp->use_square);
 	return 1;
 }
 
-static int ffi_light_use_shadow(lua_State *L)
+static int ffi_lamp_use_shadow(lua_State *L)
 {
-	struct light *light = checktag(L, 1, TAG_LIGHT);
-	lua_pushboolean(L, light->use_shadow);
+	struct lamp *lamp = checktag(L, 1, TAG_LAMP);
+	lua_pushboolean(L, lamp->use_shadow);
 	return 1;
 }
 
@@ -580,29 +580,29 @@ void init_lua(void)
 	lua_register(L, "obj_scale", ffi_obj_scale);
 	lua_register(L, "obj_color", ffi_obj_color);
 
-	lua_register(L, "light_new", ffi_light_new);
-	lua_register(L, "light_set_parent", ffi_light_set_parent);
-	lua_register(L, "light_clear_parent", ffi_light_clear_parent);
-	lua_register(L, "light_set_position", ffi_light_set_position);
-	lua_register(L, "light_set_rotation", ffi_light_set_rotation);
-	lua_register(L, "light_set_type", ffi_light_set_type);
-	lua_register(L, "light_set_color", ffi_light_set_color);
-	lua_register(L, "light_set_energy", ffi_light_set_energy);
-	lua_register(L, "light_set_distance", ffi_light_set_distance);
-	lua_register(L, "light_set_spot_angle", ffi_light_set_spot_angle);
-	lua_register(L, "light_set_spot_blend", ffi_light_set_spot_blend);
-	lua_register(L, "light_set_use_sphere", ffi_light_set_use_sphere);
-	lua_register(L, "light_set_use_square", ffi_light_set_use_square);
-	lua_register(L, "light_set_use_shadow", ffi_light_set_use_shadow);
-	lua_register(L, "light_position", ffi_light_position);
-	lua_register(L, "light_rotation", ffi_light_rotation);
-	lua_register(L, "light_type", ffi_light_type);
-	lua_register(L, "light_color", ffi_light_color);
-	lua_register(L, "light_energy", ffi_light_energy);
-	lua_register(L, "light_distance", ffi_light_distance);
-	lua_register(L, "light_spot_angle", ffi_light_spot_angle);
-	lua_register(L, "light_spot_blend", ffi_light_spot_blend);
-	lua_register(L, "light_use_sphere", ffi_light_use_sphere);
-	lua_register(L, "light_use_square", ffi_light_use_square);
-	lua_register(L, "light_use_shadow", ffi_light_use_shadow);
+	lua_register(L, "lamp_new", ffi_lamp_new);
+	lua_register(L, "lamp_set_parent", ffi_lamp_set_parent);
+	lua_register(L, "lamp_clear_parent", ffi_lamp_clear_parent);
+	lua_register(L, "lamp_set_position", ffi_lamp_set_position);
+	lua_register(L, "lamp_set_rotation", ffi_lamp_set_rotation);
+	lua_register(L, "lamp_set_type", ffi_lamp_set_type);
+	lua_register(L, "lamp_set_color", ffi_lamp_set_color);
+	lua_register(L, "lamp_set_energy", ffi_lamp_set_energy);
+	lua_register(L, "lamp_set_distance", ffi_lamp_set_distance);
+	lua_register(L, "lamp_set_spot_angle", ffi_lamp_set_spot_angle);
+	lua_register(L, "lamp_set_spot_blend", ffi_lamp_set_spot_blend);
+	lua_register(L, "lamp_set_use_sphere", ffi_lamp_set_use_sphere);
+	lua_register(L, "lamp_set_use_square", ffi_lamp_set_use_square);
+	lua_register(L, "lamp_set_use_shadow", ffi_lamp_set_use_shadow);
+	lua_register(L, "lamp_position", ffi_lamp_position);
+	lua_register(L, "lamp_rotation", ffi_lamp_rotation);
+	lua_register(L, "lamp_type", ffi_lamp_type);
+	lua_register(L, "lamp_color", ffi_lamp_color);
+	lua_register(L, "lamp_energy", ffi_lamp_energy);
+	lua_register(L, "lamp_distance", ffi_lamp_distance);
+	lua_register(L, "lamp_spot_angle", ffi_lamp_spot_angle);
+	lua_register(L, "lamp_spot_blend", ffi_lamp_spot_blend);
+	lua_register(L, "lamp_use_sphere", ffi_lamp_use_sphere);
+	lua_register(L, "lamp_use_square", ffi_lamp_use_square);
+	lua_register(L, "lamp_use_shadow", ffi_lamp_use_shadow);
 }

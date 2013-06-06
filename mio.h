@@ -251,7 +251,7 @@ void draw_skel(mat4 *abs_pose_matrix, int *parent, int count);
 
 /* scene graph */
 
-enum { TAG_SCENE = 42, TAG_ARMATURE, TAG_OBJECT, TAG_LIGHT };
+enum { TAG_SCENE = 42, TAG_ARMATURE, TAG_OBJECT, TAG_LAMP };
 
 struct armature
 {
@@ -300,13 +300,13 @@ struct object
 	mat4 *model_from_bind_pose;
 };
 
-enum { LIGHT_POINT, LIGHT_SPOT, LIGHT_SUN };
+enum { LAMP_POINT, LAMP_SPOT, LAMP_SUN };
 
-struct light
+struct lamp
 {
 	int tag;
 
-	LIST_ENTRY(light) list;
+	LIST_ENTRY(lamp) list;
 
 	struct armature *parent;
 	int parent_tag;
@@ -333,21 +333,21 @@ struct scene
 	int tag;
 	LIST_HEAD(armature_list, armature) armatures;
 	LIST_HEAD(object_list, object) objects;
-	LIST_HEAD(light_list, light) lights;
+	LIST_HEAD(lamp_list, lamp) lamps;
 };
 
 struct scene *new_scene(void);
 struct armature *new_armature(struct scene *scene, const char *skelname);
 struct object *new_object(struct scene *scene, const char *meshname);
-struct light *new_light(struct scene *scene);
+struct lamp *new_lamp(struct scene *scene);
 
 int armature_set_parent(struct armature *node, struct armature *parent, const char *tagname);
 int object_set_parent(struct object *node, struct armature *parent, const char *tagname);
-int light_set_parent(struct light *node, struct armature *parent, const char *tagname);
+int lamp_set_parent(struct lamp *node, struct armature *parent, const char *tagname);
 
 void armature_clear_parent(struct armature *node);
 void object_clear_parent(struct object *node);
-void light_clear_parent(struct light *node);
+void lamp_clear_parent(struct lamp *node);
 
 void play_anim(struct armature *node, struct anim *anim, float time);
 void stop_anim(struct armature *node);
@@ -363,9 +363,9 @@ void render_scene_light(struct scene *scene, mat4 proj, mat4 view);
 void render_static_mesh(struct mesh *mesh, mat4 clip_from_view, mat4 view_from_model);
 void render_skinned_mesh(struct mesh *mesh, mat4 clip_from_view, mat4 view_from_model, mat4 *model_from_bind_pose);
 
-void render_point_light(struct light *light, mat4 clip_from_view, mat4 view_from_world);
-void render_spot_light(struct light *light, mat4 clip_from_view, mat4 view_from_world);
-void render_sun_light(struct light *light, mat4 clip_from_view, mat4 view_from_world);
+void render_point_lamp(struct lamp *lamp, mat4 clip_from_view, mat4 view_from_world);
+void render_spot_lamp(struct lamp *lamp, mat4 clip_from_view, mat4 view_from_world);
+void render_sun_lamp(struct lamp *lamp, mat4 clip_from_view, mat4 view_from_world);
 
 void render_reshape(int w, int h);
 void render_geometry_pass(void);
