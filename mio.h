@@ -191,7 +191,7 @@ int load_material(char *dirname, char *material);
 
 /* models and animations */
 
-#define MAXBONE 256
+#define MAXBONE 80
 
 struct model {
 	struct skel *skel;
