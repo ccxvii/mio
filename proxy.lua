@@ -15,6 +15,9 @@ function mt_amt:clear_parent()
 end
 
 function mt_amt:attach(child, tagname)
+	if type(child) == 'string' then
+		child = object(child)
+	end
 	child:set_parent(self, tagname)
 end
 
@@ -35,11 +38,11 @@ function mt_amt:position() return amt_position(self.user) end
 function mt_amt:rotation() return amt_rotation(self.user) end
 function mt_amt:scale() return amt_scale(self.user) end
 
-function mt_amt:play_animation(animname, time)
-	amt_play_anim(self.user, animname, time)
+function mt_amt:play_animation(animname)
+	amt_play_anim(self.user, animname, 0)
 end
 
-function mt_amt:stop_animation(animname, time)
+function mt_amt:stop_animation()
 	amt_stop_anim(self.user)
 end
 

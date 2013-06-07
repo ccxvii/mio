@@ -63,10 +63,7 @@ luac.exe : $(OUT)/luac.o $(LUA_LIB)
 mio.exe : $(OUT)/main.o $(MIO_LIB) $(LUA_LIB)
 	$(LINK_CMD)
 
-b.exe : $(OUT)/b.o $(MIO_LIB) $(LUA_LIB)
-	$(LINK_CMD)
-
-all: $(OUT) $(LUA_LIB) $(MIO_LIB) lua.exe luac.exe mio.exe
+all: $(OUT) $(LUA_LIB) $(MIO_LIB) mio.exe
 
 clean:
 	rm -rf $(OUT)
