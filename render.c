@@ -151,17 +151,67 @@ void render_finish(void)
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 
+/* Fullscreen quad */
+
+static const char *quad_vert_src =
+	"in vec4 att_position;\n"
+	"void main() {\n"
+	"	gl_Position = att_position;\n"
+	"}\n"
+;
+
+static void draw_fullscreen_quad(void)
+{
+	static float quad_vertex[] = { -1, 1, -1, -1, 1, 1, 1, -1 };
+	static unsigned int quad_vao = 0;
+	static unsigned int quad_vbo = 0;
+
+	if (!quad_vao) {
+		glGenVertexArrays(1, &quad_vao);
+		glGenBuffers(1, &quad_vbo);
+
+		glBindVertexArray(quad_vao);
+		glBindBuffer(GL_ARRAY_BUFFER, quad_vbo);
+		glBufferData(GL_ARRAY_BUFFER, 8 * sizeof(float), quad_vertex, GL_STATIC_DRAW);
+
+		glEnableVertexAttribArray(ATT_POSITION);
+		glVertexAttribPointer(ATT_POSITION, 2, GL_FLOAT, 0, 0, 0);
+	}
+
+	glBindVertexArray(quad_vao);
+	glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+}
+
+static const char *blit_vert_src =
+	"in vec2 att_position;\n"
+	"out vec2 var_texcoord;\n"
+	"void main() {\n"
+	"	var_texcoord = att_position * 0.5 + 0.5;\n"
+	"	gl_Position = vec4(att_position, 0, 1);\n"
+	"}\n"
+;
+
+static const char *blit_frag_src =
+	"uniform sampler2D map_color;\n"
+	"in vec2 var_texcoord;\n"
+	"out vec4 frag_color;\n"
+	"void main() {\n"
+	"	frag_color = texture(map_color, var_texcoord);\n"
+	"}\n"
+;
+
 void render_blit(mat4 proj, mat4 view, int w, int h)
 {
-	// Render fullscreen quad with post-process filter
-	icon_begin(proj, view);
-	icon_show(tex_forward, 0, 0, w, h, 0, 1, 1, 0);
-	icon_end();
+	static int prog = 0;
 
-	// Blit framebuffers (maybe faster than quad?)
-//	glBindFramebuffer(GL_READ_FRAMEBUFFER, fbo_forward);
-//	glBlitFramebuffer(0, 0, fbo_w, fbo_h, 0, 0, fbo_w, fbo_h, GL_COLOR_BUFFER_BIT, GL_NEAREST);
-//	glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
+	// Render fullscreen quad with post-process filter
+	if (!prog) {
+		prog = compile_shader(blit_vert_src, blit_frag_src);
+	}
+
+	glUseProgram(prog);
+	glBindTexture(GL_TEXTURE_2D, tex_forward);
+	draw_fullscreen_quad();
 }
 
 void render_debug_buffers(mat4 proj, mat4 view)
@@ -306,37 +356,6 @@ void render_skinned_mesh(struct mesh *mesh, mat4 clip_from_view, mat4 view_from_
 		glBindTexture(GL_TEXTURE_2D, mesh->part[i].material);
 		glDrawElements(GL_TRIANGLES, mesh->part[i].count, GL_UNSIGNED_SHORT, (void*)(mesh->part[i].first * 2));
 	}
-}
-
-/* draw lamps */
-
-static const char *quad_vert_src =
-	"in vec4 att_position;\n"
-	"void main() {\n"
-	"	gl_Position = att_position;\n"
-	"}\n"
-;
-
-static void draw_fullscreen_quad(void)
-{
-	static float quad_vertex[] = { -1, 1, -1, -1, 1, 1, 1, -1 };
-	static unsigned int quad_vao = 0;
-	static unsigned int quad_vbo = 0;
-
-	if (!quad_vao) {
-		glGenVertexArrays(1, &quad_vao);
-		glGenBuffers(1, &quad_vbo);
-
-		glBindVertexArray(quad_vao);
-		glBindBuffer(GL_ARRAY_BUFFER, quad_vbo);
-		glBufferData(GL_ARRAY_BUFFER, 8 * sizeof(float), quad_vertex, GL_STATIC_DRAW);
-
-		glEnableVertexAttribArray(ATT_POSITION);
-		glVertexAttribPointer(ATT_POSITION, 2, GL_FLOAT, 0, 0, 0);
-	}
-
-	glBindVertexArray(quad_vao);
-	glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 }
 
 /* Point lamp */

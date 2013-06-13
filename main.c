@@ -133,9 +133,6 @@ static void display(void)
 	// draw ui
 
 	glViewport(0, 0, screenw, screenh);
-	glClearColor(0.05, 0.05, 0.05, 1.0);
-	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
 	mat_ortho(projection, 0, screenw, screenh, 0, -1, 1);
 	mat_identity(view);
 
@@ -163,7 +160,7 @@ int main(int argc, char **argv)
 	glutInitContextProfile(GLUT_CORE_PROFILE);
 	glutInitWindowPosition(50, 50+24);
 	glutInitWindowSize(screenw, screenh);
-	glutInitDisplayMode(GLUT_SRGB | GLUT_DOUBLE | GLUT_DEPTH | GLUT_3_2_CORE_PROFILE);
+	glutInitDisplayMode(GLUT_SRGB | GLUT_DOUBLE | GLUT_3_2_CORE_PROFILE);
 	glutCreateWindow("Mio");
 
 	gl3wInit();
@@ -179,6 +176,7 @@ int main(int argc, char **argv)
 
 	glEnable(GL_FRAMEBUFFER_SRGB);
 	glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+	glDepthFunc(GL_LEQUAL);
 	glEnable(GL_CULL_FACE);
 
 	register_directory("data/");
