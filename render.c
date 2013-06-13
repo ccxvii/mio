@@ -36,8 +36,8 @@ static void render_init(void)
 
 	glGenTextures(1, &tex_forward);
 	glBindTexture(GL_TEXTURE_2D, tex_forward);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 
 	/* For the geometry pass */
 
@@ -203,13 +203,23 @@ static const char *blit_frag_src =
 void render_blit(mat4 proj, mat4 view, int w, int h)
 {
 	static int prog = 0;
+	static int uni_rcp_viewport;
+
+	float rcp_viewport[2];
 
 	// Render fullscreen quad with post-process filter
 	if (!prog) {
-		prog = compile_shader(blit_vert_src, blit_frag_src);
+		char *fxaa_frag_src = load_file("fxaa.glsl", NULL);
+		prog = compile_shader(blit_vert_src, fxaa_frag_src);
+		uni_rcp_viewport = glGetUniformLocation(prog, "rcp_viewport");
+		free(fxaa_frag_src);
 	}
 
+	rcp_viewport[0] = 1.0f / w;
+	rcp_viewport[1] = 1.0f / h;
+
 	glUseProgram(prog);
+	glUniform2fv(uni_rcp_viewport, 1, rcp_viewport);
 	glBindTexture(GL_TEXTURE_2D, tex_forward);
 	draw_fullscreen_quad();
 }
