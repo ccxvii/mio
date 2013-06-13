@@ -366,6 +366,8 @@ void render_point_lamp(struct lamp *lamp, mat4 clip_from_view, mat4 view_from_wo
 void render_spot_lamp(struct lamp *lamp, mat4 clip_from_view, mat4 view_from_world);
 void render_sun_lamp(struct lamp *lamp, mat4 clip_from_view, mat4 view_from_world);
 
+void render_sky(void);
+
 void render_reshape(int w, int h);
 void render_geometry_pass(void);
 void render_light_pass(void);

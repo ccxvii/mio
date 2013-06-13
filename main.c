@@ -128,6 +128,7 @@ static void display(void)
 	render_scene_light(scene, projection, view);
 
 	render_forward_pass();
+	render_sky();
 	render_finish();
 
 	// draw ui

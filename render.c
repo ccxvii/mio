@@ -593,3 +593,29 @@ void render_sun_lamp(struct lamp *lamp, mat4 clip_from_view, mat4 view_from_worl
 
 	draw_fullscreen_quad();
 }
+
+static const char *sky_vert_src =
+	"in vec4 att_position;\n"
+	"void main() {\n"
+	"	gl_Position = vec4(att_position.xy, 1, 1);\n"
+	"}\n"
+;
+
+static const char *sky_frag_src =
+	"out vec4 frag_color;\n"
+	"void main() {\n"
+	"	frag_color = vec4(0.05, 0.05, 0.05, 1);\n"
+	"}\n"
+;
+
+void render_sky(void)
+{
+	static int prog = 0;
+
+	if (!prog) {
+		prog = compile_shader(sky_vert_src, sky_frag_src);
+	}
+
+	glUseProgram(prog);
+	draw_fullscreen_quad();
+}
