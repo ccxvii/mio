@@ -71,6 +71,23 @@ struct anim *load_anim(const char *filename)
 	return NULL;
 }
 
+void extract_frame_pose(struct pose *pose, struct anim *anim, int frame, int i)
+{
+	float *s = anim->data + anim->channels * frame;
+	int mask = anim->mask[i];
+	*pose = anim->pose[i];
+	if (mask & 0x01) pose->position[0] = *s++;
+	if (mask & 0x02) pose->position[1] = *s++;
+	if (mask & 0x04) pose->position[2] = *s++;
+	if (mask & 0x08) pose->rotation[0] = *s++;
+	if (mask & 0x10) pose->rotation[1] = *s++;
+	if (mask & 0x20) pose->rotation[2] = *s++;
+	if (mask & 0x40) pose->rotation[3] = *s++;
+	if (mask & 0x80) pose->scale[0] = *s++;
+	if (mask & 0x100) pose->scale[1] = *s++;
+	if (mask & 0x200) pose->scale[2] = *s++;
+}
+
 void extract_frame(struct pose *pose, struct anim *anim, int frame)
 {
 	float *s = anim->data + anim->channels * frame;

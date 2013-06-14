@@ -216,6 +216,26 @@ void stop_anim(struct armature *node)
 	node->dirty = 1;
 }
 
+static void calc_root_motion(mat4 root_motion, struct anim *anim, int frame)
+{
+	struct pose p0, p1, p;
+	mat4 m0, m;
+	float t = (float)frame / (anim->frames - 1);
+
+	extract_frame_pose(&p0, anim, 0, 0);
+	extract_frame_pose(&p1, anim, anim->frames - 1, 0);
+
+	vec_lerp(p.position, p0.position, p1.position, t);
+	quat_lerp_neighbor_normalize(p.rotation, p0.rotation, p1.rotation, t);
+	vec_lerp(p.scale, p0.scale, p1.scale, t);
+
+	mat_from_pose(m0, p0.position, p0.rotation, p0.scale);
+	mat_from_pose(m, p.position, p.rotation, p.scale);
+
+	mat_invert(m, m);
+	mat_mul(root_motion, m0, m);
+}
+
 static int update_armature(struct armature *node, float time)
 {
 	if (node->anim) {
@@ -229,13 +249,23 @@ static int update_armature(struct armature *node, float time)
 	if (node->dirty) {
 		mat4 local_pose[MAXBONE];
 
+		if (node->parent) {
+			mat4 parent, local;
+			mat_from_pose(local, node->position, node->rotation, node->scale);
+			mat_mul(parent, node->parent->transform, node->parent->model_pose[node->parent_tag]);
+			mat_mul(node->transform, parent, local);
+		} else {
+			mat_from_pose(node->transform, node->position, node->rotation, node->scale);
+		}
+
 		if (node->anim) {
 			struct pose *skel_pose = node->skel->pose;
 			struct pose anim_pose[MAXBONE];
+			int frame0 = (int)node->time % node->anim->frames;
 			int i;
 
 			// TODO: interpolate
-			extract_frame(anim_pose, node->anim, (int)node->time % node->anim->frames);
+			extract_frame(anim_pose, node->anim, frame0);
 
 			for (i = 0; i < node->skel->count; i++) {
 				int k = node->anim_map[i];
@@ -246,18 +276,13 @@ static int update_armature(struct armature *node, float time)
 			}
 
 			calc_abs_matrix(node->model_pose, local_pose, node->skel->parent, node->skel->count);
+
+			mat4 root_motion;
+			calc_root_motion(root_motion, node->anim, frame0);
+			mat_mul(node->transform, node->transform, root_motion);
 		} else {
 			calc_matrix_from_pose(local_pose, node->skel->pose, node->skel->count);
 			calc_abs_matrix(node->model_pose, local_pose, node->skel->parent, node->skel->count);
-		}
-
-		if (node->parent) {
-			mat4 parent, local;
-			mat_from_pose(local, node->position, node->rotation, node->scale);
-			mat_mul(parent, node->parent->transform, node->parent->model_pose[node->parent_tag]);
-			mat_mul(node->transform, parent, local);
-		} else {
-			mat_from_pose(node->transform, node->position, node->rotation, node->scale);
 		}
 
 		return 1;

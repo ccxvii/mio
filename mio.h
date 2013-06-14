@@ -246,6 +246,7 @@ struct skel *load_skel(const char *filename);
 struct mesh *load_mesh(const char *filename);
 struct anim *load_anim(const char *filename);
 
+void extract_frame_pose(struct pose *pose, struct anim *anim, int frame, int i);
 void extract_frame(struct pose *pose, struct anim *anim, int frame);
 void draw_skel(mat4 *abs_pose_matrix, int *parent, int count);
 
