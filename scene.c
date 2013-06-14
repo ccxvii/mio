@@ -172,7 +172,7 @@ void lamp_clear_parent(struct lamp *node)
 	node->parent_tag = 0;
 }
 
-void play_anim(struct armature *node, struct anim *anim, float time)
+void play_anim(struct armature *node, struct anim *anim, float transition)
 {
 	struct skel *skel = node->skel;
 	struct skel *askel = anim->skel;
@@ -202,28 +202,37 @@ void play_anim(struct armature *node, struct anim *anim, float time)
 		}
 	}
 
-	node->anim_map = map->anim_map;
-	node->anim = anim;
-	node->time = time;
+	if (transition > 0) {
+		node->oldaction = node->action;
+		node->transition.phase = 0;
+		node->transition.speed = transition;
+	} else {
+		node->transition.phase = 1;
+	}
+
+	node->action.map = map->anim_map;
+	node->action.anim = anim;
+	node->action.frame = 0;
+
 	node->dirty = 1;
 }
 
 void stop_anim(struct armature *node)
 {
-	node->anim_map = NULL;
-	node->anim = NULL;
-	node->time = 0;
+	node->action.map = NULL;
+	node->action.anim = NULL;
+	node->action.frame = 0;
 	node->dirty = 1;
 }
 
-static void calc_root_motion(mat4 root_motion, struct anim *anim, int frame)
+static void calc_root_motion(mat4 root_motion, struct anim *anim, float frame)
 {
 	struct pose p0, p1, p;
 	mat4 m0, m;
-	float t = (float)frame / (anim->frames - 1);
+	float t = frame / (anim->frames - 1);
 
-	extract_frame_pose(&p0, anim, 0, 0);
-	extract_frame_pose(&p1, anim, anim->frames - 1, 0);
+	extract_frame_root(&p0, anim, 0);
+	extract_frame_root(&p1, anim, anim->frames - 1);
 
 	vec_lerp(p.position, p0.position, p1.position, t);
 	quat_lerp_neighbor_normalize(p.rotation, p0.rotation, p1.rotation, t);
@@ -236,15 +245,27 @@ static void calc_root_motion(mat4 root_motion, struct anim *anim, int frame)
 	mat_mul(root_motion, m0, m);
 }
 
-static int update_armature(struct armature *node, float time)
+static int update_armature(struct armature *node, float delta)
 {
-	if (node->anim) {
-		node->time = time;
+	if (node->updated)
+		return node->dirty;
+	node->updated = 1;
+
+	node->transition.phase += delta;
+	if (node->transition.phase >= 1) {
+		node->oldaction.anim = NULL;
+	}
+	if (node->action.anim) {
+		node->action.frame += delta * 30;
+		node->dirty = 1;
+	}
+	if (node->oldaction.anim) {
+		node->oldaction.frame += delta * 30;
 		node->dirty = 1;
 	}
 
 	if (node->parent)
-		node->dirty |= update_armature(node->parent, time);
+		node->dirty |= update_armature(node->parent, delta);
 
 	if (node->dirty) {
 		mat4 local_pose[MAXBONE];
@@ -258,37 +279,47 @@ static int update_armature(struct armature *node, float time)
 			mat_from_pose(node->transform, node->position, node->rotation, node->scale);
 		}
 
-		if (node->anim) {
+		if (node->action.anim) {
 			struct pose *skel_pose = node->skel->pose;
-			struct pose anim_pose[MAXBONE];
-			int frame0 = (int)node->time % node->anim->frames;
+			struct pose anim_pose0[MAXBONE];
+			struct pose anim_pose1[MAXBONE];
 			int i;
 
-			// TODO: interpolate
-			extract_frame(anim_pose, node->anim, frame0);
-
-			for (i = 0; i < node->skel->count; i++) {
-				int k = node->anim_map[i];
-				if (k >= 0)
-					mat_from_pose(local_pose[i], anim_pose[k].position, anim_pose[k].rotation, anim_pose[k].scale);
-				else
-					mat_from_pose(local_pose[i], skel_pose[i].position, skel_pose[i].rotation, skel_pose[i].scale);
+			if (node->oldaction.anim) {
+				extract_frame(anim_pose0, node->oldaction.anim, node->oldaction.frame);
+				extract_frame(anim_pose1, node->action.anim, node->action.frame);
+				for (i = 0; i < node->skel->count; i++) {
+					int k0 = node->oldaction.map[i];
+					int k1 = node->action.map[i];
+					struct pose *p0 = k0 >= 0 ? anim_pose0 + k0 : skel_pose + i;
+					struct pose *p1 = k1 >= 0 ? anim_pose1 + k1 : skel_pose + i;
+					struct pose p;
+					lerp_frame(&p, p0, p1, node->transition.phase, 1);
+					mat_from_pose(local_pose[i], p.position, p.rotation, p.scale);
+				}
+			} else {
+				extract_frame(anim_pose1, node->action.anim, node->action.frame);
+				for (i = 0; i < node->skel->count; i++) {
+					int k = node->action.map[i];
+					if (k >= 0)
+						mat_from_pose(local_pose[i], anim_pose1[k].position, anim_pose1[k].rotation, anim_pose1[k].scale);
+					else
+						mat_from_pose(local_pose[i], skel_pose[i].position, skel_pose[i].rotation, skel_pose[i].scale);
+				}
 			}
 
 			calc_abs_matrix(node->model_pose, local_pose, node->skel->parent, node->skel->count);
 
 			mat4 root_motion;
-			calc_root_motion(root_motion, node->anim, frame0);
+			calc_root_motion(root_motion, node->action.anim, node->action.frame);
 			mat_mul(node->transform, node->transform, root_motion);
 		} else {
 			calc_matrix_from_pose(local_pose, node->skel->pose, node->skel->count);
 			calc_abs_matrix(node->model_pose, local_pose, node->skel->parent, node->skel->count);
 		}
-
-		return 1;
 	}
 
-	return 0;
+	return node->dirty;
 }
 
 static void update_object_skin(struct object *node)
@@ -302,10 +333,10 @@ static void update_object_skin(struct object *node)
 		mat_mul(model_from_bind_pose[i], pose_matrix[parent_map[i]], inv_bind_matrix[i]);
 }
 
-static void update_object(struct object *node, float time)
+static void update_object(struct object *node, float delta)
 {
 	if (node->parent)
-		node->dirty |= update_armature(node->parent, time);
+		node->dirty |= update_armature(node->parent, delta);
 
 	if (node->dirty) {
 		if (node->parent) {
@@ -328,10 +359,10 @@ static void update_object(struct object *node, float time)
 	node->dirty = 0;
 }
 
-static void update_lamp(struct lamp *node, float time)
+static void update_lamp(struct lamp *node, float delta)
 {
 	if (node->parent)
-		node->dirty |= update_armature(node->parent, time);
+		node->dirty |= update_armature(node->parent, delta);
 
 	if (node->dirty) {
 		if (node->parent) {
@@ -347,18 +378,21 @@ static void update_lamp(struct lamp *node, float time)
 	node->dirty = 0;
 }
 
-void update_scene(struct scene *scene, float time)
+void update_scene(struct scene *scene, float delta)
 {
 	struct object *obj;
 	struct armature *amt;
 	struct lamp *lamp;
 
 	LIST_FOREACH(amt, &scene->armatures, list)
-		update_armature(amt, time);
+		amt->updated = 0;
+
+	LIST_FOREACH(amt, &scene->armatures, list)
+		update_armature(amt, delta);
 	LIST_FOREACH(obj, &scene->objects, list)
-		update_object(obj, time);
+		update_object(obj, delta);
 	LIST_FOREACH(lamp, &scene->lamps, list)
-		update_lamp(lamp, time);
+		update_lamp(lamp, delta);
 
 	LIST_FOREACH(amt, &scene->armatures, list)
 		amt->dirty = 0;

@@ -109,7 +109,7 @@ static void display(void)
 
 	// update world
 
-	update_scene(scene, thistime * 30 * 0.001);
+	update_scene(scene, timediff * 0.001);
 
 	// draw world
 

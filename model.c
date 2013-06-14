@@ -71,11 +71,11 @@ struct anim *load_anim(const char *filename)
 	return NULL;
 }
 
-void extract_frame_pose(struct pose *pose, struct anim *anim, int frame, int i)
+void extract_raw_frame_root(struct pose *pose, struct anim *anim, int frame)
 {
 	float *s = anim->data + anim->channels * frame;
-	int mask = anim->mask[i];
-	*pose = anim->pose[i];
+	int mask = anim->mask[0];
+	*pose = anim->pose[0];
 	if (mask & 0x01) pose->position[0] = *s++;
 	if (mask & 0x02) pose->position[1] = *s++;
 	if (mask & 0x04) pose->position[2] = *s++;
@@ -88,7 +88,7 @@ void extract_frame_pose(struct pose *pose, struct anim *anim, int frame, int i)
 	if (mask & 0x200) pose->scale[2] = *s++;
 }
 
-void extract_frame(struct pose *pose, struct anim *anim, int frame)
+void extract_raw_frame(struct pose *pose, struct anim *anim, int frame)
 {
 	float *s = anim->data + anim->channels * frame;
 	int i;
@@ -106,6 +106,38 @@ void extract_frame(struct pose *pose, struct anim *anim, int frame)
 		if (mask & 0x100) pose[i].scale[1] = *s++;
 		if (mask & 0x200) pose[i].scale[2] = *s++;
 	}
+}
+
+void lerp_frame(struct pose *out, struct pose *a, struct pose *b, float t, int n)
+{
+	int i;
+	for (i = 0; i < n; i++) {
+		vec_lerp(out[i].position, a[i].position, b[i].position, t);
+		quat_lerp_neighbor_normalize(out[i].rotation, a[i].rotation, b[i].rotation, t);
+		vec_lerp(out[i].scale, a[i].scale, b[i].scale, t);
+	}
+}
+
+void extract_frame_root(struct pose *pose, struct anim *anim, float frame)
+{
+	int frame0 = (int)frame % anim->frames;;
+	int frame1 = (frame0 + 1) % anim->frames;
+	float t = frame - floorf(frame);
+	struct pose a, b;
+	extract_raw_frame_root(&a, anim, frame0);
+	extract_raw_frame_root(&b, anim, frame1);
+	lerp_frame(pose, &a, &b, t, 1);
+}
+
+void extract_frame(struct pose *pose, struct anim *anim, float frame)
+{
+	int frame0 = (int)frame % anim->frames;;
+	int frame1 = (frame0 + 1) % anim->frames;
+	float t = frame - floorf(frame);
+	struct pose a[MAXBONE], b[MAXBONE];
+	extract_raw_frame(a, anim, frame0);
+	extract_raw_frame(b, anim, frame1);
+	lerp_frame(pose, a, b, t, anim->skel->count);
 }
 
 static int haschildren(int *parent, int count, int x)

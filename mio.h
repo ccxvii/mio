@@ -246,8 +246,12 @@ struct skel *load_skel(const char *filename);
 struct mesh *load_mesh(const char *filename);
 struct anim *load_anim(const char *filename);
 
-void extract_frame_pose(struct pose *pose, struct anim *anim, int frame, int i);
-void extract_frame(struct pose *pose, struct anim *anim, int frame);
+void extract_raw_frame_root(struct pose *pose, struct anim *anim, int frame);
+void extract_raw_frame(struct pose *pose, struct anim *anim, int frame);
+void extract_frame_root(struct pose *pose, struct anim *anim, float frame);
+void extract_frame(struct pose *pose, struct anim *anim, float frame);
+void lerp_frame(struct pose *out, struct pose *a, struct pose *b, float t, int n);
+
 void draw_skel(mat4 *abs_pose_matrix, int *parent, int count);
 
 /* scene graph */
@@ -265,15 +269,21 @@ struct armature
 	struct armature *parent;
 	int parent_tag;
 
-	int dirty;
+	int dirty, updated;
 	vec3 position;
 	vec4 rotation;
 	vec3 scale;
 	mat4 transform;
 
-	struct anim *anim;
-	float time;
-	int *anim_map;
+	struct {
+		struct anim *anim;
+		float frame;
+		int *map;
+	} action, oldaction;
+	struct {
+		float phase;
+		float speed;
+	} transition;
 
 	mat4 model_pose[MAXBONE];
 };
@@ -349,7 +359,7 @@ void armature_clear_parent(struct armature *node);
 void object_clear_parent(struct object *node);
 void lamp_clear_parent(struct lamp *node);
 
-void play_anim(struct armature *node, struct anim *anim, float time);
+void play_anim(struct armature *node, struct anim *anim, float transition);
 void stop_anim(struct armature *node);
 
 void update_scene(struct scene *scene, float time);
