@@ -197,6 +197,8 @@ struct rawframe {
 
 struct rawanim {
 	char name[80];
+	float framerate;
+	int loop;
 	struct rawframe *first, *last;
 	struct rawanim *next;
 };
@@ -218,6 +220,8 @@ static struct rawanim *new_raw_anim(struct rawanim *head, char *name)
 {
 	struct rawanim *anim = malloc(sizeof(struct rawanim));
 	strlcpy(anim->name, name, sizeof anim->name);
+	anim->framerate = 30;
+	anim->loop = 0;
 	anim->first = anim->last = NULL;
 	anim->next = head;
 	return anim;
@@ -268,6 +272,8 @@ static struct anim *make_anim(struct anim *head, struct skel *skel, struct rawan
 
 	anim = malloc(sizeof(struct anim));
 	strlcpy(anim->name, raw->name, sizeof anim->name);
+	anim->framerate = raw->framerate;
+	anim->loop = raw->loop;
 	anim->skel = skel;
 	anim->next = head;
 	anim->anim_map_head = NULL;
@@ -616,6 +622,14 @@ struct model *load_iqe_from_memory(const char *filename, unsigned char *data, in
 		else if (!strcmp(s, "animation")) {
 			s = parsestring(&sp);
 			rawanim = new_raw_anim(rawanim, s);
+		}
+
+		else if (!strcmp(s, "framerate")) {
+			rawanim->framerate = parsefloat(&sp, 30);
+		}
+
+		else if (!strcmp(s, "loop")) {
+			rawanim->loop = 1;
 		}
 
 		else if (!strcmp(s, "frame")) {

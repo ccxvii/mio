@@ -191,6 +191,8 @@ struct model *load_iqm_from_memory(const char *filename, unsigned char *data, in
 		anim->skel = skel;
 		anim->frames = iqanim[k].num_frames;
 		anim->channels = iqm->num_framechannels;
+		anim->framerate = iqanim[k].framerate;
+		anim->loop = iqanim[k].flags & IQM_LOOP;
 		anim->data = malloc(iqanim[k].num_frames * iqm->num_framechannels * sizeof(float));
 
 		for (i = 0; i < iqm->num_joints; i++) {

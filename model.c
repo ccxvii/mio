@@ -120,8 +120,16 @@ void lerp_frame(struct pose *out, struct pose *a, struct pose *b, float t, int n
 
 void extract_frame_root(struct pose *pose, struct anim *anim, float frame)
 {
-	int frame0 = (int)frame % anim->frames;;
-	int frame1 = (frame0 + 1) % anim->frames;
+	int frame0 = frame;
+	int frame1 = frame0 + 1;
+	if (frame <= 0) {
+		extract_raw_frame_root(pose, anim, 0);
+		return;
+	}
+	if (frame1 >= anim->frames) {
+		extract_raw_frame_root(pose, anim, anim->frames - 1);
+		return;
+	}
 	float t = frame - floorf(frame);
 	struct pose a, b;
 	extract_raw_frame_root(&a, anim, frame0);
@@ -131,8 +139,16 @@ void extract_frame_root(struct pose *pose, struct anim *anim, float frame)
 
 void extract_frame(struct pose *pose, struct anim *anim, float frame)
 {
-	int frame0 = (int)frame % anim->frames;;
-	int frame1 = (frame0 + 1) % anim->frames;
+	int frame0 = frame;
+	int frame1 = frame0 + 1;
+	if (frame <= 0) {
+		extract_raw_frame(pose, anim, 0);
+		return;
+	}
+	if (frame1 >= anim->frames) {
+		extract_raw_frame(pose, anim, anim->frames - 1);
+		return;
+	}
 	float t = frame - floorf(frame);
 	struct pose a[MAXBONE], b[MAXBONE];
 	extract_raw_frame(a, anim, frame0);

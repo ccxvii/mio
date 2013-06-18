@@ -229,12 +229,20 @@ struct anim_map {
 struct anim {
 	char name[32];
 	int frames, channels;
+	float framerate;
+	int loop;
 	struct skel *skel;
 	float *data;
 	struct anim *next;
+	struct anim_map *anim_map_head;
 	int mask[MAXBONE];
 	struct pose pose[MAXBONE];
-	struct anim_map *anim_map_head;
+};
+
+struct anim_play {
+	struct anim *anim;
+	int *map;
+	float frame;
 };
 
 struct model *load_iqe_from_memory(const char *filename, unsigned char *data, int len);
@@ -275,15 +283,9 @@ struct armature
 	vec3 scale;
 	mat4 transform;
 
-	struct {
-		struct anim *anim;
-		float frame;
-		int *map;
-	} action, oldaction;
-	struct {
-		float phase;
-		float speed;
-	} transition;
+	struct anim_play curanim, oldanim;
+	float phase;
+	float speed;
 
 	mat4 model_pose[MAXBONE];
 };

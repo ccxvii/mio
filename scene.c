@@ -203,25 +203,25 @@ void play_anim(struct armature *node, struct anim *anim, float transition)
 	}
 
 	if (transition > 0) {
-		node->oldaction = node->action;
-		node->transition.phase = 0;
-		node->transition.speed = transition;
+		node->oldanim = node->curanim;
+		node->phase = 0;
+		node->speed = transition;
 	} else {
-		node->transition.phase = 1;
+		node->phase = 1;
 	}
 
-	node->action.map = map->anim_map;
-	node->action.anim = anim;
-	node->action.frame = 0;
+	node->curanim.map = map->anim_map;
+	node->curanim.anim = anim;
+	node->curanim.frame = 0;
 
 	node->dirty = 1;
 }
 
 void stop_anim(struct armature *node)
 {
-	node->action.map = NULL;
-	node->action.anim = NULL;
-	node->action.frame = 0;
+	node->curanim.map = NULL;
+	node->curanim.anim = NULL;
+	node->curanim.frame = 0;
 	node->dirty = 1;
 }
 
@@ -245,22 +245,34 @@ static void calc_root_motion(mat4 root_motion, struct anim *anim, float frame)
 	mat_mul(root_motion, m0, m);
 }
 
+static void update_anim_play(struct anim_play *play, float delta)
+{
+	struct anim *anim = play->anim;
+	play->frame += delta * anim->framerate;
+	if (play->frame > anim->frames - 1) {
+		if (anim->loop)
+			play->frame -= anim->frames - 1;
+		else
+			play->frame = anim->frames - 1;
+	}
+}
+
 static int update_armature(struct armature *node, float delta)
 {
 	if (node->updated)
 		return node->dirty;
 	node->updated = 1;
 
-	node->transition.phase += delta;
-	if (node->transition.phase >= 1) {
-		node->oldaction.anim = NULL;
+	node->phase += delta;
+	if (node->phase >= 1) {
+		node->oldanim.anim = NULL;
 	}
-	if (node->action.anim) {
-		node->action.frame += delta * 30;
+	if (node->curanim.anim) {
+		update_anim_play(&node->curanim, delta);
 		node->dirty = 1;
 	}
-	if (node->oldaction.anim) {
-		node->oldaction.frame += delta * 30;
+	if (node->oldanim.anim) {
+		update_anim_play(&node->oldanim, delta);
 		node->dirty = 1;
 	}
 
@@ -279,28 +291,28 @@ static int update_armature(struct armature *node, float delta)
 			mat_from_pose(node->transform, node->position, node->rotation, node->scale);
 		}
 
-		if (node->action.anim) {
+		if (node->curanim.anim) {
 			struct pose *skel_pose = node->skel->pose;
 			struct pose anim_pose0[MAXBONE];
 			struct pose anim_pose1[MAXBONE];
 			int i;
 
-			if (node->oldaction.anim) {
-				extract_frame(anim_pose0, node->oldaction.anim, node->oldaction.frame);
-				extract_frame(anim_pose1, node->action.anim, node->action.frame);
+			if (node->oldanim.anim) {
+				extract_frame(anim_pose0, node->oldanim.anim, node->oldanim.frame);
+				extract_frame(anim_pose1, node->curanim.anim, node->curanim.frame);
 				for (i = 0; i < node->skel->count; i++) {
-					int k0 = node->oldaction.map[i];
-					int k1 = node->action.map[i];
+					int k0 = node->oldanim.map[i];
+					int k1 = node->curanim.map[i];
 					struct pose *p0 = k0 >= 0 ? anim_pose0 + k0 : skel_pose + i;
 					struct pose *p1 = k1 >= 0 ? anim_pose1 + k1 : skel_pose + i;
 					struct pose p;
-					lerp_frame(&p, p0, p1, node->transition.phase, 1);
+					lerp_frame(&p, p0, p1, node->phase, 1);
 					mat_from_pose(local_pose[i], p.position, p.rotation, p.scale);
 				}
 			} else {
-				extract_frame(anim_pose1, node->action.anim, node->action.frame);
+				extract_frame(anim_pose1, node->curanim.anim, node->curanim.frame);
 				for (i = 0; i < node->skel->count; i++) {
-					int k = node->action.map[i];
+					int k = node->curanim.map[i];
 					if (k >= 0)
 						mat_from_pose(local_pose[i], anim_pose1[k].position, anim_pose1[k].rotation, anim_pose1[k].scale);
 					else
@@ -310,8 +322,9 @@ static int update_armature(struct armature *node, float delta)
 
 			calc_abs_matrix(node->model_pose, local_pose, node->skel->parent, node->skel->count);
 
+			// TODO: blending
 			mat4 root_motion;
-			calc_root_motion(root_motion, node->action.anim, node->action.frame);
+			calc_root_motion(root_motion, node->curanim.anim, node->curanim.frame);
 			mat_mul(node->transform, node->transform, root_motion);
 		} else {
 			calc_matrix_from_pose(local_pose, node->skel->pose, node->skel->count);
