@@ -8,11 +8,12 @@ int load_material(char *dirname, char *material)
 	if (s) s++; else s = material;
 	if (dirname[0]) {
 		strlcpy(filename, dirname, sizeof filename);
-		strlcat(filename, "/", sizeof filename);
+		strlcat(filename, "/textures/", sizeof filename);
 		strlcat(filename, s, sizeof filename);
 		strlcat(filename, ".png", sizeof filename);
 	} else {
-		strlcpy(filename, s, sizeof filename);
+		strlcpy(filename, "textures/", sizeof filename);
+		strlcat(filename, s, sizeof filename);
 		strlcat(filename, ".png", sizeof filename);
 	}
 	texture = load_texture(filename, 1);
