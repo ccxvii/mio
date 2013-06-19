@@ -187,7 +187,7 @@ struct model *load_iqm_from_memory(const char *filename, unsigned char *data, in
 	for (k = 0; k < iqm->num_anims; k++) {
 		struct anim *anim = malloc(sizeof(struct anim));
 		anim->anim_map_head = NULL;
-		strlcpy(anim->name, text + iqanim[k].name, sizeof anim->name);
+		anim->name = strdup(text + iqanim[k].name);
 		anim->skel = skel;
 		anim->frames = iqanim[k].num_frames;
 		anim->channels = iqm->num_framechannels;

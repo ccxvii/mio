@@ -192,6 +192,7 @@ int load_material(char *dirname, char *material);
 /* models and animations */
 
 #define MAXBONE 80
+#define MAX_BONE_NAME 16
 
 struct model {
 	struct skel *skel;
@@ -206,7 +207,7 @@ struct part {
 
 struct skel {
 	int count;
-	char name[MAXBONE][32];
+	char name[MAXBONE][MAX_BONE_NAME];
 	int parent[MAXBONE];
 	struct pose pose[MAXBONE];
 };
@@ -227,7 +228,7 @@ struct anim_map {
 };
 
 struct anim {
-	char name[32];
+	char *name;
 	int frames, channels;
 	float framerate;
 	int loop;

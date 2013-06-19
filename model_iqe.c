@@ -196,7 +196,7 @@ struct rawframe {
 };
 
 struct rawanim {
-	char name[80];
+	char *name;
 	float framerate;
 	int loop;
 	struct rawframe *first, *last;
@@ -219,7 +219,7 @@ static struct pose *new_raw_frame(struct rawanim *anim)
 static struct rawanim *new_raw_anim(struct rawanim *head, char *name)
 {
 	struct rawanim *anim = malloc(sizeof(struct rawanim));
-	strlcpy(anim->name, name, sizeof anim->name);
+	anim->name = strdup(name);
 	anim->framerate = 30;
 	anim->loop = 0;
 	anim->first = anim->last = NULL;
@@ -271,7 +271,7 @@ static struct anim *make_anim(struct anim *head, struct skel *skel, struct rawan
 	int i;
 
 	anim = malloc(sizeof(struct anim));
-	strlcpy(anim->name, raw->name, sizeof anim->name);
+	anim->name = raw->name;
 	anim->framerate = raw->framerate;
 	anim->loop = raw->loop;
 	anim->skel = skel;
