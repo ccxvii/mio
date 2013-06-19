@@ -115,14 +115,79 @@ static void *checktag(lua_State *L, int n, int tag)
 	return p;
 }
 
+/* Misc */
+
+static int ffi_register_archive(lua_State *L)
+{
+	register_archive(luaL_checkstring(L, 1));
+	return 0;
+}
+
+static int ffi_register_directory(lua_State *L)
+{
+	register_directory(luaL_checkstring(L, 1));
+	return 0;
+}
+
+static int ffi_load_font(lua_State *L)
+{
+	const char *name = luaL_checkstring(L, 1);
+	struct font *font = load_font(name);
+	if (!font)
+		return luaL_error(L, "cannot load font: %s", name);
+	lua_pushlightuserdata(L, font);
+	return 1;
+}
+
+/* Model */
+
+static int ffi_load_skel(lua_State *L)
+{
+	const char *name = luaL_checkstring(L, 1);
+	struct skel *skel = load_skel(name);
+	if (!skel)
+		return luaL_error(L, "cannot load skel: %s", name);
+	lua_pushlightuserdata(L, skel);
+	return 1;
+}
+
+static int ffi_load_mesh(lua_State *L)
+{
+	const char *name = luaL_checkstring(L, 1);
+	struct mesh *mesh = load_mesh(name);
+	if (!mesh)
+		return luaL_error(L, "cannot load mesh: %s", name);
+	lua_pushlightuserdata(L, mesh);
+	return 1;
+}
+
+static int ffi_load_anim(lua_State *L)
+{
+	const char *name = luaL_checkstring(L, 1);
+	struct anim *anim = load_anim(name);
+	if (!anim)
+		return luaL_error(L, "cannot load anim: %s", name);
+	lua_pushlightuserdata(L, anim);
+	return 1;
+}
+
+/* Scene */
+
+static int ffi_scn_new(lua_State *L)
+{
+	struct scene *scn = new_scene();
+	lua_pushlightuserdata(L, scn);
+	return 1;
+}
+
 /* Armature */
 
 static int ffi_amt_new(lua_State *L)
 {
-	const char *skelname = luaL_checkstring(L, 1);
-	struct armature *amt = new_armature(scene, skelname);
+	struct skel *skel = checktag(L, 1, TAG_SKEL);
+	struct armature *amt = new_armature(scene, skel);
 	if (!amt)
-		return luaL_error(L, "cannot load skeleton: %s", skelname);
+		return luaL_error(L, "cannot create armature");
 	lua_pushlightuserdata(L, amt);
 	return 1;
 }
@@ -206,12 +271,9 @@ static int ffi_amt_scale(lua_State *L)
 static int ffi_amt_play_anim(lua_State *L)
 {
 	struct armature *amt = checktag(L, 1, TAG_ARMATURE);
-	const char *animname = luaL_checkstring(L, 2);
-	float time = luaL_checknumber(L, 3);
-	struct anim *anim = load_anim(animname);
-	if (!anim)
-		return luaL_error(L, "cannot load anim: %s", animname);
-	play_anim(amt, anim, time);
+	struct anim *anim = checktag(L, 2, TAG_ANIM);
+	float transition = luaL_checknumber(L, 3);
+	play_anim(amt, anim, transition);
 	return 0;
 }
 
@@ -226,10 +288,10 @@ static int ffi_amt_stop_anim(lua_State *L)
 
 static int ffi_obj_new(lua_State *L)
 {
-	const char *meshname = luaL_checkstring(L, 1);
-	struct object *obj = new_object(scene, meshname);
+	struct mesh *mesh = checktag(L, 1, TAG_MESH);
+	struct object *obj = new_object(scene, mesh);
 	if (!obj)
-		return luaL_error(L, "cannot load mesh: %s", meshname);
+		return luaL_error(L, "cannot create object");
 	lua_pushlightuserdata(L, obj);
 	return 1;
 }
@@ -518,20 +580,6 @@ static int ffi_lamp_use_shadow(lua_State *L)
 	return 1;
 }
 
-/* Misc */
-
-static int ffi_register_archive(lua_State *L)
-{
-	register_archive(luaL_checkstring(L, 1));
-	return 0;
-}
-
-static int ffi_register_directory(lua_State *L)
-{
-	register_directory(luaL_checkstring(L, 1));
-	return 0;
-}
-
 void init_lua(void)
 {
 	L = luaL_newstate();
@@ -541,6 +589,17 @@ void init_lua(void)
 
 	lua_register(L, "register_archive", ffi_register_archive);
 	lua_register(L, "register_directory", ffi_register_directory);
+
+	/* draw */
+	lua_register(L, "load_font", ffi_load_font);
+
+	/* model */
+	lua_register(L, "load_skel", ffi_load_skel);
+	lua_register(L, "load_mesh", ffi_load_mesh);
+	lua_register(L, "load_anim", ffi_load_anim);
+
+	/* scene */
+	lua_register(L, "scn_new", ffi_scn_new);
 
 	lua_register(L, "amt_new", ffi_amt_new);
 	lua_register(L, "amt_set_parent", ffi_amt_set_parent);

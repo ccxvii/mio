@@ -39,7 +39,7 @@ function mt_amt:rotation() return amt_rotation(self.user) end
 function mt_amt:scale() return amt_scale(self.user) end
 
 function mt_amt:play_animation(animname, transition)
-	amt_play_anim(self.user, animname, transition)
+	amt_play_anim(self.user, load_anim(animname), transition)
 end
 
 function mt_amt:stop_animation()
@@ -48,7 +48,7 @@ end
 
 function armature(data)
 	if type(data) == 'string' then return armature {skel=data} end
-	local amt = amt_new(data.skel)
+	local amt = amt_new(load_skel(data.skel))
 	if data.position then amt_set_position(amt, table_unpack(data.position)) end
 	if data.rotation then amt_set_rotation(amt, table_unpack(data.rotation)) end
 	if data.scale then amt_set_scale(amt, table_unpack(data.scale)) end
@@ -89,7 +89,7 @@ function mt_obj:scale() return obj_scale(self.user) end
 
 function object(data)
 	if type(data) == 'string' then return object {mesh=data} end
-	local obj = obj_new(data.mesh)
+	local obj = obj_new(load_mesh(data.mesh))
 	if data.position then obj_set_position(obj, table_unpack(data.position)) end
 	if data.rotation then obj_set_rotation(obj, table_unpack(data.rotation)) end
 	if data.scale then obj_set_scale(obj, table_unpack(data.scale)) end

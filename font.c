@@ -35,7 +35,7 @@ struct font
 	stbtt_fontinfo info;
 };
 
-struct font *load_font_from_memory(char *filename, unsigned char *data, int len)
+struct font *load_font_from_memory(const char *filename, unsigned char *data, int len)
 {
 	struct font *font;
 	int ok;
@@ -54,7 +54,7 @@ struct font *load_font_from_memory(char *filename, unsigned char *data, int len)
 	return font;
 }
 
-struct font *load_font(char *filename)
+struct font *load_font(const char *filename)
 {
 	struct font *font;
 	int ok;

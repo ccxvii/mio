@@ -123,8 +123,8 @@ void icon_show(int texture,
 
 /* fonts based on stb_truetype */
 
-struct font *load_font(char *filename);
-struct font *load_font_from_memory(char *filename, unsigned char *data, int len);
+struct font *load_font(const char *filename);
+struct font *load_font_from_memory(const char *filename, unsigned char *data, int len);
 void free_font(struct font *font);
 float font_width(struct font *font, float size, char *str);
 
@@ -364,8 +364,8 @@ struct scene
 };
 
 struct scene *new_scene(void);
-struct armature *new_armature(struct scene *scene, const char *skelname);
-struct object *new_object(struct scene *scene, const char *meshname);
+struct armature *new_armature(struct scene *scene, struct skel *skel);
+struct object *new_object(struct scene *scene, struct mesh *mesh);
 struct lamp *new_lamp(struct scene *scene);
 
 int armature_set_parent(struct armature *node, struct armature *parent, const char *tagname);

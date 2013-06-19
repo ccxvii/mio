@@ -10,12 +10,8 @@ struct scene *new_scene(void)
 	return scene;
 }
 
-struct armature *new_armature(struct scene *scene, const char *skelname)
+struct armature *new_armature(struct scene *scene, struct skel *skel)
 {
-	struct skel *skel = load_skel(skelname);
-	if (!skel)
-		return NULL;
-
 	struct armature *amt = malloc(sizeof(*amt));
 	memset(amt, 0, sizeof(*amt));
 	amt->tag = TAG_ARMATURE;
@@ -30,12 +26,8 @@ struct armature *new_armature(struct scene *scene, const char *skelname)
 	return amt;
 }
 
-struct object *new_object(struct scene *scene, const char *meshname)
+struct object *new_object(struct scene *scene, struct mesh *mesh)
 {
-	struct mesh *mesh = load_mesh(meshname);
-	if (!mesh)
-		return NULL;
-
 	struct object *obj = malloc(sizeof(*obj));
 	memset(obj, 0, sizeof(*obj));
 	obj->tag = TAG_OBJECT;
