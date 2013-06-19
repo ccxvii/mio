@@ -30,6 +30,7 @@ static struct cache *font_cache = NULL;
 
 struct font
 {
+	int tag;
 	unsigned char *data;
 	stbtt_fontinfo info;
 };
@@ -40,6 +41,7 @@ struct font *load_font_from_memory(char *filename, unsigned char *data, int len)
 	int ok;
 
 	font = malloc(sizeof(struct font));
+	font->tag = TAG_FONT;
 	font->data = malloc(len);
 	memcpy(font->data, data, len);
 
@@ -62,6 +64,7 @@ struct font *load_font(char *filename)
 		return font;
 
 	font = malloc(sizeof(struct font));
+	font->tag = TAG_FONT;
 	font->data = load_file(filename, NULL);
 	if (!font->data) {
 		warn("error: cannot load font file: '%s'", filename);

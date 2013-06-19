@@ -61,6 +61,19 @@ int xstrlcat(char *dst, const char *src, int siz);
 #define SRGB(r,g,b) SLUM(r),SLUM(g),SLUM(b)
 #define SRGBA(r,g,b,a) SRGB(r,g,b),(a)
 
+/* objects exposed to lua as user data needs tags */
+
+enum {
+	TAG_FONT = 42,
+	TAG_SKEL,
+	TAG_MESH,
+	TAG_ANIM,
+	TAG_SCENE,
+	TAG_ARMATURE,
+	TAG_OBJECT,
+	TAG_LAMP,
+};
+
 /* matrix math utils */
 
 #include "vector.h"
@@ -206,6 +219,7 @@ struct part {
 };
 
 struct skel {
+	int tag;
 	int count;
 	char name[MAXBONE][MAX_BONE_NAME];
 	int parent[MAXBONE];
@@ -213,6 +227,7 @@ struct skel {
 };
 
 struct mesh {
+	int tag;
 	unsigned int vao, vbo, ibo;
 	int enabled;
 	int count;
@@ -228,6 +243,7 @@ struct anim_map {
 };
 
 struct anim {
+	int tag;
 	char *name;
 	int frames, channels;
 	float framerate;
@@ -264,8 +280,6 @@ void lerp_frame(struct pose *out, struct pose *a, struct pose *b, float t, int n
 void draw_skel(mat4 *abs_pose_matrix, int *parent, int count);
 
 /* scene graph */
-
-enum { TAG_SCENE = 42, TAG_ARMATURE, TAG_OBJECT, TAG_LAMP };
 
 struct armature
 {

@@ -271,6 +271,7 @@ static struct anim *make_anim(struct anim *head, struct skel *skel, struct rawan
 	int i;
 
 	anim = malloc(sizeof(struct anim));
+	anim->tag = TAG_ANIM;
 	anim->name = raw->name;
 	anim->framerate = raw->framerate;
 	anim->loop = raw->loop;
@@ -649,6 +650,7 @@ struct model *load_iqe_from_memory(const char *filename, unsigned char *data, in
 
 	if (bone_count > 0) {
 		skel = malloc(sizeof(struct skel));
+		skel->tag = TAG_SKEL;
 		skel->count = bone_count;
 		for (i = 0; i < bone_count; i++) {
 			strlcpy(skel->name[i], bone_name[i], sizeof skel->name[0]);
@@ -659,6 +661,7 @@ struct model *load_iqe_from_memory(const char *filename, unsigned char *data, in
 
 	if (part.len) {
 		mesh = malloc(sizeof(struct mesh));
+		mesh->tag = TAG_MESH;
 		mesh->enabled = 1<<ATT_POSITION;
 		mesh->skel = skel;
 		mesh->inv_bind_matrix = NULL;

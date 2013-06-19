@@ -112,6 +112,7 @@ struct model *load_iqm_from_memory(const char *filename, unsigned char *data, in
 
 	if (iqm->num_joints) {
 		skel = malloc(sizeof(struct skel));
+		skel->tag = TAG_SKEL;
 		skel->count = iqm->num_joints;
 		for (i = 0; i < iqm->num_joints; i++) {
 			strlcpy(skel->name[i], text + iqjoint[i].name, sizeof skel->name[0]);
@@ -124,6 +125,7 @@ struct model *load_iqm_from_memory(const char *filename, unsigned char *data, in
 
 	if (iqm->num_meshes) {
 		mesh = malloc(sizeof(struct mesh));
+		mesh->tag = TAG_MESH;
 		mesh->enabled = 0;
 
 		if (skel) {
@@ -186,6 +188,7 @@ struct model *load_iqm_from_memory(const char *filename, unsigned char *data, in
 
 	for (k = 0; k < iqm->num_anims; k++) {
 		struct anim *anim = malloc(sizeof(struct anim));
+		anim->tag = TAG_ANIM;
 		anim->anim_map_head = NULL;
 		anim->name = strdup(text + iqanim[k].name);
 		anim->skel = skel;
