@@ -68,13 +68,20 @@ static void motion(int x, int y)
 static void keyboard(unsigned char key, int x, int y)
 {
 	int mod = glutGetModifiers();
-	if ((mod & GLUT_ACTIVE_ALT) && key == '\r')
+	if ((mod & GLUT_ACTIVE_ALT) && key == '\r') {
 		togglefullscreen();
-	else if (key ==	27)
-		showconsole = !showconsole;
-	else if (showconsole)
-		console_keyboard(key, mod);
-	lasttime = glutGet(GLUT_ELAPSED_TIME);
+	} else if (showconsole) {
+		if (key == '`' || key == 27)
+			showconsole = !showconsole;
+		else
+			console_keyboard(key, mod);
+	} else {
+		if (key == 27)
+			exit(0);
+		if (key == '`' || key == '\r')
+			showconsole = !showconsole;
+	}
+
 	glutPostRedisplay();
 }
 
