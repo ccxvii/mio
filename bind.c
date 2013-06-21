@@ -109,7 +109,7 @@ void run_file(const char *filename)
 static void *checktag(lua_State *L, int n, int tag)
 {
 	luaL_checktype(L, n, LUA_TLIGHTUSERDATA);
-	int *p = lua_touserdata(L, n);
+	enum tag *p = lua_touserdata(L, n);
 	if (!p || *p != tag)
 		luaL_argerror(L, n, "wrong userdata type");
 	return p;

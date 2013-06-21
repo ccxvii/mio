@@ -63,7 +63,7 @@ int xstrlcat(char *dst, const char *src, int siz);
 
 /* objects exposed to lua as user data needs tags */
 
-enum {
+enum tag {
 	TAG_FONT = 42,
 	TAG_SKEL,
 	TAG_MESH,
@@ -219,7 +219,7 @@ struct part {
 };
 
 struct skel {
-	int tag;
+	enum tag tag;
 	int count;
 	char name[MAXBONE][MAX_BONE_NAME];
 	int parent[MAXBONE];
@@ -227,7 +227,7 @@ struct skel {
 };
 
 struct mesh {
-	int tag;
+	enum tag tag;
 	unsigned int vao, vbo, ibo;
 	int enabled;
 	int count;
@@ -243,7 +243,7 @@ struct anim_map {
 };
 
 struct anim {
-	int tag;
+	enum tag tag;
 	char *name;
 	int frames, channels;
 	float framerate;
@@ -283,7 +283,7 @@ void draw_skel(mat4 *abs_pose_matrix, int *parent, int count);
 
 struct armature
 {
-	int tag;
+	enum tag tag;
 
 	LIST_ENTRY(armature) list;
 
@@ -307,7 +307,7 @@ struct armature
 
 struct object
 {
-	int tag;
+	enum tag tag;
 
 	LIST_ENTRY(object) list;
 
@@ -332,7 +332,7 @@ enum { LAMP_POINT, LAMP_SPOT, LAMP_SUN };
 
 struct lamp
 {
-	int tag;
+	enum tag tag;
 
 	LIST_ENTRY(lamp) list;
 
@@ -357,7 +357,7 @@ struct lamp
 
 struct scene
 {
-	int tag;
+	enum tag tag;
 	LIST_HEAD(armature_list, armature) armatures;
 	LIST_HEAD(object_list, object) objects;
 	LIST_HEAD(lamp_list, lamp) lamps;
