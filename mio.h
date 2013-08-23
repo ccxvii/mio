@@ -64,14 +64,16 @@ int xstrlcat(char *dst, const char *src, int siz);
 /* objects exposed to lua as user data needs tags */
 
 enum tag {
-	TAG_FONT = 42,
-	TAG_SKEL,
-	TAG_MESH,
-	TAG_ANIM,
-	TAG_SCENE,
-	TAG_ARMATURE,
-	TAG_OBJECT,
-	TAG_LAMP,
+	TAG_FONT = 'F',
+	TAG_SKEL = 'S',
+	TAG_MESH = 'M',
+	TAG_ANIM = 'A',
+	TAG_LAMP = 'L',
+	TAG_SCENE = 'W',
+	TAG_ENTITY = 'E',
+	TAG_TRANSFORM = 'T',
+	TAG_ISKEL = 's',
+	TAG_IMESH = 'm',
 };
 
 /* matrix math utils */
@@ -256,10 +258,19 @@ struct anim {
 	struct pose pose[MAXBONE];
 };
 
-struct anim_play {
-	struct anim *anim;
-	int *map;
-	float frame;
+enum { LAMP_POINT, LAMP_SPOT, LAMP_SUN };
+
+struct lamp
+{
+	enum tag tag;
+	int type;
+	vec3 color;
+	float energy;
+	float distance;
+	float spot_angle;
+	float spot_blend;
+	int use_sphere;
+	int use_shadow;
 };
 
 struct model *load_iqe_from_memory(const char *filename, unsigned char *data, int len);
@@ -281,103 +292,59 @@ void draw_skel(mat4 *abs_pose_matrix, int *parent, int count);
 
 /* scene graph */
 
-struct armature
+struct transform
 {
 	enum tag tag;
+	struct entity *parent;
+	int parent_bone;
+	struct pose pose;
+	int dirty;
+	mat4 matrix;
+};
 
-	LIST_ENTRY(armature) list;
-
+struct iskel
+{
+	enum tag tag;
 	struct skel *skel;
-
-	struct armature *parent;
-	int parent_tag;
-
-	int dirty, updated;
-	vec3 position;
-	vec4 rotation;
-	vec3 scale;
-	mat4 transform;
-
-	struct anim_play curanim, oldanim;
-	float phase;
-	float speed;
-
-	mat4 model_pose[MAXBONE];
+	struct pose pose[MAXBONE];
+	mat4 matrix[MAXBONE];
 };
 
-struct object
+struct imesh
 {
 	enum tag tag;
-
-	LIST_ENTRY(object) list;
-
 	struct mesh *mesh;
-
-	struct armature *parent;
-	int parent_tag;
-	unsigned char parent_map[MAXBONE]; // TODO: move into mesh, like for anim_map
-
-	int dirty;
-	vec3 position;
-	vec4 rotation;
-	vec3 scale;
-	mat4 transform;
-
-	vec3 color;
-
-	mat4 *model_from_bind_pose;
+	vec4 color;
+	unsigned char skel_map[MAXBONE];
+	mat4 model_from_bind_pose[MAXBONE];
+	LIST_ENTRY(imesh) imesh_next;
 };
 
-enum { LAMP_POINT, LAMP_SPOT, LAMP_SUN };
-
-struct lamp
+struct entity
 {
 	enum tag tag;
-
-	LIST_ENTRY(lamp) list;
-
-	struct armature *parent;
-	int parent_tag;
-
-	int dirty;
-	vec3 position;
-	vec4 rotation;
-	vec3 scale;
-	mat4 transform;
-
-	int type;
-	vec3 color;
-	float energy;
-	float distance;
-	float spot_angle;
-	float spot_blend;
-	int use_sphere;
-	int use_shadow;
+	struct transform *transform;
+	struct iskel *iskel;
+	LIST_HEAD(imesh_list, imesh) imesh_list;
+	struct lamp *lamp;
+	LIST_ENTRY(entity) entity_next;
 };
 
 struct scene
 {
 	enum tag tag;
-	LIST_HEAD(armature_list, armature) armatures;
-	LIST_HEAD(object_list, object) objects;
-	LIST_HEAD(lamp_list, lamp) lamps;
+	LIST_HEAD(entity_list, entity) entity_list;
 };
 
 struct scene *new_scene(void);
-struct armature *new_armature(struct scene *scene, struct skel *skel);
-struct object *new_object(struct scene *scene, struct mesh *mesh);
-struct lamp *new_lamp(struct scene *scene);
+struct entity *new_entity(struct scene *scene);
+struct transform *new_transform(void);
+struct lamp *new_lamp(void);
+struct imesh *new_imesh(struct mesh *mesh);
+struct iskel *new_iskel(struct skel *skel);
 
-int armature_set_parent(struct armature *node, struct armature *parent, const char *tagname);
-int object_set_parent(struct object *node, struct armature *parent, const char *tagname);
-int lamp_set_parent(struct lamp *node, struct armature *parent, const char *tagname);
-
-void armature_clear_parent(struct armature *node);
-void object_clear_parent(struct object *node);
-void lamp_clear_parent(struct lamp *node);
-
-void play_anim(struct armature *node, struct anim *anim, float transition);
-void stop_anim(struct armature *node);
+int transform_set_parent(struct transform *tra, struct entity *parent, const char *bone_name);
+void transform_clear_parent(struct transform *tra);
 
 void update_scene(struct scene *scene, float time);
 void draw_scene(struct scene *scene, mat4 projection, mat4 view);
@@ -390,9 +357,9 @@ void render_scene_light(struct scene *scene, mat4 proj, mat4 view);
 void render_static_mesh(struct mesh *mesh, mat4 clip_from_view, mat4 view_from_model);
 void render_skinned_mesh(struct mesh *mesh, mat4 clip_from_view, mat4 view_from_model, mat4 *model_from_bind_pose);
 
-void render_point_lamp(struct lamp *lamp, mat4 clip_from_view, mat4 view_from_world);
-void render_spot_lamp(struct lamp *lamp, mat4 clip_from_view, mat4 view_from_world);
-void render_sun_lamp(struct lamp *lamp, mat4 clip_from_view, mat4 view_from_world);
+void render_point_lamp(struct lamp *lamp, mat4 clip_from_view, mat4 view_from_world, mat4 lamp_transform);
+void render_spot_lamp(struct lamp *lamp, mat4 clip_from_view, mat4 view_from_world, mat4 lamp_transform);
+void render_sun_lamp(struct lamp *lamp, mat4 clip_from_view, mat4 view_from_world, mat4 lamp_transform);
 
 void render_sky(void);
 

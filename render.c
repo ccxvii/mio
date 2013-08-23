@@ -389,7 +389,7 @@ static const char *point_frag_src =
 	"}\n"
 ;
 
-void render_point_lamp(struct lamp *lamp, mat4 clip_from_view, mat4 view_from_world)
+void render_point_lamp(struct lamp *lamp, mat4 clip_from_view, mat4 view_from_world, mat4 lamp_transform)
 {
 	static int prog = 0;
 	static int uni_viewport;
@@ -419,7 +419,7 @@ void render_point_lamp(struct lamp *lamp, mat4 clip_from_view, mat4 view_from_wo
 	viewport[0] = fbo_w;
 	viewport[1] = fbo_h;
 
-	mat_vec_mul(lamp_position, view_from_world, lamp->transform + 12);
+	mat_vec_mul(lamp_position, view_from_world, lamp_transform + 12);
 	vec_scale(lamp_color, lamp->color, lamp->energy);
 
 	glUseProgram(prog);
@@ -471,7 +471,7 @@ static const char *spot_frag_src =
 	"}\n"
 ;
 
-void render_spot_lamp(struct lamp *lamp, mat4 clip_from_view, mat4 view_from_world)
+void render_spot_lamp(struct lamp *lamp, mat4 clip_from_view, mat4 view_from_world, mat4 lamp_transform)
 {
 	static int prog = 0;
 	static int uni_viewport;
@@ -514,9 +514,9 @@ void render_spot_lamp(struct lamp *lamp, mat4 clip_from_view, mat4 view_from_wor
 	viewport[0] = fbo_w;
 	viewport[1] = fbo_h;
 
-	mat_vec_mul(lamp_position, view_from_world, lamp->transform + 12);
+	mat_vec_mul(lamp_position, view_from_world, lamp_transform + 12);
 
-	mat_vec_mul_n(lamp_direction_world, lamp->transform, lamp_direction_init);
+	mat_vec_mul_n(lamp_direction_world, lamp_transform, lamp_direction_init);
 	mat_vec_mul_n(lamp_direction_view, view_from_world, lamp_direction_world);
 	vec_normalize(lamp_direction, lamp_direction_view);
 
@@ -555,7 +555,7 @@ static const char *sun_frag_src =
 	"}\n"
 ;
 
-void render_sun_lamp(struct lamp *lamp, mat4 clip_from_view, mat4 view_from_world)
+void render_sun_lamp(struct lamp *lamp, mat4 clip_from_view, mat4 view_from_world, mat4 lamp_transform)
 {
 	static int prog = 0;
 	static int uni_viewport;
@@ -580,7 +580,7 @@ void render_sun_lamp(struct lamp *lamp, mat4 clip_from_view, mat4 view_from_worl
 	viewport[0] = fbo_w;
 	viewport[1] = fbo_h;
 
-	mat_vec_mul_n(lamp_direction_world, lamp->transform, lamp_direction_init);
+	mat_vec_mul_n(lamp_direction_world, lamp_transform, lamp_direction_init);
 	mat_vec_mul_n(lamp_direction_view, view_from_world, lamp_direction_world);
 	vec_normalize(lamp_direction, lamp_direction_view);
 

@@ -180,269 +180,200 @@ static int ffi_scn_new(lua_State *L)
 	return 1;
 }
 
-/* Armature */
+/* Entity */
 
-static int ffi_amt_new(lua_State *L)
+static int ffi_ent_new(lua_State *L)
+{
+	// struct scene *scn = checktag(L, 1, TAG_SCENE);
+	// struct entity *ent = ent_new(scn);
+	struct entity *ent = new_entity(scene);
+	lua_pushlightuserdata(L, ent);
+	return 1;
+}
+
+/* Transform component */
+
+static int ffi_tra_new(lua_State *L)
+{
+	lua_pushlightuserdata(L, new_transform());
+	return 1;
+}
+
+static int ffi_ent_set_transform(lua_State *L)
+{
+	struct entity *ent = checktag(L, 1, TAG_ENTITY);
+	ent->transform = checktag(L, 2, TAG_TRANSFORM);
+	return 0;
+}
+
+static int ffi_ent_transform(lua_State *L)
+{
+	struct entity *ent = checktag(L, 1, TAG_ENTITY);
+	lua_pushlightuserdata(L, ent->transform);
+	return 1;
+}
+
+static int ffi_tra_set_parent(lua_State *L)
+{
+	struct transform *tra = checktag(L, 1, TAG_TRANSFORM);
+	struct entity *parent = checktag(L, 2, TAG_ENTITY);
+	const char *bone_name = luaL_checkstring(L, 3);
+	if (transform_set_parent(tra, parent, bone_name))
+		return luaL_error(L, "cannot find bone: %s", bone_name);
+	return 0;
+}
+
+static int ffi_tra_clear_parent(lua_State *L)
+{
+	struct transform *tra = checktag(L, 1, TAG_TRANSFORM);
+	transform_clear_parent(tra);
+	return 0;
+}
+
+static int ffi_tra_set_position(lua_State *L)
+{
+	struct transform *tra = checktag(L, 1, TAG_TRANSFORM);
+	tra->pose.position[0] = luaL_checknumber(L, 2);
+	tra->pose.position[1] = luaL_checknumber(L, 3);
+	tra->pose.position[2] = luaL_checknumber(L, 4);
+	tra->dirty = 1;
+	return 0;
+}
+
+static int ffi_tra_set_rotation(lua_State *L)
+{
+	struct transform *tra = checktag(L, 1, TAG_TRANSFORM);
+	tra->pose.rotation[0] = luaL_checknumber(L, 2);
+	tra->pose.rotation[1] = luaL_checknumber(L, 3);
+	tra->pose.rotation[2] = luaL_checknumber(L, 4);
+	tra->pose.rotation[3] = luaL_checknumber(L, 5);
+	tra->dirty = 1;
+	return 0;
+}
+
+static int ffi_tra_set_scale(lua_State *L)
+{
+	struct transform *tra = checktag(L, 1, TAG_TRANSFORM);
+	tra->pose.scale[0] = luaL_checknumber(L, 2);
+	tra->pose.scale[1] = luaL_checknumber(L, 3);
+	tra->pose.scale[2] = luaL_checknumber(L, 4);
+	tra->dirty = 1;
+	return 0;
+}
+
+static int ffi_tra_position(lua_State *L)
+{
+	struct transform *tra = checktag(L, 1, TAG_TRANSFORM);
+	lua_pushnumber(L, tra->pose.position[0]);
+	lua_pushnumber(L, tra->pose.position[1]);
+	lua_pushnumber(L, tra->pose.position[2]);
+	return 3;
+}
+
+static int ffi_tra_rotation(lua_State *L)
+{
+	struct transform *tra = checktag(L, 1, TAG_TRANSFORM);
+	lua_pushnumber(L, tra->pose.rotation[0]);
+	lua_pushnumber(L, tra->pose.rotation[1]);
+	lua_pushnumber(L, tra->pose.rotation[2]);
+	lua_pushnumber(L, tra->pose.rotation[3]);
+	return 4;
+}
+
+static int ffi_tra_scale(lua_State *L)
+{
+	struct transform *tra = checktag(L, 1, TAG_TRANSFORM);
+	lua_pushnumber(L, tra->pose.scale[0]);
+	lua_pushnumber(L, tra->pose.scale[1]);
+	lua_pushnumber(L, tra->pose.scale[2]);
+	return 3;
+}
+
+/* Skel instance component */
+
+static int ffi_iskel_new(lua_State *L)
 {
 	struct skel *skel = checktag(L, 1, TAG_SKEL);
-	struct armature *amt = new_armature(scene, skel);
-	if (!amt)
-		return luaL_error(L, "cannot create armature");
-	lua_pushlightuserdata(L, amt);
+	lua_pushlightuserdata(L, new_iskel(skel));
 	return 1;
 }
 
-static int ffi_amt_set_parent(lua_State *L)
+static int ffi_ent_set_iskel(lua_State *L)
 {
-	struct armature *amt = checktag(L, 1, TAG_ARMATURE);
-	struct armature *parent = checktag(L, 2, TAG_ARMATURE);
-	const char *tagname = luaL_checkstring(L, 3);
-	if (armature_set_parent(amt, parent, tagname))
-		return luaL_error(L, "cannot find bone: %s", tagname);
+	struct entity *ent = checktag(L, 1, TAG_ENTITY);
+	ent->iskel = checktag(L, 2, TAG_ISKEL);
 	return 0;
 }
 
-static int ffi_amt_clear_parent(lua_State *L)
+static int ffi_ent_iskel(lua_State *L)
 {
-	struct armature *amt = checktag(L, 1, TAG_ARMATURE);
-	armature_clear_parent(amt);
-	return 0;
+	struct entity *ent = checktag(L, 1, TAG_ENTITY);
+	lua_pushlightuserdata(L, ent->iskel);
+	return 1;
 }
 
-static int ffi_amt_set_position(lua_State *L)
-{
-	struct armature *amt = checktag(L, 1, TAG_ARMATURE);
-	amt->position[0] = luaL_checknumber(L, 2);
-	amt->position[1] = luaL_checknumber(L, 3);
-	amt->position[2] = luaL_checknumber(L, 4);
-	amt->dirty = 1;
-	return 0;
-}
 
-static int ffi_amt_set_rotation(lua_State *L)
-{
-	struct armature *amt = checktag(L, 1, TAG_ARMATURE);
-	amt->rotation[0] = luaL_checknumber(L, 2);
-	amt->rotation[1] = luaL_checknumber(L, 3);
-	amt->rotation[2] = luaL_checknumber(L, 4);
-	amt->rotation[3] = luaL_checknumber(L, 5);
-	amt->dirty = 1;
-	return 0;
-}
+/* Mesh instance component */
 
-static int ffi_amt_set_scale(lua_State *L)
-{
-	struct armature *amt = checktag(L, 1, TAG_ARMATURE);
-	amt->scale[0] = luaL_checknumber(L, 2);
-	amt->scale[1] = luaL_checknumber(L, 3);
-	amt->scale[2] = luaL_checknumber(L, 4);
-	amt->dirty = 1;
-	return 0;
-}
-
-static int ffi_amt_position(lua_State *L)
-{
-	struct armature *amt = checktag(L, 1, TAG_ARMATURE);
-	lua_pushnumber(L, amt->position[0]);
-	lua_pushnumber(L, amt->position[1]);
-	lua_pushnumber(L, amt->position[2]);
-	return 3;
-}
-
-static int ffi_amt_rotation(lua_State *L)
-{
-	struct armature *amt = checktag(L, 1, TAG_ARMATURE);
-	lua_pushnumber(L, amt->rotation[0]);
-	lua_pushnumber(L, amt->rotation[1]);
-	lua_pushnumber(L, amt->rotation[2]);
-	lua_pushnumber(L, amt->rotation[3]);
-	return 4;
-}
-
-static int ffi_amt_scale(lua_State *L)
-{
-	struct armature *amt = checktag(L, 1, TAG_ARMATURE);
-	lua_pushnumber(L, amt->scale[0]);
-	lua_pushnumber(L, amt->scale[1]);
-	lua_pushnumber(L, amt->scale[2]);
-	return 3;
-}
-
-static int ffi_amt_play_anim(lua_State *L)
-{
-	struct armature *amt = checktag(L, 1, TAG_ARMATURE);
-	struct anim *anim = checktag(L, 2, TAG_ANIM);
-	float transition = luaL_checknumber(L, 3);
-	play_anim(amt, anim, transition);
-	return 0;
-}
-
-static int ffi_amt_stop_anim(lua_State *L)
-{
-	struct armature *amt = checktag(L, 1, TAG_ARMATURE);
-	stop_anim(amt);
-	return 0;
-}
-
-/* Object */
-
-static int ffi_obj_new(lua_State *L)
+static int ffi_imesh_new(lua_State *L)
 {
 	struct mesh *mesh = checktag(L, 1, TAG_MESH);
-	struct object *obj = new_object(scene, mesh);
-	if (!obj)
-		return luaL_error(L, "cannot create object");
-	lua_pushlightuserdata(L, obj);
+	struct imesh *imesh = new_imesh(mesh);
+	lua_pushlightuserdata(L, imesh);
 	return 1;
 }
 
-static int ffi_obj_set_parent(lua_State *L)
+static int ffi_ent_add_imesh(lua_State *L)
 {
-	struct object *obj = checktag(L, 1, TAG_OBJECT);
-	struct armature *parent = checktag(L, 2, TAG_ARMATURE);
-	const char *tagname = lua_tostring(L, 3);
-	if (object_set_parent(obj, parent, tagname)) {
-		if (tagname)
-			return luaL_error(L, "cannot find bone: %s", tagname);
-		else
-			return luaL_error(L, "skeleton mismatch");
-	}
+	struct entity *ent = checktag(L, 1, TAG_ENTITY);
+	struct imesh *imesh = checktag(L, 2, TAG_IMESH);
+	LIST_INSERT_HEAD(&ent->imesh_list, imesh, imesh_next);
 	return 0;
 }
 
-static int ffi_obj_clear_parent(lua_State *L)
+static int ffi_imesh_set_color(lua_State *L)
 {
-	struct object *obj = checktag(L, 1, TAG_OBJECT);
-	object_clear_parent(obj);
+	struct imesh *imesh = checktag(L, 1, TAG_IMESH);
+	imesh->color[0] = luaL_checknumber(L, 2);
+	imesh->color[1] = luaL_checknumber(L, 3);
+	imesh->color[2] = luaL_checknumber(L, 4);
 	return 0;
 }
 
-static int ffi_obj_set_position(lua_State *L)
+static int ffi_imesh_color(lua_State *L)
 {
-	struct object *obj = checktag(L, 1, TAG_OBJECT);
-	obj->position[0] = luaL_checknumber(L, 2);
-	obj->position[1] = luaL_checknumber(L, 3);
-	obj->position[2] = luaL_checknumber(L, 4);
-	obj->dirty = 1;
-	return 0;
-}
-
-static int ffi_obj_set_rotation(lua_State *L)
-{
-	struct object *obj = checktag(L, 1, TAG_OBJECT);
-	obj->rotation[0] = luaL_checknumber(L, 2);
-	obj->rotation[1] = luaL_checknumber(L, 3);
-	obj->rotation[2] = luaL_checknumber(L, 4);
-	obj->rotation[3] = luaL_checknumber(L, 5);
-	obj->dirty = 1;
-	return 0;
-}
-
-static int ffi_obj_set_scale(lua_State *L)
-{
-	struct object *obj = checktag(L, 1, TAG_OBJECT);
-	obj->scale[0] = luaL_checknumber(L, 2);
-	obj->scale[1] = luaL_checknumber(L, 3);
-	obj->scale[2] = luaL_checknumber(L, 4);
-	obj->dirty = 1;
-	return 0;
-}
-
-static int ffi_obj_set_color(lua_State *L)
-{
-	struct object *obj = checktag(L, 1, TAG_OBJECT);
-	obj->color[0] = luaL_checknumber(L, 2);
-	obj->color[1] = luaL_checknumber(L, 3);
-	obj->color[2] = luaL_checknumber(L, 4);
-	return 0;
-}
-
-static int ffi_obj_position(lua_State *L)
-{
-	struct object *obj = checktag(L, 1, TAG_OBJECT);
-	lua_pushnumber(L, obj->position[0]);
-	lua_pushnumber(L, obj->position[1]);
-	lua_pushnumber(L, obj->position[2]);
+	struct imesh *imesh = checktag(L, 1, TAG_IMESH);
+	lua_pushnumber(L, imesh->color[0]);
+	lua_pushnumber(L, imesh->color[1]);
+	lua_pushnumber(L, imesh->color[2]);
 	return 3;
 }
 
-static int ffi_obj_rotation(lua_State *L)
-{
-	struct object *obj = checktag(L, 1, TAG_OBJECT);
-	lua_pushnumber(L, obj->rotation[0]);
-	lua_pushnumber(L, obj->rotation[1]);
-	lua_pushnumber(L, obj->rotation[2]);
-	lua_pushnumber(L, obj->rotation[3]);
-	return 4;
-}
-
-static int ffi_obj_scale(lua_State *L)
-{
-	struct object *obj = checktag(L, 1, TAG_OBJECT);
-	lua_pushnumber(L, obj->scale[0]);
-	lua_pushnumber(L, obj->scale[1]);
-	lua_pushnumber(L, obj->scale[2]);
-	return 3;
-}
-
-static int ffi_obj_color(lua_State *L)
-{
-	struct object *obj = checktag(L, 1, TAG_OBJECT);
-	lua_pushnumber(L, obj->color[0]);
-	lua_pushnumber(L, obj->color[1]);
-	lua_pushnumber(L, obj->color[2]);
-	return 3;
-}
-
-/* Light */
+/* Lamp component */
 
 static const char *lamp_type_enum[] = { "POINT", "SPOT", "SUN", 0 };
 
 static int ffi_lamp_new(lua_State *L)
 {
-	struct lamp *lamp = new_lamp(scene);
+	struct lamp *lamp = new_lamp();
 	if (!lamp)
 		return luaL_error(L, "cannot create lamp");
 	lua_pushlightuserdata(L, lamp);
 	return 1;
 }
 
-static int ffi_lamp_set_parent(lua_State *L)
+static int ffi_ent_set_lamp(lua_State *L)
 {
-	struct lamp *lamp = checktag(L, 1, TAG_LAMP);
-	struct armature *parent = checktag(L, 2, TAG_ARMATURE);
-	const char *tagname = luaL_checkstring(L, 3);
-	if (lamp_set_parent(lamp, parent, tagname))
-		return luaL_error(L, "cannot find bone: %s", tagname);
+	struct entity *ent = checktag(L, 1, TAG_ENTITY);
+	ent->lamp = checktag(L, 2, TAG_LAMP);
 	return 0;
 }
 
-static int ffi_lamp_clear_parent(lua_State *L)
+static int ffi_ent_lamp(lua_State *L)
 {
-	struct lamp *lamp = checktag(L, 1, TAG_LAMP);
-	lamp_clear_parent(lamp);
-	return 0;
-}
-
-static int ffi_lamp_set_position(lua_State *L)
-{
-	struct lamp *lamp = checktag(L, 1, TAG_LAMP);
-	lamp->position[0] = luaL_checknumber(L, 2);
-	lamp->position[1] = luaL_checknumber(L, 3);
-	lamp->position[2] = luaL_checknumber(L, 4);
-	lamp->dirty = 1;
-	return 0;
-}
-
-static int ffi_lamp_set_rotation(lua_State *L)
-{
-	struct lamp *lamp = checktag(L, 1, TAG_LAMP);
-	lamp->rotation[0] = luaL_checknumber(L, 2);
-	lamp->rotation[1] = luaL_checknumber(L, 3);
-	lamp->rotation[2] = luaL_checknumber(L, 4);
-	lamp->rotation[3] = luaL_checknumber(L, 5);
-	lamp->dirty = 1;
-	return 0;
+	struct entity *ent = checktag(L, 1, TAG_ENTITY);
+	lua_pushlightuserdata(L, ent->lamp);
+	return 1;
 }
 
 static int ffi_lamp_set_color(lua_State *L)
@@ -501,25 +432,6 @@ static int ffi_lamp_set_use_shadow(lua_State *L)
 	struct lamp *lamp = checktag(L, 1, TAG_LAMP);
 	lamp->use_shadow = lua_toboolean(L, 2);
 	return 0;
-}
-
-static int ffi_lamp_position(lua_State *L)
-{
-	struct lamp *lamp = checktag(L, 1, TAG_LAMP);
-	lua_pushnumber(L, lamp->position[0]);
-	lua_pushnumber(L, lamp->position[1]);
-	lua_pushnumber(L, lamp->position[2]);
-	return 3;
-}
-
-static int ffi_lamp_rotation(lua_State *L)
-{
-	struct lamp *lamp = checktag(L, 1, TAG_LAMP);
-	lua_pushnumber(L, lamp->rotation[0]);
-	lua_pushnumber(L, lamp->rotation[1]);
-	lua_pushnumber(L, lamp->rotation[2]);
-	lua_pushnumber(L, lamp->rotation[3]);
-	return 4;
 }
 
 static int ffi_lamp_color(lua_State *L)
@@ -598,38 +510,26 @@ void init_lua(void)
 	lua_register(L, "load_mesh", ffi_load_mesh);
 	lua_register(L, "load_anim", ffi_load_anim);
 
-	/* scene */
-	lua_register(L, "scn_new", ffi_scn_new);
+	/* components */
 
-	lua_register(L, "amt_new", ffi_amt_new);
-	lua_register(L, "amt_set_parent", ffi_amt_set_parent);
-	lua_register(L, "amt_clear_parent", ffi_amt_clear_parent);
-	lua_register(L, "amt_set_position", ffi_amt_set_position);
-	lua_register(L, "amt_set_rotation", ffi_amt_set_rotation);
-	lua_register(L, "amt_set_scale", ffi_amt_set_scale);
-	lua_register(L, "amt_position", ffi_amt_position);
-	lua_register(L, "amt_rotation", ffi_amt_rotation);
-	lua_register(L, "amt_scale", ffi_amt_scale);
-	lua_register(L, "amt_play_anim", ffi_amt_play_anim);
-	lua_register(L, "amt_stop_anim", ffi_amt_stop_anim);
+	lua_register(L, "tra_new", ffi_tra_new);
+	lua_register(L, "tra_set_parent", ffi_tra_set_parent);
+	lua_register(L, "tra_clear_parent", ffi_tra_clear_parent);
+	lua_register(L, "tra_set_position", ffi_tra_set_position);
+	lua_register(L, "tra_set_rotation", ffi_tra_set_rotation);
+	lua_register(L, "tra_set_scale", ffi_tra_set_scale);
+	lua_register(L, "tra_position", ffi_tra_position);
+	lua_register(L, "tra_rotation", ffi_tra_rotation);
+	lua_register(L, "tra_scale", ffi_tra_scale);
 
-	lua_register(L, "obj_new", ffi_obj_new);
-	lua_register(L, "obj_set_parent", ffi_obj_set_parent);
-	lua_register(L, "obj_clear_parent", ffi_obj_clear_parent);
-	lua_register(L, "obj_set_position", ffi_obj_set_position);
-	lua_register(L, "obj_set_rotation", ffi_obj_set_rotation);
-	lua_register(L, "obj_set_scale", ffi_obj_set_scale);
-	lua_register(L, "obj_set_color", ffi_obj_set_color);
-	lua_register(L, "obj_position", ffi_obj_position);
-	lua_register(L, "obj_rotation", ffi_obj_rotation);
-	lua_register(L, "obj_scale", ffi_obj_scale);
-	lua_register(L, "obj_color", ffi_obj_color);
+	lua_register(L, "iskel_new", ffi_iskel_new);
+	// animation play back
+
+	lua_register(L, "imesh_new", ffi_imesh_new);
+	lua_register(L, "imesh_set_color", ffi_imesh_set_color);
+	lua_register(L, "imesh_color", ffi_imesh_color);
 
 	lua_register(L, "lamp_new", ffi_lamp_new);
-	lua_register(L, "lamp_set_parent", ffi_lamp_set_parent);
-	lua_register(L, "lamp_clear_parent", ffi_lamp_clear_parent);
-	lua_register(L, "lamp_set_position", ffi_lamp_set_position);
-	lua_register(L, "lamp_set_rotation", ffi_lamp_set_rotation);
 	lua_register(L, "lamp_set_type", ffi_lamp_set_type);
 	lua_register(L, "lamp_set_color", ffi_lamp_set_color);
 	lua_register(L, "lamp_set_energy", ffi_lamp_set_energy);
@@ -638,8 +538,6 @@ void init_lua(void)
 	lua_register(L, "lamp_set_spot_blend", ffi_lamp_set_spot_blend);
 	lua_register(L, "lamp_set_use_sphere", ffi_lamp_set_use_sphere);
 	lua_register(L, "lamp_set_use_shadow", ffi_lamp_set_use_shadow);
-	lua_register(L, "lamp_position", ffi_lamp_position);
-	lua_register(L, "lamp_rotation", ffi_lamp_rotation);
 	lua_register(L, "lamp_type", ffi_lamp_type);
 	lua_register(L, "lamp_color", ffi_lamp_color);
 	lua_register(L, "lamp_energy", ffi_lamp_energy);
@@ -648,4 +546,16 @@ void init_lua(void)
 	lua_register(L, "lamp_spot_blend", ffi_lamp_spot_blend);
 	lua_register(L, "lamp_use_sphere", ffi_lamp_use_sphere);
 	lua_register(L, "lamp_use_shadow", ffi_lamp_use_shadow);
+
+	/* entity */
+	lua_register(L, "scn_new", ffi_scn_new);
+	lua_register(L, "ent_new", ffi_ent_new);
+	lua_register(L, "ent_set_transform", ffi_ent_set_transform);
+	lua_register(L, "ent_transform", ffi_ent_transform);
+	lua_register(L, "ent_set_iskel", ffi_ent_set_iskel);
+	lua_register(L, "ent_iskel", ffi_ent_iskel);
+	lua_register(L, "ent_add_imesh", ffi_ent_add_imesh);
+	lua_register(L, "ent_set_lamp", ffi_ent_set_lamp);
+	lua_register(L, "ent_lamp", ffi_ent_lamp);
+	// imesh list access
 }
