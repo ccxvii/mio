@@ -157,6 +157,7 @@ void draw_quad(float x0, float y0, float z0,
 void init_lua(void);
 void run_string(const char *cmd);
 void run_file(const char *filename);
+void run_function(const char *fun);
 
 void console_keyboard(int key, int mod);
 void console_special(int key, int mod);
@@ -258,11 +259,27 @@ struct anim {
 	struct pose pose[MAXBONE];
 };
 
+/* entity components */
+
+struct transform
+{
+	vec3 position;
+	vec4 rotation;
+	vec3 scale;
+	int dirty;
+	mat4 matrix;
+};
+
+struct skelpose
+{
+	struct skel *skel;
+	struct pose pose[MAXBONE];
+};
+
 enum { LAMP_POINT, LAMP_SPOT, LAMP_SUN };
 
 struct lamp
 {
-	enum tag tag;
 	int type;
 	vec3 color;
 	float energy;
@@ -272,6 +289,10 @@ struct lamp
 	int use_sphere;
 	int use_shadow;
 };
+
+void init_lamp(struct lamp *lamp);
+void init_transform(struct transform *transform);
+void init_skelpose(struct skelpose *skelpose, struct skel *skel);
 
 struct model *load_iqe_from_memory(const char *filename, unsigned char *data, int len);
 struct model *load_iqm_from_memory(const char *filename, unsigned char *data, int len);
@@ -290,69 +311,13 @@ void lerp_frame(struct pose *out, struct pose *a, struct pose *b, float t, int n
 
 void draw_skel(mat4 *abs_pose_matrix, int *parent, int count);
 
-/* scene graph */
-
-struct transform
-{
-	enum tag tag;
-	struct entity *parent;
-	int parent_bone;
-	struct pose pose;
-	int dirty;
-	mat4 matrix;
-};
-
-struct iskel
-{
-	enum tag tag;
-	struct skel *skel;
-	struct pose pose[MAXBONE];
-	mat4 matrix[MAXBONE];
-};
-
-struct imesh
-{
-	enum tag tag;
-	struct mesh *mesh;
-	vec4 color;
-	unsigned char skel_map[MAXBONE];
-	mat4 model_from_bind_pose[MAXBONE];
-	LIST_ENTRY(imesh) imesh_next;
-};
-
-struct entity
-{
-	enum tag tag;
-	struct transform *transform;
-	struct iskel *iskel;
-	LIST_HEAD(imesh_list, imesh) imesh_list;
-	struct lamp *lamp;
-	LIST_ENTRY(entity) entity_next;
-};
-
-struct scene
-{
-	enum tag tag;
-	LIST_HEAD(entity_list, entity) entity_list;
-};
-
-struct scene *new_scene(void);
-struct entity *new_entity(struct scene *scene);
-struct transform *new_transform(void);
-struct lamp *new_lamp(void);
-struct imesh *new_imesh(struct mesh *mesh);
-struct iskel *new_iskel(struct skel *skel);
-
-int transform_set_parent(struct transform *tra, struct entity *parent, const char *bone_name);
-void transform_clear_parent(struct transform *tra);
-
-void update_scene(struct scene *scene, float time);
-void draw_scene(struct scene *scene, mat4 projection, mat4 view);
-
-void render_scene_geometry(struct scene *scene, mat4 proj, mat4 view);
-void render_scene_light(struct scene *scene, mat4 proj, mat4 view);
-
 /* deferred shading */
+
+void render_camera(mat4 iproj, mat4 iview);
+void render_skelpose(struct transform *transform, struct skelpose *skelpose);
+void render_mesh(struct transform *transform, struct mesh *mesh);
+void render_mesh_skel(struct transform *transform, struct mesh *mesh, struct skelpose *skelpose);
+void render_lamp(struct transform *transform, struct lamp *lamp);
 
 void render_static_mesh(struct mesh *mesh, mat4 clip_from_view, mat4 view_from_model);
 void render_skinned_mesh(struct mesh *mesh, mat4 clip_from_view, mat4 view_from_model, mat4 *model_from_bind_pose);

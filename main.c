@@ -128,11 +128,13 @@ static void display(void)
 	mat_rotate_x(view, -cam_pitch);
 	mat_rotate_z(view, -cam_yaw);
 
+	render_camera(projection, view);
+
 	render_geometry_pass();
-	render_scene_geometry(scene, projection, view);
+	run_function("draw_geometry");
 
 	render_light_pass();
-	render_scene_light(scene, projection, view);
+	run_function("draw_light");
 
 	render_forward_pass();
 	render_sky();
@@ -202,8 +204,6 @@ int main(int argc, char **argv)
 	run_string("require 'strict'");
 	run_file("proxy.lua");
 
-	// load world
-	scene = new_scene();
 	for (i = 1; i < argc; i++)
 		run_file(argv[i]);
 
