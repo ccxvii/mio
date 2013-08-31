@@ -188,6 +188,13 @@ static int ffi_load_anim(lua_State *L)
 	return 1;
 }
 
+static int ffi_anim_len(lua_State *L)
+{
+	struct anim *anim = checktag(L, 1, TAG_ANIM);
+	lua_pushnumber(L, anim->frames - 1);
+	return 1;
+}
+
 /* Transform component */
 
 static int ffi_tra_new(lua_State *L)
@@ -278,7 +285,17 @@ static int ffi_skel_new(lua_State *L)
 	return 1;
 }
 
+static int ffi_skel_animate(lua_State *L)
+{
+	struct skelpose *skelpose = luaL_checkudata(L, 1, "mio.skel");
+	struct anim *anim = checktag(L, 2, TAG_ANIM);
+	float frame = luaL_checknumber(L, 3);
+	animate_skelpose(skelpose, anim, frame);
+	return 0;
+}
+
 static luaL_Reg ffi_skel_funs[] = {
+	{ "animate", ffi_skel_animate },
 	{ NULL, NULL }
 };
 
@@ -474,6 +491,7 @@ void init_lua(void)
 	lua_register(L, "load_skel", ffi_load_skel);
 	lua_register(L, "load_mesh", ffi_load_mesh);
 	lua_register(L, "load_anim", ffi_load_anim);
+	lua_register(L, "anim_len", ffi_anim_len);
 
 	/* components */
 

@@ -314,6 +314,7 @@ void draw_skel(mat4 *abs_pose_matrix, int *parent, int count);
 /* deferred shading */
 
 void render_camera(mat4 iproj, mat4 iview);
+void animate_skelpose(struct skelpose *skelpose, struct anim *anim, float frame);
 void render_skelpose(struct transform *transform, struct skelpose *skelpose);
 void render_mesh(struct transform *transform, struct mesh *mesh);
 void render_mesh_skel(struct transform *transform, struct mesh *mesh, struct skelpose *skelpose);

@@ -75,14 +75,43 @@ void render_skelpose(struct transform *transform, struct skelpose *skelpose)
 	draw_end();
 }
 
+static int find_bone(struct skel *skel, const char *name)
+{
+	int i;
+	for (i = 0; i < skel->count; i++)
+		if (!strcmp(skel->name[i], name))
+			return i;
+	return -1;
+}
+
+void animate_skelpose(struct skelpose *skelpose, struct anim *anim, float frame)
+{
+	struct skel *skel = skelpose->skel;
+	struct pose *pose = skelpose->pose;
+	struct skel *askel = anim->skel;
+	struct pose apose[MAXBONE];
+	int si, ai;
+
+	extract_frame(apose, anim, frame);
+	for (si = 0; si < skel->count; si++) {
+		ai = find_bone(askel, skel->name[si]);
+		if (ai >= 0)
+			pose[si] = apose[ai];
+		else
+			pose[si] = skel->pose[si];
+	}
+}
+
 void render_mesh_skel(struct transform *transform, struct mesh *mesh, struct skelpose *skelpose)
 {
 	struct skel *skel = skelpose->skel;
 	struct pose *pose = skelpose->pose;
+	struct skel *ms = mesh->skel;
 	mat4 local_pose[MAXBONE];
 	mat4 model_pose[MAXBONE];
 	mat4 model_view;
 	mat4 model_from_bind_pose[MAXBONE];
+	int mi, si;
 
 	mat_from_pose(transform->matrix, transform->position, transform->rotation, transform->scale);
 
@@ -90,7 +119,17 @@ void render_mesh_skel(struct transform *transform, struct mesh *mesh, struct ske
 	calc_abs_matrix(model_pose, local_pose, skel->parent, skel->count);
 
 	mat_mul(model_view, view, transform->matrix);
-	calc_mul_matrix(model_from_bind_pose, model_pose, mesh->inv_bind_matrix, skel->count);
+
+	for (mi = 0; mi < ms->count; mi++) {
+		// TODO: bone map
+		si = find_bone(skel, ms->name[mi]);
+		if (si < 0) {
+			fprintf(stderr, "cannot find bone: %s\n", skel->name[mi]);
+			return; /* error! */
+		}
+		mat_mul(model_from_bind_pose[mi], model_pose[si], mesh->inv_bind_matrix[mi]);
+	}
+
 	render_skinned_mesh(mesh, proj, model_view, model_from_bind_pose);
 }
 

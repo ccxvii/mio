@@ -116,6 +116,7 @@ static void display(void)
 
 	// update world
 
+	run_function("update");
 	// update_scene(scene, timediff * 0.001);
 
 	// draw world
