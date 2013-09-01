@@ -1,10 +1,16 @@
 #include "mio.h"
 
+#define TIME_STEP (1000 / 30)
+#define MAX_TIME_STEP (250)
+
 extern struct scene *scene;
 
 static int screenw = 800, screenh = 600;
 static int mousex, mousey, mouseleft = 0, mousemiddle = 0, mouseright = 0;
 static int lasttime = 0;
+
+static int totaltime = 0;
+static int accumtime = 0;
 
 static int showconsole = 0;
 
@@ -108,16 +114,29 @@ static void display(void)
 	float projection[16];
 	float view[16];
 
-	int thistime, timediff;
+	int thistime, frametime;
 
 	thistime = glutGet(GLUT_ELAPSED_TIME);
-	timediff = thistime - lasttime;
+	frametime = thistime - lasttime;
 	lasttime = thistime;
 
-	// update world
+	// update world at fixed time steps
 
-	run_function("update");
-	// update_scene(scene, timediff * 0.001);
+	if (frametime > MAX_TIME_STEP)
+		frametime = MAX_TIME_STEP; // avoid death spiral
+
+	accumtime += frametime;
+
+	while (accumtime >= TIME_STEP) {
+		// prevstate = curstate;
+		// update(curstate)
+		run_function("update");
+		totaltime += TIME_STEP;
+		accumtime -= TIME_STEP;
+	}
+
+	float alpha = (float) accumtime / TIME_STEP;
+	// drawstate = lerp(prevstate, curstate, alpha)
 
 	// draw world
 
