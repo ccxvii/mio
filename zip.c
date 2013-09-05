@@ -47,7 +47,7 @@ static int cmpentry(const void *a_, const void *b_)
 
 static unsigned char *read_zip_file(FILE *file, int offset, int *sizep)
 {
-	int sig, version, general, method, csize, usize;
+	int sig, method, csize, usize;
 	int namelength, extralength;
 	char *cdata, *udata;
 
@@ -59,8 +59,8 @@ static unsigned char *read_zip_file(FILE *file, int offset, int *sizep)
 		return NULL;
 	}
 
-	version = getshort(file);
-	general = getshort(file);
+	(void) getshort(file); /* version */
+	(void) getshort(file); /* general */
 	method = getshort(file);
 	(void) getshort(file); /* file time */
 	(void) getshort(file); /* file date */
@@ -102,7 +102,6 @@ static int read_zip_dir_imp(struct archive *zip, int startoffset)
 	FILE *file = zip->file;
 	int sig, offset, count;
 	int namesize, metasize, commentsize;
-	int csize, usize;
 	int i, k;
 
 	fseek(file, startoffset, 0);
@@ -145,8 +144,8 @@ static int read_zip_dir_imp(struct archive *zip, int startoffset)
 		(void) getshort(file); /* last mod file time */
 		(void) getshort(file); /* last mod file date */
 		(void) getlong(file); /* crc-32 */
-		csize = getlong(file);
-		usize = getlong(file);
+		(void) getlong(file); /* csize */
+		(void) getlong(file); /* usize */
 		namesize = getshort(file);
 		metasize = getshort(file);
 		commentsize = getshort(file);
