@@ -4,7 +4,7 @@ bl_info = {
 	"name": "Export Area",
 	"description": "Export Area for Mio project.",
 	"author": "Tor Andersson",
-	"version": (2013, 6, 6),
+	"version": (2013, 9, 8),
 	"blender": (2, 6, 7),
 	"location": "File > Export > Area",
 	"wiki_url": "http://github.com/ccxvii/mio",
@@ -22,15 +22,14 @@ done_meshes = set()
 def quote(s):
 	return "\"%s\"" % s
 
-def file_write_color(file, color):
-	file.write("\tcolor = {%g, %g, %g},\n" % tuple(color[:3]))
-
 def file_write_transform(file, matrix, noscale=False):
 	t, r, s = matrix.decompose()
-	file.write("\tposition = {%g, %g, %g},\n" % (t.x, t.y, t.z))
-	file.write("\trotation = {%g, %g, %g, %g},\n" % (r.x, r.y, r.z, r.w))
+	file.write("\ttransform = {\n")
+	file.write("\t\tposition = {%g, %g, %g},\n" % (t.x, t.y, t.z))
+	file.write("\t\trotation = {%g, %g, %g, %g},\n" % (r.x, r.y, r.z, r.w))
 	if not noscale:
-		file.write("\tscale = {%.9g, %.9g, %.9g},\n" % (s.x, s.y, s.z))
+		file.write("\t\tscale = {%.9g, %.9g, %.9g},\n" % (s.x, s.y, s.z))
+	file.write("\t},\n")
 
 def export_mesh(filename, mesh):
 	if mesh in done_meshes:
@@ -98,20 +97,18 @@ def export_mesh(filename, mesh):
 def export_object_lamp(dir, file, scene, obj, lamp):
 	if lamp.type == 'AREA': return
 	if lamp.type == 'HEMI': return
-	file.write("lamp {\n")
-	#file.write("\tname = %s,\n" % quote(obj.name))
-	file.write("\ttype = '%s',\n" % lamp.type)
-	file_write_transform(file, obj.matrix_world, noscale=True)
-	file_write_color(file, lamp.color)
-	file.write("\tenergy = %g,\n" % lamp.energy)
+	file.write("\tlamp = {\n")
+	file.write("\t\ttype = '%s',\n" % lamp.type)
+	file.write("\t\tcolor = {%g, %g, %g},\n" % tuple(lamp.color[:3]))
+	file.write("\t\tenergy = %g,\n" % lamp.energy)
 	if lamp.type == 'SPOT' or lamp.type == 'POINT':
-		file.write("\tdistance = %g,\n" % lamp.distance)
-		file.write("\tuse_sphere = %s,\n" % ("true" if lamp.use_sphere else "false"))
+		file.write("\t\tdistance = %g,\n" % lamp.distance)
+		file.write("\t\tuse_sphere = %s,\n" % ("true" if lamp.use_sphere else "false"))
 	if lamp.type == 'SPOT':
-		file.write("\tspot_angle = %g,\n" % math.degrees(lamp.spot_size))
-		file.write("\tspot_blend = %g,\n" % lamp.spot_blend)
-	file.write("\tuse_shadow = %s,\n" % ("true" if lamp.use_shadow else "false"))
-	file.write("}\n")
+		file.write("\t\tspot_angle = %g,\n" % math.degrees(lamp.spot_size))
+		file.write("\t\tspot_blend = %g,\n" % lamp.spot_blend)
+	file.write("\t\tuse_shadow = %s,\n" % ("true" if lamp.use_shadow else "false"))
+	file.write("\t},\n")
 
 def export_object_mesh(dir, file, scene, obj):
 	if len(obj.modifiers) == 0:
@@ -123,40 +120,29 @@ def export_object_mesh(dir, file, scene, obj):
 		meshname = "object_" + obj.name
 		export_mesh(dir + "/" + meshname + ".iqe", mesh)
 		bpy.data.meshes.remove(mesh)
-	file.write("object {\n")
-	#file.write("\tname = %s,\n" % quote(obj.name))
 	file.write("\tmesh = %s,\n" % quote(meshname))
-	file_write_transform(file, obj.matrix_world)
-	file_write_color(file, obj.color)
-	file.write("}\n")
+	#file_write_color(file, obj.color)
 
 def export_object_dupli_group(dir, file, scene, obj):
-	file.write("object {\n")
-	#file.write("\tname = %s,\n" % quote(obj.name))
 	file.write("\tmesh = %s,\n" % quote(obj.dupli_group.name))
-	file_write_transform(file, obj.matrix_world)
-	file.write("}\n")
-
-def export_object_empty(dir, file, scene, obj):
-	file.write("empty {\n")
-	file.write("\tname = %s,\n" % quote(obj.name))
-	file_write_transform(file, obj.matrix_world)
-	file.write("}\n")
 
 def export_object(dir, file, scene, obj):
+	file.write("\nentity {\n")
+	file.write("\tname = %s,\n" % quote(obj.name))
+	file_write_transform(file, obj.matrix_world)
 	if obj.type == 'LAMP':
 		export_object_lamp(dir, file, scene, obj, obj.data)
 	elif obj.type == 'MESH':
 		export_object_mesh(dir, file, scene, obj)
 	elif obj.type == 'EMPTY':
-		if obj.dupli_type == 'NONE':
-			export_object_empty(dir, file, scene, obj)
 		if obj.dupli_type == 'GROUP':
 			export_object_dupli_group(dir, file, scene, obj)
+	file.write("}\n")
 
 def export_scene(dir, scene):
 	print("exporting scene", scene.name)
 	file = open(dir + "/" + scene.name + ".lua", "w")
+	file.write("-- scene: " + scene.name + "\n")
 	for obj in scene.objects:
 		export_object(dir, file, scene, obj)
 	file.close()

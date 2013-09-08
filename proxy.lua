@@ -4,10 +4,16 @@ local table_insert = table.insert
 local meshlist = {}
 local lamplist = {}
 
+entities = {}
+
 function update()
 	for k, ent in pairs(meshlist) do
 		if ent.skel and ent.anim then
-			ent.frame = ent.frame + 0.3
+			if not ent.frame then
+				ent.frame = 0
+			else 
+				ent.frame = ent.frame + 0.3
+			end
 			local n = anim_len(ent.anim)
 			if ent.frame >= n then
 				ent.frame = ent.frame - n
@@ -89,34 +95,25 @@ function new_skel(filename)
 	return skel_new(load_skel(filename))
 end
 
-function lamp(t)
-	if type(t) == 'string' then return lamp {type=t} end
-	local ent = {}
-	ent.transform = new_transform(t)
-	ent.lamp = new_lamp(t)
-	table_insert(lamplist, ent)
-	return ent
+function new_anim(filename)
+	return load_anim(filename)
 end
 
-function model(filename)
-	local ent = {}
-	ent.transform = new_transform()
-	ent.skel = new_skel(filename)
-	ent.mesh = new_mesh(filename)
-	table_insert(meshlist, ent)
-	return ent
-end
+function entity(t)
+	if t.name then
+		entities[t.name] = t
+	end
 
-function object(t)
-	if type(t) == 'string' then return object {mesh=t} end
-	local ent = {}
-	ent.transform = new_transform(t)
-	if t.skel then ent.skel = new_skel(t.skel) end
-	if t.mesh then ent.mesh = new_mesh(t.mesh) end
-	if t.meshlist then ent.meshlist = new_meshlist(t.meshlist) end
-	if t.anim then ent.anim = load_anim(t.anim) end
-	if t.frame then ent.frame = t.frame end
-	table_insert(meshlist, ent)
-	return ent
-end
+	t.transform = new_transform(t.transform)
 
+	if t.lamp then t.lamp = new_lamp(t.lamp) end
+	if t.skel then t.skel = new_skel(t.skel) end
+	if t.mesh then t.mesh = new_mesh(t.mesh) end
+	if t.meshlist then t.meshlist = new_meshlist(t.meshlist) end
+	if t.anim then t.anim = new_anim(t.anim) end
+
+	if t.mesh or t.meshlist then table_insert(meshlist, t) end
+	if t.lamp then table_insert(lamplist, t) end
+
+	return t
+end
