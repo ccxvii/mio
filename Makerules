@@ -13,7 +13,7 @@ CFLAGS += -O2 -DNDEBUG -fomit-frame-pointer
 endif
 
 ifeq "$(OS)" "Linux"
-LIBS += -lglut -lGL
+LIBS += -lglut -lGL -lm -ldl
 endif
 
 ifeq "$(OS)" "Darwin"
