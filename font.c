@@ -216,6 +216,7 @@ static struct glyph *lookup_glyph(struct font *font, float scale, int gid, int s
 	if (cache_row_x + w + PADDING > CACHESIZE) {
 		cache_row_y += cache_row_h + PADDING;
 		cache_row_x = PADDING;
+		cache_row_h = 0;
 	}
 	if (cache_row_y + h + PADDING > CACHESIZE) {
 		puts("glyph cache texture full, clearing cache");
