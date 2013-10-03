@@ -11,7 +11,7 @@ function update()
 		if ent.skel and ent.anim then
 			if not ent.frame then
 				ent.frame = 0
-			else 
+			else
 				ent.frame = ent.frame + 0.3
 			end
 			local n = anim_len(ent.anim)
@@ -56,7 +56,7 @@ function draw_light()
 end
 
 function new_transform(t)
-	local tra = tra_new()
+	local tra = new_transform_imp()
 	if t then
 		if t.position then tra:set_position(table_unpack(t.position)) end
 		if t.rotation then tra:set_rotation(table_unpack(t.rotation)) end
@@ -66,7 +66,7 @@ function new_transform(t)
 end
 
 function new_lamp(t)
-	local lamp = lamp_new()
+	local lamp = new_lamp_imp()
 	if t then
 		if t.type then lamp:set_type(t.type) end
 		if t.energy then lamp:set_energy(t.energy) end
@@ -80,23 +80,11 @@ function new_lamp(t)
 	return lamp
 end
 
-function new_mesh(filename)
-	return load_mesh(filename)
-end
-
 function new_meshlist(list)
 	for k, filename in pairs(list) do
-		list[k] = load_mesh(filename)
+		list[k] = new_mesh(filename)
 	end
 	return list
-end
-
-function new_skel(filename)
-	return skel_new(load_skel(filename))
-end
-
-function new_anim(filename)
-	return load_anim(filename)
 end
 
 function entity(t)

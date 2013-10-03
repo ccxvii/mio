@@ -156,19 +156,9 @@ static int ffi_load_font(lua_State *L)
 	return 1;
 }
 
-/* Model */
+/* Mesh */
 
-static int ffi_load_skel(lua_State *L)
-{
-	const char *name = luaL_checkstring(L, 1);
-	struct skel *skel = load_skel(name);
-	if (!skel)
-		return luaL_error(L, "cannot load skel: %s", name);
-	lua_pushlightuserdata(L, skel);
-	return 1;
-}
-
-static int ffi_load_mesh(lua_State *L)
+static int ffi_new_mesh(lua_State *L)
 {
 	const char *name = luaL_checkstring(L, 1);
 	struct mesh *mesh = load_mesh(name);
@@ -178,7 +168,9 @@ static int ffi_load_mesh(lua_State *L)
 	return 1;
 }
 
-static int ffi_load_anim(lua_State *L)
+/* Anim */
+
+static int ffi_new_anim(lua_State *L)
 {
 	const char *name = luaL_checkstring(L, 1);
 	struct anim *anim = load_anim(name);
@@ -197,7 +189,7 @@ static int ffi_anim_len(lua_State *L)
 
 /* Transform component */
 
-static int ffi_tra_new(lua_State *L)
+static int ffi_new_transform(lua_State *L)
 {
 	struct transform *tra = lua_newuserdata(L, sizeof(struct transform));
 	luaL_setmetatable(L, "mio.transform");
@@ -276,9 +268,12 @@ static luaL_Reg ffi_tra_funs[] = {
 
 /* Skel component */
 
-static int ffi_skel_new(lua_State *L)
+static int ffi_new_skel(lua_State *L)
 {
-	struct skel *skel = checktag(L, 1, TAG_SKEL);
+	const char *name = luaL_checkstring(L, 1);
+	struct skel *skel = load_skel(name);
+	if (!skel)
+		return luaL_error(L, "cannot load skel: %s", name);
 	struct skelpose *skelpose = lua_newuserdata(L, sizeof(struct skelpose));
 	luaL_setmetatable(L, "mio.skel");
 	init_skelpose(skelpose, skel);
@@ -303,7 +298,7 @@ static luaL_Reg ffi_skel_funs[] = {
 
 static const char *lamp_type_enum[] = { "POINT", "SPOT", "SUN", 0 };
 
-static int ffi_lamp_new(lua_State *L)
+static int ffi_new_lamp(lua_State *L)
 {
 	struct lamp *lamp = lua_newuserdata(L, sizeof(struct lamp));
 	luaL_setmetatable(L, "mio.lamp");
@@ -488,22 +483,17 @@ void init_lua(void)
 	lua_register(L, "load_font", ffi_load_font);
 
 	/* model */
-	lua_register(L, "load_skel", ffi_load_skel);
-	lua_register(L, "load_mesh", ffi_load_mesh);
-	lua_register(L, "load_anim", ffi_load_anim);
-	lua_register(L, "anim_len", ffi_anim_len);
+	lua_register(L, "new_skel", ffi_new_skel);
+	lua_register(L, "new_mesh", ffi_new_mesh);
+	lua_register(L, "new_anim", ffi_new_anim);
+
+	lua_register(L, "anim_len", ffi_anim_len); // metatable!?
 
 	/* components */
 
-	lua_register(L, "tra_new", ffi_tra_new);
-	if (luaL_newmetatable(L, "mio.transform")) {
-		luaL_setfuncs(L, ffi_tra_funs, 0);
-		lua_pushvalue(L, 1);
-		lua_setfield(L, 1, "__index");
-		lua_pop(L, 1);
-	}
+	lua_register(L, "new_transform_imp", ffi_new_transform);
+	lua_register(L, "new_lamp_imp", ffi_new_lamp);
 
-	lua_register(L, "skel_new", ffi_skel_new);
 	if (luaL_newmetatable(L, "mio.skel")) {
 		luaL_setfuncs(L, ffi_skel_funs, 0);
 		lua_pushvalue(L, 1);
@@ -511,7 +501,13 @@ void init_lua(void)
 		lua_pop(L, 1);
 	}
 
-	lua_register(L, "lamp_new", ffi_lamp_new);
+	if (luaL_newmetatable(L, "mio.transform")) {
+		luaL_setfuncs(L, ffi_tra_funs, 0);
+		lua_pushvalue(L, 1);
+		lua_setfield(L, 1, "__index");
+		lua_pop(L, 1);
+	}
+
 	if (luaL_newmetatable(L, "mio.lamp")) {
 		luaL_setfuncs(L, ffi_lamp_funs, 0);
 		lua_pushvalue(L, 1);
