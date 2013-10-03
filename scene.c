@@ -1,5 +1,14 @@
 #include "mio.h"
 
+static int find_bone(struct skel *skel, const char *name)
+{
+	int i;
+	for (i = 0; i < skel->count; i++)
+		if (!strcmp(skel->name[i], name))
+			return i;
+	return -1;
+}
+
 void init_transform(struct transform *trafo)
 {
 	vec_init(trafo->position, 0, 0, 0);
@@ -23,6 +32,42 @@ void init_lamp(struct lamp *lamp)
 	lamp->energy = 1;
 	lamp->distance = 25;
 	lamp->spot_angle = 45;
+}
+
+void update_transform(struct transform *transform)
+{
+	mat_from_pose(transform->matrix, transform->position, transform->rotation, transform->scale);
+}
+
+void update_transform_parent(struct transform *transform, struct transform *parent)
+{
+	mat4 local_matrix;
+	mat_from_pose(local_matrix, transform->position, transform->rotation, transform->scale);
+	mat_mul44(transform->matrix, parent->matrix, local_matrix);
+}
+
+void calc_pose(mat4 out, struct skel *skel, struct pose *pose, int bone)
+{
+	int parent = skel->parent[bone];
+	if (parent == -1) {
+		mat_from_pose(out, pose[bone].position, pose[bone].rotation, pose[bone].scale);
+	} else {
+		mat4 par, loc;
+		calc_pose(par, skel, pose, parent);
+		mat_from_pose(loc, pose[bone].position, pose[bone].rotation, pose[bone].scale);
+		mat_mul44(out, par, loc);
+	}
+}
+
+void update_transform_parent_skel(struct transform *transform,
+	struct transform *parent, struct skelpose *skelpose, const char *bone)
+{
+	mat4 local_matrix, pose_matrix, m;
+	int i = find_bone(skelpose->skel, bone);
+	mat_from_pose(local_matrix, transform->position, transform->rotation, transform->scale);
+	calc_pose(pose_matrix, skelpose->skel, skelpose->pose, i);
+	mat_mul44(m, pose_matrix, local_matrix);
+	mat_mul44(transform->matrix, parent->matrix, m);
 }
 
 void calc_root_motion(mat4 root_motion, struct anim *anim, float frame)
@@ -62,8 +107,6 @@ void render_skelpose(struct transform *transform, struct skelpose *skelpose)
 	mat4 model_pose[MAXBONE];
 	mat4 model_view;
 
-	mat_from_pose(transform->matrix, transform->position, transform->rotation, transform->scale);
-
 	calc_matrix_from_pose(local_pose, pose, skel->count);
 	calc_abs_matrix(model_pose, local_pose, skel->parent, skel->count);
 
@@ -73,15 +116,6 @@ void render_skelpose(struct transform *transform, struct skelpose *skelpose)
 	draw_set_color(1, 1, 1, 1);
 	draw_skel(model_pose, skel->parent, skel->count);
 	draw_end();
-}
-
-static int find_bone(struct skel *skel, const char *name)
-{
-	int i;
-	for (i = 0; i < skel->count; i++)
-		if (!strcmp(skel->name[i], name))
-			return i;
-	return -1;
 }
 
 void animate_skelpose(struct skelpose *skelpose, struct anim *anim, float frame)
@@ -94,6 +128,7 @@ void animate_skelpose(struct skelpose *skelpose, struct anim *anim, float frame)
 
 	extract_frame(apose, anim, frame);
 	for (si = 0; si < skel->count; si++) {
+		// TODO: bone map
 		ai = find_bone(askel, skel->name[si]);
 		if (ai >= 0)
 			pose[si] = apose[ai];
@@ -112,8 +147,6 @@ void render_mesh_skel(struct transform *transform, struct mesh *mesh, struct ske
 	mat4 model_view;
 	mat4 model_from_bind_pose[MAXBONE];
 	int mi, si;
-
-	mat_from_pose(transform->matrix, transform->position, transform->rotation, transform->scale);
 
 	calc_matrix_from_pose(local_pose, pose, skel->count);
 	calc_abs_matrix(model_pose, local_pose, skel->parent, skel->count);
@@ -136,16 +169,12 @@ void render_mesh_skel(struct transform *transform, struct mesh *mesh, struct ske
 void render_mesh(struct transform *transform, struct mesh *mesh)
 {
 	mat4 model_view;
-
-	mat_from_pose(transform->matrix, transform->position, transform->rotation, transform->scale);
-
 	mat_mul(model_view, view, transform->matrix);
 	render_static_mesh(mesh, proj, model_view);
 }
 
 void render_lamp(struct transform *transform, struct lamp *lamp)
 {
-	mat_from_pose(transform->matrix, transform->position, transform->rotation, transform->scale);
 	switch (lamp->type) {
 	case LAMP_POINT: render_point_lamp(lamp, proj, view, transform->matrix); break;
 	case LAMP_SPOT: render_spot_lamp(lamp, proj, view, transform->matrix); break;

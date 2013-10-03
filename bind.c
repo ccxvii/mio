@@ -444,6 +444,31 @@ static luaL_Reg ffi_lamp_funs[] = {
 
 /* Render functions */
 
+static int ffi_update_transform(lua_State *L)
+{
+	struct transform *tra = luaL_checkudata(L, 1, "mio.transform");
+	update_transform(tra);
+	return 0;
+}
+
+static int ffi_update_transform_parent(lua_State *L)
+{
+	struct transform *tra = luaL_checkudata(L, 1, "mio.transform");
+	struct transform *par = luaL_checkudata(L, 2, "mio.transform");
+	update_transform_parent(tra, par);
+	return 0;
+}
+
+static int ffi_update_transform_parent_skel(lua_State *L)
+{
+	struct transform *tra = luaL_checkudata(L, 1, "mio.transform");
+	struct transform *par = luaL_checkudata(L, 2, "mio.transform");
+	struct skelpose *skel = luaL_checkudata(L, 3, "mio.skel");
+	const char *bone = luaL_checkstring(L, 4);
+	update_transform_parent_skel(tra, par, skel, bone);
+	return 0;
+}
+
 static int ffi_draw_mesh(lua_State *L)
 {
 	struct transform *tra = luaL_checkudata(L, 1, "mio.transform");
@@ -516,6 +541,9 @@ void init_lua(void)
 	}
 
 	/* rendering */
+	lua_register(L, "update_transform", ffi_update_transform);
+	lua_register(L, "update_transform_parent", ffi_update_transform_parent);
+	lua_register(L, "update_transform_parent_skel", ffi_update_transform_parent_skel);
 	lua_register(L, "draw_mesh", ffi_draw_mesh);
 	lua_register(L, "draw_mesh_skel", ffi_draw_mesh_skel);
 	lua_register(L, "draw_lamp", ffi_draw_lamp);

@@ -20,6 +20,17 @@ function update()
 			end
 			ent.skel:animate(ent.anim, ent.frame)
 		end
+		if ent.transform then
+			if ent.parent then
+				if ent.parentbone then
+					update_transform_parent_skel(ent.transform, ent.parent.transform, ent.parent.skel, ent.parentbone)
+				else
+					update_transform_parent(ent.transform, ent.parent.transform)
+				end
+			else
+				update_transform(ent.transform)
+			end
+		end
 	end
 end
 
