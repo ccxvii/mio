@@ -12,7 +12,7 @@ function update()
 			if not ent.frame then
 				ent.frame = 0
 			else
-				ent.frame = ent.frame + 0.3
+				ent.frame = ent.frame + 0.5
 			end
 			local n = anim_len(ent.anim)
 			if ent.frame >= n then
@@ -29,6 +29,9 @@ function update()
 				end
 			else
 				update_transform(ent.transform)
+			end
+			if ent.anim then
+				update_transform_root_motion(ent.transform, ent.anim, ent.frame)
 			end
 		end
 	end

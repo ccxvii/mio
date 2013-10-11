@@ -469,6 +469,15 @@ static int ffi_update_transform_parent_skel(lua_State *L)
 	return 0;
 }
 
+static int ffi_update_transform_root_motion(lua_State *L)
+{
+	struct transform *tra = luaL_checkudata(L, 1, "mio.transform");
+	struct anim *anim = checktag(L, 2, TAG_ANIM);
+	float frame = luaL_checknumber(L, 3);
+	update_transform_root_motion(tra, anim, frame);
+	return 0;
+}
+
 static int ffi_draw_mesh(lua_State *L)
 {
 	struct transform *tra = luaL_checkudata(L, 1, "mio.transform");
@@ -544,6 +553,7 @@ void init_lua(void)
 	lua_register(L, "update_transform", ffi_update_transform);
 	lua_register(L, "update_transform_parent", ffi_update_transform_parent);
 	lua_register(L, "update_transform_parent_skel", ffi_update_transform_parent_skel);
+	lua_register(L, "update_transform_root_motion", ffi_update_transform_root_motion);
 	lua_register(L, "draw_mesh", ffi_draw_mesh);
 	lua_register(L, "draw_mesh_skel", ffi_draw_mesh_skel);
 	lua_register(L, "draw_lamp", ffi_draw_lamp);

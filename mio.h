@@ -316,6 +316,7 @@ void draw_skel(mat4 *abs_pose_matrix, int *parent, int count);
 void update_transform(struct transform *tra);
 void update_transform_parent(struct transform *tra, struct transform *par);
 void update_transform_parent_skel(struct transform *tra, struct transform *par, struct skelpose *skelpose, const char *bone);
+void update_transform_root_motion(struct transform *tra, struct anim *anim, float frame);
 
 void render_camera(mat4 iproj, mat4 iview);
 void animate_skelpose(struct skelpose *skelpose, struct anim *anim, float frame);

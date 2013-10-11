@@ -118,6 +118,13 @@ void render_skelpose(struct transform *transform, struct skelpose *skelpose)
 	draw_end();
 }
 
+void update_transform_root_motion(struct transform *transform, struct anim *anim, float frame)
+{
+	mat4 root_matrix;
+	calc_root_motion(root_matrix, anim, frame);
+	mat_mul44(transform->matrix, transform->matrix, root_matrix);
+}
+
 void animate_skelpose(struct skelpose *skelpose, struct anim *anim, float frame)
 {
 	struct skel *skel = skelpose->skel;
