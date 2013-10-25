@@ -321,7 +321,7 @@ void render_static_mesh(struct mesh *mesh, mat4 clip_from_view, mat4 view_from_m
 	for (i = 0; i < mesh->count; i++) {
 		glActiveTexture(MAP_COLOR);
 		glBindTexture(GL_TEXTURE_2D, mesh->part[i].material);
-		glDrawElements(GL_TRIANGLES, mesh->part[i].count, GL_UNSIGNED_SHORT, (void*)(mesh->part[i].first * 2));
+		glDrawElements(GL_TRIANGLES, mesh->part[i].count, GL_UNSIGNED_SHORT, PTR(mesh->part[i].first * 2));
 	}
 }
 
@@ -354,7 +354,7 @@ void render_skinned_mesh(struct mesh *mesh, mat4 clip_from_view, mat4 view_from_
 	for (i = 0; i < mesh->count; i++) {
 		glActiveTexture(MAP_COLOR);
 		glBindTexture(GL_TEXTURE_2D, mesh->part[i].material);
-		glDrawElements(GL_TRIANGLES, mesh->part[i].count, GL_UNSIGNED_SHORT, (void*)(mesh->part[i].first * 2));
+		glDrawElements(GL_TRIANGLES, mesh->part[i].count, GL_UNSIGNED_SHORT, PTR(mesh->part[i].first * 2));
 	}
 }
 

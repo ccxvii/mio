@@ -146,11 +146,11 @@ static int load_texture_from_memory(char *filename, unsigned char *data, int len
 
 int load_texture(char *filename, int srgb)
 {
-	unsigned int texid;
+	intptr_t texid;
 	unsigned char *data;
 	int len;
 
-	texid = (unsigned int) lookup(texture_cache, filename);
+	texid = (intptr_t) lookup(texture_cache, filename);
 	if (texid)
 		return texid;
 
@@ -223,11 +223,11 @@ static int load_texture_array_from_memory(char *filename, unsigned char *data, i
 
 int load_texture_array(char *filename, int srgb, int *d)
 {
-	unsigned int texid;
+	intptr_t texid;
 	unsigned char *data;
 	int len;
 
-	texid = (unsigned int) lookup(texture_array_cache, filename);
+	texid = (intptr_t) lookup(texture_array_cache, filename);
 	if (texid) {
 		glBindTexture(GL_TEXTURE_2D_ARRAY, texid);
 		if (d)

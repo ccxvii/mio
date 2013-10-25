@@ -695,42 +695,42 @@ struct model *load_iqe_from_memory(const char *filename, unsigned char *data, in
 		glBufferData(GL_ARRAY_BUFFER, vertexcount * total * 4, NULL, GL_STATIC_DRAW);
 
 		glEnableVertexAttribArray(ATT_POSITION);
-		glVertexAttribPointer(ATT_POSITION, 3, GL_FLOAT, 0, 0, (void*)0);
+		glVertexAttribPointer(ATT_POSITION, 3, GL_FLOAT, 0, 0, PTR(0));
 		glBufferSubData(GL_ARRAY_BUFFER, 0, vertexcount * 12, position.data);
 		total = vertexcount * 12;
 
 		if (normal.len / 3 == vertexcount) {
 			mesh->enabled |= 1<<ATT_NORMAL;
 			glEnableVertexAttribArray(ATT_NORMAL);
-			glVertexAttribPointer(ATT_NORMAL, 3, GL_FLOAT, 0, 0, (void*)total);
+			glVertexAttribPointer(ATT_NORMAL, 3, GL_FLOAT, 0, 0, PTR(total));
 			glBufferSubData(GL_ARRAY_BUFFER, total, vertexcount * 12, normal.data);
 			total += vertexcount * 12;
 		}
 		if (texcoord.len / 2 == vertexcount) {
 			mesh->enabled |= 1<<ATT_TEXCOORD;
 			glEnableVertexAttribArray(ATT_TEXCOORD);
-			glVertexAttribPointer(ATT_TEXCOORD, 2, GL_FLOAT, 0, 0, (void*)total);
+			glVertexAttribPointer(ATT_TEXCOORD, 2, GL_FLOAT, 0, 0, PTR(total));
 			glBufferSubData(GL_ARRAY_BUFFER, total, vertexcount * 8, texcoord.data);
 			total += vertexcount * 8;
 		}
 		if (color.len / 4 == vertexcount) {
 			mesh->enabled |= 1<<ATT_COLOR;
 			glEnableVertexAttribArray(ATT_COLOR);
-			glVertexAttribPointer(ATT_COLOR, 4, GL_UNSIGNED_BYTE, GL_TRUE, 0, (void*)total);
+			glVertexAttribPointer(ATT_COLOR, 4, GL_UNSIGNED_BYTE, GL_TRUE, 0, PTR(total));
 			glBufferSubData(GL_ARRAY_BUFFER, total, vertexcount * 4, color.data);
 			total += vertexcount * 4;
 		}
 		if (blendindex.len / 4 == vertexcount) {
 			mesh->enabled |= 1<<ATT_BLEND_INDEX;
 			glEnableVertexAttribArray(ATT_BLEND_INDEX);
-			glVertexAttribPointer(ATT_BLEND_INDEX, 4, GL_UNSIGNED_BYTE, GL_FALSE, 0, (void*)total);
+			glVertexAttribPointer(ATT_BLEND_INDEX, 4, GL_UNSIGNED_BYTE, GL_FALSE, 0, PTR(total));
 			glBufferSubData(GL_ARRAY_BUFFER, total, vertexcount * 4, blendindex.data);
 			total += vertexcount * 4;
 		}
 		if (blendweight.len / 4 == vertexcount) {
 			mesh->enabled |= 1<<ATT_BLEND_WEIGHT;
 			glEnableVertexAttribArray(ATT_BLEND_WEIGHT);
-			glVertexAttribPointer(ATT_BLEND_WEIGHT, 4, GL_UNSIGNED_BYTE, GL_TRUE, 0, (void*)total);
+			glVertexAttribPointer(ATT_BLEND_WEIGHT, 4, GL_UNSIGNED_BYTE, GL_TRUE, 0, PTR(total));
 			glBufferSubData(GL_ARRAY_BUFFER, total, vertexcount * 4, blendweight.data);
 			total += vertexcount * 4;
 		}

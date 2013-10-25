@@ -40,6 +40,8 @@ void gl_assert_framebuffer(GLenum target, const char *msg);
 #undef nelem
 #define nelem(x) (sizeof(x)/sizeof(x)[0])
 
+#define PTR(x) ((void*)(intptr_t)(x))
+
 #ifndef MAX
 #define MAX(a,b) ((a)>(b)?(a):(b))
 #define MIN(a,b) ((a)<(b)?(a):(b))

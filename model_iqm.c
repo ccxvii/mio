@@ -175,7 +175,7 @@ struct model *load_iqm_from_memory(const char *filename, unsigned char *data, in
 				mesh->enabled |= 1<<type;
 				glBufferSubData(GL_ARRAY_BUFFER, total, current, data + va->offset);
 				glEnableVertexAttribArray(type);
-				glVertexAttribPointer(type, va->size, format, normalize, 0, (void*)total);
+				glVertexAttribPointer(type, va->size, format, normalize, 0, PTR(total));
 				total += current;
 			}
 		}
