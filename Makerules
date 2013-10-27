@@ -23,7 +23,7 @@ LIBS += -framework GLUT -framework OpenGL -framework Cocoa
 endif
 
 ifeq "$(OS)" "MINGW"
-CFLAGS += -DFREEGLUT_STATIC -I../freeglut/include
+CFLAGS += -DFREEGLUT_STATIC -I../freeglut/include -DHAVE_SRGB_FRAMEBUFFER
 LIBS += -L../freeglut/lib -lfreeglut_static -lopengl32 -lwinmm -lgdi32
 ifeq "$(build)" "release"
 LIBS += -mwindows

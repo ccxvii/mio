@@ -173,7 +173,7 @@ static void display(void)
 	//render_debug_buffers(projection, view);
 
 	if (showconsole)
-		console_draw(projection, view, font_mono, 12 * dpi_scale);
+		console_draw(projection, view, font_mono, 16 * dpi_scale);
 
 	glutSwapBuffers();
 

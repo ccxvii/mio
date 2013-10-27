@@ -218,7 +218,14 @@ void render_blit(mat4 proj, mat4 view, int w, int h)
 
 	glUseProgram(prog);
 	glBindTexture(GL_TEXTURE_2D, tex_forward);
+
+#ifdef HAVE_SRGB_FRAMEBUFFER
 	draw_fullscreen_quad();
+#else
+	glDisable(GL_FRAMEBUFFER_SRGB);
+	draw_fullscreen_quad();
+	glEnable(GL_FRAMEBUFFER_SRGB);
+#endif
 }
 
 void render_debug_buffers(mat4 proj, mat4 view)
