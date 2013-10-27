@@ -196,7 +196,14 @@ static const char *blit_frag_src =
 	"in vec2 var_texcoord;\n"
 	"out vec4 frag_color;\n"
 	"void main() {\n"
+#ifdef HAVE_SRGB_FRAMEBUFFER
 	"	frag_color = texture(map_color, var_texcoord);\n"
+#else
+	// manually convert to sRGB because final framebuffer is not srgb flagged,
+	// due to stupidity in intel drivers on linux...
+	"	vec4 color = texture(map_color, var_texcoord);\n"
+	"	frag_color = vec4(pow(color.rgb, vec3(1.0/2.2)), color.a);\n"
+#endif
 	"}\n"
 ;
 
