@@ -185,7 +185,6 @@ int main(int argc, char **argv)
 	int i;
 
 	glutInit(&argc, argv);
-	glutInitContextVersion(3, 0);
 	glutInitContextFlags(GLUT_FORWARD_COMPATIBLE);
 	glutInitContextProfile(GLUT_CORE_PROFILE);
 	glutInitWindowPosition(50, 50+24);
