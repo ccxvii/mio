@@ -16,8 +16,8 @@ static int accumtime = 0;
 
 static int showconsole = 0;
 
-static struct font *droid_sans;
-static struct font *droid_sans_mono;
+static struct font *font_sans;
+static struct font *font_mono;
 
 static float cam_dist = 5;
 static float cam_yaw = 0;
@@ -173,7 +173,7 @@ static void display(void)
 	//render_debug_buffers(projection, view);
 
 	if (showconsole)
-		console_draw(projection, view, droid_sans_mono, 12 * dpi_scale);
+		console_draw(projection, view, font_mono, 12 * dpi_scale);
 
 	glutSwapBuffers();
 
@@ -226,12 +226,12 @@ int main(int argc, char **argv)
 	register_directory("data/");
 	register_directory("data/textures/");
 
-	droid_sans = load_font("fonts/DroidSans.ttf");
-	if (!droid_sans)
+	font_sans = load_font("fonts/SourceSansPro-Regular.ttf");
+	if (!font_sans)
 		exit(1);
 
-	droid_sans_mono = load_font("fonts/DroidSansMono.ttf");
-	if (!droid_sans_mono)
+	font_mono = load_font("fonts/SourceCodePro-Regular.ttf");
+	if (!font_mono)
 		exit(1);
 
 	init_lua();
