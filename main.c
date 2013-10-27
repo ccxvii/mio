@@ -3,6 +3,8 @@
 #define TIME_STEP (1000 / 30)
 #define MAX_TIME_STEP (250)
 
+float dpi_scale = 1;
+
 extern struct scene *scene;
 
 static int screenw = 800, screenh = 600;
@@ -171,7 +173,7 @@ static void display(void)
 	//render_debug_buffers(projection, view);
 
 	if (showconsole)
-		console_draw(projection, view, droid_sans_mono, 15);
+		console_draw(projection, view, droid_sans_mono, 12 * dpi_scale);
 
 	glutSwapBuffers();
 
@@ -187,8 +189,16 @@ int main(int argc, char **argv)
 	glutInit(&argc, argv);
 	glutInitContextFlags(GLUT_FORWARD_COMPATIBLE);
 	glutInitContextProfile(GLUT_CORE_PROFILE);
+
+	int wmm = glutGet(GLUT_SCREEN_WIDTH_MM);
+	int hmm = glutGet(GLUT_SCREEN_HEIGHT_MM);
+	int wpx = glutGet(GLUT_SCREEN_WIDTH);
+	int hpx = glutGet(GLUT_SCREEN_HEIGHT);
+	int dpi = ((wpx * 254 / wmm) + (hpx * 254 / hmm)) / 20;
+	dpi_scale = (float) dpi / 72;
+
 	glutInitWindowPosition(50, 50+24);
-	glutInitWindowSize(screenw, screenh);
+	glutInitWindowSize(640 * dpi_scale, 480 * dpi_scale);
 #ifdef HAVE_SRGB_FRAMEBUFFER
 	glutInitDisplayMode(GLUT_SRGB | GLUT_DOUBLE | GLUT_3_2_CORE_PROFILE);
 #else
@@ -199,6 +209,7 @@ int main(int argc, char **argv)
 	gl3wInit();
 
 	warn("OpenGL %s; GLSL %s", glGetString(GL_VERSION), glGetString(GL_SHADING_LANGUAGE_VERSION));
+	warn("Screen %dx%d at %ddpi (scale %g)", wpx, hpx, dpi, dpi_scale);
 
 	glutReshapeFunc(reshape);
 	glutDisplayFunc(display);
