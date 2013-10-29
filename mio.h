@@ -328,7 +328,7 @@ void update_transform_parent_skel(struct transform *tra, struct transform *par, 
 void update_transform_root_motion(struct transform *tra, struct anim *anim, float frame);
 
 void render_camera(mat4 iproj, mat4 iview);
-void animate_skelpose(struct skelpose *skelpose, struct anim *anim, float frame);
+void animate_skelpose(struct skelpose *skelpose, struct anim *anim, float frame, float blend);
 void render_skelpose(struct transform *transform, struct skelpose *skelpose);
 void render_mesh(struct transform *transform, struct mesh *mesh);
 void render_mesh_skel(struct transform *transform, struct mesh *mesh, struct skelpose *skelpose);

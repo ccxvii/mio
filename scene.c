@@ -9,6 +9,13 @@ static int find_bone(struct skel *skel, const char *name)
 	return -1;
 }
 
+void pose_lerp(struct pose *p, const struct pose *a, const struct pose *b, float t)
+{
+	vec_lerp(p->position, a->position, b->position, t);
+	quat_lerp_neighbor_normalize(p->rotation, a->rotation, b->rotation, t);
+	vec_lerp(p->scale, a->scale, b->scale, t);
+}
+
 void init_transform(struct transform *trafo)
 {
 	vec_init(trafo->position, 0, 0, 0);
@@ -125,7 +132,7 @@ void update_transform_root_motion(struct transform *transform, struct anim *anim
 	mat_mul44(transform->matrix, transform->matrix, root_matrix);
 }
 
-void animate_skelpose(struct skelpose *skelpose, struct anim *anim, float frame)
+void animate_skelpose(struct skelpose *skelpose, struct anim *anim, float frame, float blend)
 {
 	struct skel *skel = skelpose->skel;
 	struct pose *pose = skelpose->pose;
@@ -137,10 +144,10 @@ void animate_skelpose(struct skelpose *skelpose, struct anim *anim, float frame)
 	for (si = 0; si < skel->count; si++) {
 		// TODO: bone map
 		ai = find_bone(askel, skel->name[si]);
-		if (ai >= 0)
-			pose[si] = apose[ai];
+		if (blend == 1)
+			pose[si] = ai >= 0 ? apose[ai] : skel->pose[si];
 		else
-			pose[si] = skel->pose[si];
+			pose_lerp(pose+si, pose+si, ai >= 0 ? apose+ai : skel->pose+si, blend);
 	}
 }
 

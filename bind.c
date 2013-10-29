@@ -281,7 +281,8 @@ static int ffi_skel_animate(lua_State *L)
 	struct skelpose *skelpose = luaL_checkudata(L, 1, "mio.skel");
 	struct anim *anim = checktag(L, 2, TAG_ANIM);
 	float frame = luaL_checknumber(L, 3);
-	animate_skelpose(skelpose, anim, frame);
+	float blend = luaL_checknumber(L, 4);
+	animate_skelpose(skelpose, anim, frame, blend);
 	return 0;
 }
 

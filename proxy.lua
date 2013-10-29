@@ -11,9 +11,50 @@ function playonce(skel, anim)
 	local frame = 0
 	local n = anim_len(anim)
 	while frame < n do
-		skel:animate(anim, frame)
+		skel:animate(anim, frame, 1)
 		coroutine.yield()
 		frame = frame + 1
+	end
+end
+
+mixer = 0
+
+function playmix2(skel, a, b)
+	local a_i, a_n = 0, anim_len(a)
+	local b_i, b_n = 0, anim_len(b)
+	local a_step = a_n / b_n
+	while true do
+		skel:animate(a, a_i, 1)
+		skel:animate(b, b_i, mixer)
+		coroutine.yield()
+		a_i = a_i + a_step
+		b_i = b_i + 1
+		if a_i >= a_n then a_i = a_i - a_n end
+		if b_i >= b_n then b_i = b_i - b_n end
+	end
+end
+
+function playmix(skel, a, b, duration)
+	local a_i, a_n = 0, anim_len(a)
+	local b_i, b_n = 0, anim_len(b)
+	local a_step = a_n / b_n
+	local i = 0
+	print("mix", a_n, b_n, a_step)
+	for i = 0, duration-1 do
+		skel:animate(a, a_i, 1)
+		skel:animate(b, b_i, (i / duration))
+		coroutine.yield()
+		a_i = a_i + a_step
+		b_i = b_i + 1
+		if a_i >= a_n then a_i = a_i - a_n end
+		if b_i >= b_n then b_i = b_i - b_n end
+		i = i + 1
+	end
+	while true do
+		skel:animate(b, b_i, 1)
+		coroutine.yield()
+		b_i = b_i + 1
+		if b_i >= b_n then b_i = b_i - b_n end
 	end
 end
 
@@ -28,7 +69,7 @@ end
 function playloop(skel, anim, frame)
 	local n = anim_len(anim)
 	while true do
-		skel:animate(anim, frame)
+		skel:animate(anim, frame, 1)
 		coroutine.yield()
 		frame = frame + 1
 		if frame >= n then
