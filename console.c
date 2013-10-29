@@ -1,12 +1,6 @@
 #include "mio.h"
 #include <ctype.h>
 
-#include <lua.h>
-#include <lauxlib.h>
-#include <lualib.h>
-
-extern lua_State *L; /* in bind.c */
-
 void warn(const char *fmt, ...)
 {
 	va_list ap;

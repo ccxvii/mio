@@ -2,10 +2,6 @@
 
 struct scene *scene = NULL;
 
-#include <lua.h>
-#include <lauxlib.h>
-#include <lualib.h>
-
 lua_State *L = NULL;
 
 static int ffi_print(lua_State *L)
@@ -41,7 +37,7 @@ static int ffi_traceback(lua_State *L)
 	return 1;
 }
 
-static int docall(lua_State *L, int narg, int nres)
+int docall(lua_State *L, int narg, int nres)
 {
 	int status;
 	int base = lua_gettop(L) - narg;

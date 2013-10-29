@@ -8,6 +8,10 @@
 #include "queue.h" // freebsd sys/queue.h
 #include "tree.h" // freebsd sys/tree.h
 
+#include <lua.h>
+#include <lauxlib.h>
+#include <lualib.h>
+
 #include <GL/gl3w.h>
 
 #ifdef __APPLE__
@@ -156,10 +160,13 @@ void draw_quad(float x0, float y0, float z0,
 
 /* console */
 
+extern lua_State *L;
+
 void init_lua(void);
 void run_string(const char *cmd);
 void run_file(const char *filename);
 void run_function(const char *fun);
+int docall(lua_State *L, int narg, int nres);
 
 void console_keyboard(int key, int mod);
 void console_special(int key, int mod);
