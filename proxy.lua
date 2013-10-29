@@ -5,21 +5,48 @@ local meshlist = {}
 local lamplist = {}
 
 entities = {}
+actions = {}
+
+function playonce(skel, anim)
+	local frame = 0
+	local n = anim_len(anim)
+	while frame < n do
+		skel:animate(anim, frame)
+		coroutine.yield()
+		frame = frame + 1
+	end
+end
+
+function playseq(skel, list)
+	while true do
+		for i, anim in ipairs(list) do
+			playonce(skel, anim)
+		end
+	end
+end
+
+function playloop(skel, anim, frame)
+	local n = anim_len(anim)
+	while true do
+		skel:animate(anim, frame)
+		coroutine.yield()
+		frame = frame + 1
+		if frame >= n then
+			frame = frame - n
+		end
+	end
+end
+
+function run(f)
+	table.insert(actions, coroutine.wrap(f))
+end
 
 function update()
+	for k, action in pairs(actions) do
+		action()
+	end
+
 	for k, ent in pairs(meshlist) do
-		if ent.skel and ent.anim then
-			if not ent.frame then
-				ent.frame = 0
-			else
-				ent.frame = ent.frame + 0.5
-			end
-			local n = anim_len(ent.anim)
-			if ent.frame >= n then
-				ent.frame = ent.frame - n
-			end
-			ent.skel:animate(ent.anim, ent.frame)
-		end
 		if ent.transform then
 			if ent.parent then
 				if ent.parentbone then
@@ -30,9 +57,9 @@ function update()
 			else
 				update_transform(ent.transform)
 			end
-			if ent.anim then
-				update_transform_root_motion(ent.transform, ent.anim, ent.frame)
-			end
+--			if ent.anim then
+--				update_transform_root_motion(ent.transform, ent.anim, ent.frame)
+--			end
 		end
 	end
 end
@@ -112,7 +139,6 @@ function entity(t)
 	if t.skel then t.skel = new_skel(t.skel) end
 	if t.mesh then t.mesh = new_mesh(t.mesh) end
 	if t.meshlist then t.meshlist = new_meshlist(t.meshlist) end
-	if t.anim then t.anim = new_anim(t.anim) end
 
 	if t.mesh or t.meshlist then table_insert(meshlist, t) end
 	if t.lamp then table_insert(lamplist, t) end
