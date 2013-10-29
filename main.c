@@ -103,6 +103,21 @@ static void special(int key, int x, int y)
 	glutPostRedisplay();
 }
 
+static void spacemotion(int dx, int dy, int dz)
+{
+	//printf("spacemotion %d %d %d\n", dx, dy, dz);
+	cam_dist += dy * 0.0001 * cam_dist;
+	if (cam_dist < 0.1) cam_dist = 0.1;
+	if (cam_dist > 100) cam_dist = 100;
+}
+
+static void spacerotate(int dx, int dy, int dz)
+{
+	//printf("spacerotate %d %d %d\n", dx, dy, dz);
+	cam_yaw += dy / 45;
+	cam_pitch += dx / 60;
+}
+
 static void reshape(int w, int h)
 {
 	screenw = w;
@@ -217,6 +232,8 @@ int main(int argc, char **argv)
 	glutMotionFunc(motion);
 	glutKeyboardFunc(keyboard);
 	glutSpecialFunc(special);
+	glutSpaceballMotionFunc(spacemotion);
+	glutSpaceballRotateFunc(spacerotate);
 
 	glEnable(GL_FRAMEBUFFER_SRGB);
 	glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
