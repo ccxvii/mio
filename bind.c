@@ -469,9 +469,8 @@ static int ffi_update_transform_parent_skel(lua_State *L)
 static int ffi_update_transform_root_motion(lua_State *L)
 {
 	struct transform *tra = luaL_checkudata(L, 1, "mio.transform");
-	struct anim *anim = checktag(L, 2, TAG_ANIM);
-	float frame = luaL_checknumber(L, 3);
-	update_transform_root_motion(tra, anim, frame);
+	struct skelpose *skel = luaL_checkudata(L, 2, "mio.skel");
+	update_transform_root_motion(tra, skel);
 	return 0;
 }
 

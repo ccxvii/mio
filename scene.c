@@ -30,6 +30,7 @@ void init_skelpose(struct skelpose *skelpose, struct skel *skel)
 	skelpose->skel = skel;
 	for (i = 0; i < skel->count; i++)
 		skelpose->pose[i] = skel->pose[i];
+	mat_identity(skelpose->delta);
 }
 
 void init_lamp(struct lamp *lamp)
@@ -75,6 +76,29 @@ void update_transform_parent_skel(struct transform *transform,
 	calc_pose(pose_matrix, skelpose->skel, skelpose->pose, i);
 	mat_mul44(m, pose_matrix, local_matrix);
 	mat_mul44(transform->matrix, parent->matrix, m);
+}
+
+void calc_root_delta(mat4 root_motion, struct anim *anim)
+{
+	struct pose p0, p1, p;
+	mat4 m0, m;
+
+	float t = 1.0 / (anim->frames - 1);
+	extract_frame_root(&p0, anim, 0);
+	extract_frame_root(&p1, anim, anim->frames - 1);
+
+	vec_lerp(p.position, p0.position, p1.position, t);
+	quat_lerp_neighbor_normalize(p.rotation, p0.rotation, p1.rotation, t);
+	vec_lerp(p.scale, p0.scale, p1.scale, t);
+
+	mat_from_pose(m0, p0.position, p0.rotation, p0.scale);
+	mat_from_pose(m, p.position, p.rotation, p.scale);
+
+	mat_invert(m, m);
+	mat_mul(root_motion, m0, m);
+	mat_invert(root_motion, root_motion);
+
+	mat_decompose(root_motion, p.position, p.rotation, p.scale);
 }
 
 void calc_root_motion(mat4 root_motion, struct anim *anim, float frame)
@@ -125,11 +149,13 @@ void render_skelpose(struct transform *transform, struct skelpose *skelpose)
 	draw_end();
 }
 
-void update_transform_root_motion(struct transform *transform, struct anim *anim, float frame)
+void update_transform_root_motion(struct transform *transform, struct skelpose *skelpose)
 {
-	mat4 root_matrix;
-	calc_root_motion(root_matrix, anim, frame);
-	mat_mul44(transform->matrix, transform->matrix, root_matrix);
+	mat4 m;
+	mat_mul44(m, skelpose->delta, transform->matrix);
+	mat_decompose(m, transform->position, transform->rotation, transform->scale);
+	mat_copy(transform->matrix, m);
+	mat_identity(skelpose->delta);
 }
 
 void animate_skelpose(struct skelpose *skelpose, struct anim *anim, float frame, float blend)
@@ -140,7 +166,18 @@ void animate_skelpose(struct skelpose *skelpose, struct anim *anim, float frame,
 	struct pose apose[MAXBONE];
 	int si, ai;
 
+	mat4 anti, root, m;
+
 	extract_frame(apose, anim, frame);
+
+	// TODO: blend
+	calc_root_delta(skelpose->delta, anim);
+	calc_root_motion(anti, anim, frame);
+
+	mat_from_pose(root, apose[0].position, apose[0].rotation, apose[0].scale);
+	mat_mul44(m, anti, root);
+	mat_decompose(m, apose[0].position, apose[0].rotation, apose[0].scale);
+
 	for (si = 0; si < skel->count; si++) {
 		// TODO: bone map
 		ai = find_bone(askel, skel->name[si]);

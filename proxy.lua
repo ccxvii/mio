@@ -98,9 +98,7 @@ function update()
 			else
 				update_transform(ent.transform)
 			end
---			if ent.anim then
---				update_transform_root_motion(ent.transform, ent.anim, ent.frame)
---			end
+			update_transform_root_motion(ent.transform, ent.skel)
 		end
 	end
 end
