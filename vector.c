@@ -690,8 +690,8 @@ void mat_decompose(const mat4 m, vec3 t, vec4 q, vec3 s)
 
 	mat_copy(mn, m);
 	vec_div_s(mn+0, mn+0, s[0]);
-	vec_div_s(mn+4, mn+0, s[1]);
-	vec_div_s(mn+8, mn+0, s[2]);
+	vec_div_s(mn+4, mn+4, s[1]);
+	vec_div_s(mn+8, mn+8, s[2]);
 
 	quat_from_mat(q, mn);
 }
