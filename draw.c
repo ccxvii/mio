@@ -36,7 +36,6 @@ static struct {
 
 static float draw_color[4] = { 1, 1, 1, 1 };
 static int draw_kind = GL_LINES;
-static float draw_color[4];
 
 void draw_set_color(float r, float g, float b, float a)
 {
