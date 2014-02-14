@@ -65,5 +65,8 @@ mio.exe : $(OUT)/main.o $(MIO_LIB) $(LUA_LIB)
 
 all: $(OUT) $(LUA_LIB) $(MIO_LIB) mio.exe
 
+tags: $(MIO_SRC) $(MIO_HDR)
+	ctags $^
+
 clean:
 	rm -rf $(OUT)
