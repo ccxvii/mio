@@ -67,19 +67,13 @@ int xstrlcat(char *dst, const char *src, int siz);
 #define SRGB(r,g,b) SLUM(r),SLUM(g),SLUM(b)
 #define SRGBA(r,g,b,a) SRGB(r,g,b),(a)
 
-/* objects exposed to lua as user data needs tags */
+/* objects exposed to lua as light user data needs tags */
 
 enum tag {
 	TAG_FONT = 'F',
-	TAG_SKEL = 'S',
 	TAG_MESH = 'M',
 	TAG_ANIM = 'A',
-	TAG_LAMP = 'L',
-	TAG_SCENE = 'W',
-	TAG_ENTITY = 'E',
-	TAG_TRANSFORM = 'T',
-	TAG_ISKEL = 's',
-	TAG_IMESH = 'm',
+	TAG_SKEL = 'S',
 };
 
 /* matrix math utils */
