@@ -89,6 +89,7 @@ function update()
 
 	for k, ent in pairs(meshlist) do
 		if ent.transform then
+			update_transform_root_motion(ent.transform, ent.skel)
 			if ent.parent then
 				if ent.parentbone then
 					update_transform_parent_skel(ent.transform, ent.parent.transform, ent.parent.skel, ent.parentbone)
@@ -98,7 +99,6 @@ function update()
 			else
 				update_transform(ent.transform)
 			end
-			update_transform_root_motion(ent.transform, ent.skel)
 		end
 	end
 end

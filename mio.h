@@ -283,7 +283,7 @@ struct skelpose
 {
 	struct skel *skel;
 	struct pose pose[MAXBONE];
-	mat4 delta;
+	struct pose delta;
 };
 
 enum { LAMP_POINT, LAMP_SPOT, LAMP_SUN };

@@ -30,7 +30,10 @@ void init_skelpose(struct skelpose *skelpose, struct skel *skel)
 	skelpose->skel = skel;
 	for (i = 0; i < skel->count; i++)
 		skelpose->pose[i] = skel->pose[i];
-	mat_identity(skelpose->delta);
+
+	vec_init(skelpose->delta.position, 0, 0, 0);
+	quat_init(skelpose->delta.rotation, 0, 0, 0, 1);
+	vec_init(skelpose->delta.scale, 1, 1, 1);
 }
 
 void init_lamp(struct lamp *lamp)
@@ -78,47 +81,41 @@ void update_transform_parent_skel(struct transform *transform,
 	mat_mul44(transform->matrix, parent->matrix, m);
 }
 
-void calc_root_delta(mat4 root_motion, struct anim *anim)
+void vec_delta(vec3 p, const vec3 a, const vec3 b, float t)
 {
-	struct pose p0, p1, p;
-	mat4 m0, m;
+	p[0] = t * (b[0] - a[0]);
+	p[1] = t * (b[1] - a[1]);
+	p[2] = t * (b[2] - a[2]);
+}
+
+void quat_delta(vec4 p, const vec4 a, const vec4 b, float t)
+{
+	p[0] = t * (b[0] - a[0]);
+	p[1] = t * (b[1] - a[1]);
+	p[2] = t * (b[2] - a[2]);
+	p[3] = t * (b[3] - a[3]);
+}
+
+void quat_delta_neighbor(vec4 p, const vec4 a, const vec4 b, float t)
+{
+	if (a[0]*b[0] + a[1]*b[1] + a[2]*b[2] + a[3]*b[3] < 0) {
+		vec4 temp = { -a[0], -a[1], -a[2], -a[3] };
+		quat_delta(p, temp, b, t);
+	} else {
+		quat_delta(p, a, b, t);
+	}
+}
+
+void calc_root_delta(struct pose *p, struct anim *anim)
+{
+	struct pose p0, p1;
 
 	float t = 1.0 / (anim->frames - 1);
 	extract_frame_root(&p0, anim, 0);
 	extract_frame_root(&p1, anim, anim->frames - 1);
 
-	vec_lerp(p.position, p0.position, p1.position, t);
-	quat_lerp_neighbor_normalize(p.rotation, p0.rotation, p1.rotation, t);
-	vec_lerp(p.scale, p0.scale, p1.scale, t);
-
-	mat_from_pose(m0, p0.position, p0.rotation, p0.scale);
-	mat_from_pose(m, p.position, p.rotation, p.scale);
-
-	mat_invert(m, m);
-	mat_mul(root_motion, m0, m);
-	mat_invert(root_motion, root_motion);
-
-	mat_decompose(root_motion, p.position, p.rotation, p.scale);
-}
-
-void calc_root_motion(mat4 root_motion, struct anim *anim, float frame)
-{
-	struct pose p0, p1, p;
-	mat4 m0, m;
-	float t = frame / (anim->frames - 1);
-
-	extract_frame_root(&p0, anim, 0);
-	extract_frame_root(&p1, anim, anim->frames - 1);
-
-	vec_lerp(p.position, p0.position, p1.position, t);
-	quat_lerp_neighbor_normalize(p.rotation, p0.rotation, p1.rotation, t);
-	vec_lerp(p.scale, p0.scale, p1.scale, t);
-
-	mat_from_pose(m0, p0.position, p0.rotation, p0.scale);
-	mat_from_pose(m, p.position, p.rotation, p.scale);
-
-	mat_invert(m, m);
-	mat_mul(root_motion, m0, m);
+	vec_delta(p->position, p0.position, p1.position, t);
+	quat_delta_neighbor(p->rotation, p0.rotation, p1.rotation, t);
 }
 
 static mat4 proj;
@@ -151,11 +148,7 @@ void render_skelpose(struct transform *transform, struct skelpose *skelpose)
 
 void update_transform_root_motion(struct transform *transform, struct skelpose *skelpose)
 {
-	mat4 m;
-	mat_mul44(m, skelpose->delta, transform->matrix);
-	mat_decompose(m, transform->position, transform->rotation, transform->scale);
-	mat_copy(transform->matrix, m);
-	mat_identity(skelpose->delta);
+	vec_add(transform->position, transform->position, skelpose->delta.position);
 }
 
 void animate_skelpose(struct skelpose *skelpose, struct anim *anim, float frame, float blend)
@@ -164,19 +157,20 @@ void animate_skelpose(struct skelpose *skelpose, struct anim *anim, float frame,
 	struct pose *pose = skelpose->pose;
 	struct skel *askel = anim->skel;
 	struct pose apose[MAXBONE];
+	struct pose delta;
 	int si, ai;
-
-	mat4 anti, root, m;
 
 	extract_frame(apose, anim, frame);
 
-	// TODO: blend
-	calc_root_delta(skelpose->delta, anim);
-	calc_root_motion(anti, anim, frame);
+	calc_root_delta(&delta, anim); // TODO: calc once and save in anim
 
-	mat_from_pose(root, apose[0].position, apose[0].rotation, apose[0].scale);
-	mat_mul44(m, anti, root);
-	mat_decompose(m, apose[0].position, apose[0].rotation, apose[0].scale);
+	if (blend == 1)
+		skelpose->delta = delta;
+	else
+		pose_lerp(&skelpose->delta, &skelpose->delta, &delta, blend);
+
+	vec_scale(delta.position, delta.position, frame);
+	vec_sub(apose[0].position, apose[0].position, delta.position);
 
 	for (si = 0; si < skel->count; si++) {
 		// TODO: bone map
