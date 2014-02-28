@@ -49,6 +49,7 @@ void vec_yup_to_zup(vec3 v);
 void quat_init(vec4 p, float x, float y, float z, float w);
 float quat_dot(const vec4 a, const vec4 b);
 void quat_invert(vec4 out, const vec4 q);
+void quat_copy(vec4 out, const vec4 q);
 void quat_conjugate(vec4 out, const vec4 q);
 void quat_mul(vec4 q, const vec4 a, const vec4 b);
 void quat_normalize(vec4 q, const vec4 a);

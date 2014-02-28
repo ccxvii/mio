@@ -30,10 +30,6 @@ void init_skelpose(struct skelpose *skelpose, struct skel *skel)
 	skelpose->skel = skel;
 	for (i = 0; i < skel->count; i++)
 		skelpose->pose[i] = skel->pose[i];
-
-	vec_init(skelpose->delta.position, 0, 0, 0);
-	quat_init(skelpose->delta.rotation, 0, 0, 0, 1);
-	vec_init(skelpose->delta.scale, 1, 1, 1);
 }
 
 void init_lamp(struct lamp *lamp)
@@ -81,43 +77,6 @@ void update_transform_parent_skel(struct transform *transform,
 	mat_mul44(transform->matrix, parent->matrix, m);
 }
 
-void vec_delta(vec3 p, const vec3 a, const vec3 b, float t)
-{
-	p[0] = t * (b[0] - a[0]);
-	p[1] = t * (b[1] - a[1]);
-	p[2] = t * (b[2] - a[2]);
-}
-
-void quat_delta(vec4 p, const vec4 a, const vec4 b, float t)
-{
-	p[0] = t * (b[0] - a[0]);
-	p[1] = t * (b[1] - a[1]);
-	p[2] = t * (b[2] - a[2]);
-	p[3] = t * (b[3] - a[3]);
-}
-
-void quat_delta_neighbor(vec4 p, const vec4 a, const vec4 b, float t)
-{
-	if (a[0]*b[0] + a[1]*b[1] + a[2]*b[2] + a[3]*b[3] < 0) {
-		vec4 temp = { -a[0], -a[1], -a[2], -a[3] };
-		quat_delta(p, temp, b, t);
-	} else {
-		quat_delta(p, a, b, t);
-	}
-}
-
-void calc_root_delta(struct pose *p, struct anim *anim)
-{
-	struct pose p0, p1;
-
-	float t = 1.0 / (anim->frames - 1);
-	extract_frame_root(&p0, anim, 0);
-	extract_frame_root(&p1, anim, anim->frames - 1);
-
-	vec_delta(p->position, p0.position, p1.position, t);
-	quat_delta_neighbor(p->rotation, p0.rotation, p1.rotation, t);
-}
-
 static mat4 proj;
 static mat4 view;
 
@@ -146,31 +105,31 @@ void render_skelpose(struct transform *transform, struct skelpose *skelpose)
 	draw_end();
 }
 
-void update_transform_root_motion(struct transform *transform, struct skelpose *skelpose)
-{
-	vec_add(transform->position, transform->position, skelpose->delta.position);
-}
-
 void animate_skelpose(struct skelpose *skelpose, struct anim *anim, float frame, float blend)
 {
 	struct skel *skel = skelpose->skel;
 	struct pose *pose = skelpose->pose;
 	struct skel *askel = anim->skel;
 	struct pose apose[MAXBONE];
-	struct pose delta;
 	int si, ai;
 
 	extract_frame(apose, anim, frame);
 
-	calc_root_delta(&delta, anim); // TODO: calc once and save in anim
+	if (anim->loop) {
+		vec3 dpos;
+		vec4 drot, identity, tmp;
+		float t;
 
-	if (blend == 1)
-		skelpose->delta = delta;
-	else
-		pose_lerp(&skelpose->delta, &skelpose->delta, &delta, blend);
+		t = frame / (anim->frames - 1);
+		vec_scale(dpos, anim->motion.position, t);
+		vec_sub(apose[0].position, apose[0].position, dpos);
 
-	vec_scale(delta.position, delta.position, frame);
-	vec_sub(apose[0].position, apose[0].position, delta.position);
+		quat_init(identity, 0, 0, 0, 1);
+		quat_conjugate(drot, anim->motion.rotation);
+		quat_lerp_neighbor_normalize(drot, identity, drot, t);
+		quat_copy(tmp, apose[0].rotation);
+		quat_mul(apose[0].rotation, drot, tmp);
+	}
 
 	for (si = 0; si < skel->count; si++) {
 		// TODO: bone map

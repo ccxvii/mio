@@ -258,6 +258,7 @@ struct anim {
 	float *data;
 	struct anim *next;
 	struct anim_map *anim_map_head;
+	struct pose motion;
 	int mask[MAXBONE];
 	struct pose pose[MAXBONE];
 };
@@ -277,7 +278,6 @@ struct skelpose
 {
 	struct skel *skel;
 	struct pose pose[MAXBONE];
-	struct pose delta;
 };
 
 enum { LAMP_POINT, LAMP_SPOT, LAMP_SUN };

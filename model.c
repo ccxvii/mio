@@ -44,6 +44,18 @@ struct model *load_model(const char *name)
 	if (model)
 		model_cache = insert(model_cache, name, model);
 
+	if (model && model->anim) {
+		struct anim *anim = model->anim;
+		struct pose a_from_org, b_from_org;
+		vec4 org_from_a;
+		extract_frame_root(&a_from_org, anim, 0);
+		extract_frame_root(&b_from_org, anim, anim->frames - 1);
+		vec_sub(anim->motion.position, b_from_org.position, a_from_org.position);
+		quat_conjugate(org_from_a, a_from_org.rotation);
+		quat_mul(anim->motion.rotation, b_from_org.rotation, org_from_a);
+		vec_div(anim->motion.scale, b_from_org.scale, a_from_org.scale);
+	}
+
 	return model;
 }
 

@@ -458,6 +458,14 @@ void quat_init(vec4 p, float x, float y, float z, float w)
 	p[3] = w;
 }
 
+void quat_copy(vec4 q, const vec4 a)
+{
+	q[0] = a[0];
+	q[1] = a[1];
+	q[2] = a[2];
+	q[3] = a[3];
+}
+
 float quat_dot(const vec4 a, const vec4 b)
 {
 	return a[0]*b[0] + a[1]*b[1] + a[2]*b[2] + a[3]*b[3];
