@@ -8,7 +8,6 @@ void warn(const char *fmt, ...)
 	va_start(ap, fmt);
 	vsnprintf(buf, sizeof buf, fmt, ap);
 	va_end(ap);
-	fprintf(stderr, "%s\n", buf);
 	console_printnl(buf);
 }
 
@@ -45,6 +44,7 @@ static void scrollup(void)
 
 void console_putc(int c)
 {
+	putchar(c);
 	if (c == '\n') {
 		scrollup();
 	} else if (tail >= COLS) {
@@ -68,7 +68,7 @@ void console_print(const char *s)
 void console_printnl(const char *s)
 {
 	while (*s) console_putc(*s++);
-	scrollup();
+	console_putc('\n');
 }
 
 void console_printf(const char *fmt, ...)
